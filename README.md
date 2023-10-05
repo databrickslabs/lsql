@@ -10,7 +10,7 @@ Execute SQL statements in a stateless manner.
 ## Installation
 
 ```console
-pip install databricks-labs-lightsql
+pip install databricks-labs-lsql
 ```
 
 ## Usage

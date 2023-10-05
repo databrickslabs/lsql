@@ -4,7 +4,7 @@ import pytest
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.core import DatabricksError
-from databricks.labs.lightsql import Row
+from databricks.labs.lsql import Row
 from databricks.sdk.service.sql import (ColumnInfo, ColumnInfoTypeName,
                                         Disposition, ExecuteStatementResponse,
                                         ExternalLink, Format,

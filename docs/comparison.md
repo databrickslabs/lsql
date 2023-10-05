@@ -150,13 +150,13 @@ Uncompressed:
 ```shell
 databricks-sdk $ python3 -m venv venv
 databricks-sdk $ source ./venv/bin/activate
-(venv) databricks-labs-lightsql $  pip install databricks-sdk
+(venv) databricks-labs-lsql $  pip install databricks-sdk
 ...
 Successfully installed certifi-2023.7.22 charset-normalizer-3.3.0 databricks-sdk-0.10.0 idna-3.4 requests-2.31.0 
 urllib3-2.0.6
-(venv) databricks-labs-lightsql $  du -hs .
+(venv) databricks-labs-lsql $  du -hs .
  30M	.
-(venv) databricks-labs-lightsql $  du -ha . | sort -h -r | head
+(venv) databricks-labs-lsql $  du -ha . | sort -h -r | head
  30M	./venv/lib/python3.11/site-packages
  30M	./venv/lib/python3.11
  30M	./venv/lib

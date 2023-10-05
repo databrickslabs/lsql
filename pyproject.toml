@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "databricks-labs-lightsql"
+name = "databricks-labs-lsql"
 dynamic = ["version"]
-description = 'Lightweight SQL execution wrapper only on top of Databricks SDK'
+description = 'Lightweight stateless SQL execution for Databricks with minimal dependencies'
 readme = "README.md"
 requires-python = ">=3.7"
 license-files = { paths = ["LICENSE", "NOTICE"] }
@@ -28,12 +28,12 @@ classifiers = [
 dependencies = ["databricks-sdk~=0.10.0"]
 
 [project.urls]
-Documentation = "https://github.com/databrickslabs/databricks-labs-lightsql#readme"
-Issues = "https://github.com/databrickslabs/databricks-labs-lightsql/issues"
-Source = "https://github.com/databrickslabs/databricks-labs-lightsql"
+Documentation = "https://github.com/databrickslabs/databricks-labs-lsql#readme"
+Issues = "https://github.com/databrickslabs/databricks-labs-lsql/issues"
+Source = "https://github.com/databrickslabs/databricks-labs-lsql"
 
 [tool.hatch.version]
-path = "src/databricks/labs/lightsql/__about__.py"
+path = "src/databricks/labs/lsql/__about__.py"
 
 [tool.hatch.envs.default]
 python = "python3"
@@ -64,7 +64,7 @@ dependencies = [
   "ruff>=0.0.243",
 ]
 [tool.hatch.envs.lint.scripts]
-typing = "mypy --install-types --non-interactive {args:src/databricks/labs/lightsql tests}"
+typing = "mypy --install-types --non-interactive {args:src/databricks/labs/lsql tests}"
 style = [
   "ruff {args:.}",
   "black --check --diff {args:.}",
@@ -143,12 +143,12 @@ ban-relative-imports = "all"
 branch = true
 parallel = true
 omit = [
-  "src/databricks/labs/lightsql/__about__.py",
+  "src/databricks/labs/lsql/__about__.py",
 ]
 
 [tool.coverage.paths]
-databricks_labs_lightsql = ["src/databricks/labs/lightsql", "*/databricks/labs/lightsql/src/databricks/labs/lightsql"]
-tests = ["tests", "*/databricks/labs/lightsql/tests"]
+databricks_labs_lsql = ["src/databricks/labs/lsql", "*/databricks/labs/lsql/src/databricks/labs/lsql"]
+tests = ["tests", "*/databricks/labs/lsql/tests"]
 
 [tool.coverage.report]
 exclude_lines = [
