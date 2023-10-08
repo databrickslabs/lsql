@@ -1,4 +1,4 @@
-# databricks-labs-lightsql
+# databricks-labs-lsql
 
 [![PyPI - Version](https://img.shields.io/pypi/v/databricks-labs-lightsql.svg)](https://pypi.org/project/databricks-labs-lightsql)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/databricks-labs-lightsql.svg)](https://pypi.org/project/databricks-labs-lightsql)
@@ -13,7 +13,7 @@ Execute SQL statements in a stateless manner.
 pip install databricks-labs-lsql
 ```
 
-## Usage
+## Executing SQL
 
 Primary use-case of :py:meth:`iterate_rows` and :py:meth:`execute` methods is oriented at executing SQL queries in
 a stateless manner straight away from Databricks SDK for Python, without requiring any external dependencies.
@@ -40,6 +40,19 @@ When you only need to execute the query and have no need to iterate over results
 
     w.statement_execution.execute(warehouse_id, 'CREATE TABLE foo AS SELECT * FROM range(10)')
 
+## Working with dataclasses
+
+This framework allows for mapping with strongly-typed dataclasses between SQL and Python runtime.
+
+It handles the schema creation logic purely from Python datastructure.
+
+## Mocking for unit tests
+
+This includes a lightweight framework to map between dataclass instances and different SQL execution backends:
+- `MockBackend` used for unit testing
+- `RuntimeBackend` used for execution within Databricks Runtime
+- `StatementExecutionBackend` used for reading/writing records purely through REST API
+
 ## Pick the library that you need
 
 _Simple applications_, like AWS Lambdas or Azure Functions, and scripts, that are **constrained by the size of external 
@@ -59,6 +72,9 @@ the stateful [Databricks SQL Connector for Python](https://docs.databricks.com/e
 
 | ...                                     | Databricks Connect 2.x                 | Databricks SQL Connector                          | PyODBC + ODBC Driver                              | Databricks Labs LightSQL           |
 |-----------------------------------------|----------------------------------------|---------------------------------------------------|---------------------------------------------------|------------------------------------|
+ | Light-weight mocking                    | no                                     | no                                                | no                                                | **yes**                            |
+ | Extended support for dataclasses        | limited                                | no                                                | no                                                | **yes**                            |
+ | Strengths                               | almost Databricks Runtime, but locally | works with Python ecosystem                       | works with ODBC ecosystem                         | **tiny**                           |
  | Compressed size                         | 60M                                    | 51M (85%)                                         | 44M (73.3%)                                       | **0.8M (1.3%)**                    |
  | Uncompressed size                       | 312M                                   | 280M (89.7%)                                      | ?                                                 | **30M (9.6%)**                     |
  | Direct dependencies                     | 23                                     | 14                                                | 2                                                 | **1** (Python SDK)                 |
@@ -67,9 +83,8 @@ the stateful [Databricks SQL Connector for Python](https://docs.databricks.com/e
  | Full equivalent of Databricks Runtime   | yes                                    | no                                                | no                                                | **no**                             |
  | Efficient memory usage via Apache Arrow | yes                                    | yes                                               | yes                                               | **no**                             |
  | Connection handling                     | stateful                               | stateful                                          | stateful                                          | **stateless**                      |
- | Strengths                               | almost Databricks Runtime, but locally | works with Python ecosystem                       | works with ODBC ecosystem                         | **tiny** (that's it)               |
  | Official                                | yes                                    | yes                                               | yes                                               | **no**                             |
- | Version checked                         | 2.9.3                                  | 14.0.1                                            | driver v2.7.5                                     | 0.1.0                              |
+ | Version checked                         | 14.0.1                                 | 2.9.3                                             | driver v2.7.5                                     | 0.1.0                              |
 
 ## Project Support
 Please note that all projects in the /databrickslabs github account are provided for your exploration only, and are not formally supported by Databricks with Service Level Agreements (SLAs).  They are provided AS-IS and we do not make any guarantees of any kind.  Please do not submit a support ticket relating to any issues arising from the use of these projects.
