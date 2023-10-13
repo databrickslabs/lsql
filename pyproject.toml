@@ -25,7 +25,7 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = ["databricks-sdk~=0.10.0"]
+dependencies = ["databricks-sdk~=0.11.0"]
 
 [project.urls]
 Documentation = "https://github.com/databrickslabs/databricks-labs-lsql#readme"
