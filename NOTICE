@@ -2,6 +2,12 @@ Copyright (2023) Databricks, Inc.
 
 This Software includes software developed at Databricks (https://www.databricks.com/) and its use is subject to the included LICENSE file.
 
+This Software contains code from the following projects, licensed under the Databricks License 2.0:
+
+UCX - https://github.com/databrickslabs/ucx
+Copyright (2023) Databricks, Inc.
+License - https://github.com/databrickslabs/UCX/blob/main/LICENSE
+
 This Software contains code from the following open source projects, licensed under the Apache 2.0 license:
 
 Databricks SDK for Python - https://github.com/databricks/databricks-sdk-py
