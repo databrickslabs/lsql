@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
   "databricks-sdk~=0.18.0",
   "PyYAML>=6.0.0,<7.0.0",
-  "sqlglot~=18.8.0"
+  "sqlglot~=20.11.0"
 ]
 
 [project.urls]
