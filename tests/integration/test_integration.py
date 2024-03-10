@@ -1,14 +1,13 @@
 import functools
 
+from databricks.labs.lsql.lib import StatementExecutionExt
+from databricks.sdk.service.sql import Disposition
 
-def test_sql_execution_chunked(w):
-    all_warehouses = w.warehouses.list()
-    assert len(w.warehouses.list()) > 0, "at least one SQL warehouse required"
-    warehouse_id = all_warehouses[0].id
 
+def test_sql_execution_chunked(ws):
+    see = StatementExecutionExt(ws)
     total = 0
-    fetch = functools.partial(w.statement_execution.iterate_rows, warehouse_id)
-    for (x,) in fetch("SELECT id FROM range(2000000)"):
+    for (x,) in see("SELECT id FROM range(2000000)", disposition=Disposition.EXTERNAL_LINKS):
         total += x
     print(total)
 
