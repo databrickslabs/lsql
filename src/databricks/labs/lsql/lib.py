@@ -6,6 +6,7 @@ import logging
 import random
 import threading
 import time
+import types
 from collections.abc import Iterator
 from datetime import timedelta
 from typing import Any
@@ -34,17 +35,29 @@ MIN_PLATFORM_TIMEOUT = 5
 logger = logging.getLogger(__name__)
 
 
-class _RowCreator(tuple):
-    def __new__(cls, fields):
-        instance = super().__new__(cls, fields)
-        return instance
-
-    def __repr__(self):
-        field_values = ", ".join(f"{field}={getattr(self, field)}" for field in self)
-        return f"{self.__class__.__name__}({field_values})"
-
-
 class Row(tuple):
+    def __new__(cls, *args, **kwargs):
+        if args and kwargs:
+            raise ValueError("cannot mix positional and keyword arguments")
+        if kwargs:
+            # PySpark's compatibility layer
+            row = tuple.__new__(cls, list(kwargs.values()))
+            row.__columns__ = list(kwargs.keys())
+            return row
+        if len(args) == 1 and hasattr(cls, '__columns__') and isinstance(args[0], (types.GeneratorType, list, tuple)):
+            # this type returned by Row.factory() and we already know the column names
+            return cls(*args[0])
+        if len(args) == 2 and isinstance(args[0], (list, tuple)) and isinstance(args[1], (list, tuple)):
+            # UCX's compatibility layer
+            row = tuple.__new__(cls, args[1])
+            row.__columns__ = args[0]
+            return row
+        return tuple.__new__(cls, args)
+
+    @classmethod
+    def factory(cls, col_names: list[str]) -> type:
+        return type("Row", (Row,), {"__columns__": col_names})
+
     # Python SDK convention
     def as_dict(self) -> dict[str, Any]:
         return dict(zip(self.__columns__, self, strict=True))
@@ -60,6 +73,8 @@ class Row(tuple):
         return self.__getattr__(col)
 
     def __getattr__(self, col):
+        if col.startswith("__"):
+            raise AttributeError(col)
         try:
             idx = self.__columns__.index(col)
             return self[idx]
@@ -69,7 +84,7 @@ class Row(tuple):
             raise AttributeError(col) from None
 
     def __repr__(self):
-        return f"Row({', '.join(f'{k}={v}' for (k, v) in zip(self.__columns__, self, strict=True))})"
+        return f"Row({', '.join(f'{k}={v!r}' for (k, v) in zip(self.__columns__, self, strict=True))})"
 
 
 class StatementExecutionExt:
@@ -112,11 +127,12 @@ class StatementExecutionExt:
     the stateful Databricks SQL Connector for Python.
     """
 
-    def __init__(self, ws: WorkspaceClient):
+    def __init__(self, ws: WorkspaceClient, disposition: Disposition | None = None):
         self._ws = ws
         self._api = ws.api_client
         self._http = requests.Session()
         self._lock = threading.Lock()
+        self._disposition = disposition
         self._type_converters = {
             ColumnInfoTypeName.ARRAY: json.loads,
             ColumnInfoTypeName.BINARY: base64.b64decode,
@@ -320,7 +336,6 @@ class StatementExecutionExt:
         catalog: str | None = None,
         schema: str | None = None,
         timeout: timedelta = timedelta(minutes=20),
-        disposition: Disposition | None = None,
     ) -> Iterator[Row]:
         """(Experimental) Execute a query and iterate over all available records.
 
@@ -362,75 +377,50 @@ class StatementExecutionExt:
                                         catalog=catalog,
                                         schema=schema,
                                         timeout=timeout,
-                                        disposition=disposition)
-        if execute_response.result.external_links is None:
-            return []
-        # for row in self._iterate_external_disposition(execute_response):
+                                        disposition=self._disposition)
         result_data = execute_response.result
+        if result_data is None:
+            return []
         row_factory, col_conv = self._result_schema(execute_response)
         while True:
-            next_chunk_index = result_data.next_chunk_index
             if result_data.data_array:
                 for data in result_data.data_array:
                     # enumerate() + iterator + tuple constructor makes it more performant
                     # on larger humber of records for Python, even though it's less
                     # readable code.
                     yield row_factory(col_conv[i](value) for i, value in enumerate(data))
+            next_chunk_index = result_data.next_chunk_index
             for external_link in result_data.external_links:
+                next_chunk_index = external_link.next_chunk_index
                 response = self._http.get(external_link.external_link)
                 response.raise_for_status()
                 for data in response.json():
                     yield row_factory(col_conv[i](value) for i, value in enumerate(data))
-            if next_chunk_index is None:
+            if not next_chunk_index:
                 return
             result_data = self._ws.statement_execution.get_statement_result_chunk_n(
                 execute_response.statement_id,
                 next_chunk_index)
 
     def _result_schema(self, execute_response: ExecuteStatementResponse):
+        manifest = execute_response.manifest
+        if not manifest:
+            msg = f"missing manifest: {execute_response}"
+            raise ValueError(msg)
+        manifest_schema = manifest.schema
+        if not manifest_schema:
+            msg = f"missing schema: {manifest}"
+            raise ValueError(msg)
         col_names = []
         col_conv = []
-        for col in execute_response.manifest.schema.columns:
+        columns = manifest_schema.columns
+        if not columns:
+            columns = []
+        for col in columns:
             col_names.append(col.name)
             conv = self._type_converters.get(col.type_name, None)
             if conv is None:
                 msg = f"{col.name} has no {col.type_name.value} converter"
                 raise ValueError(msg)
             col_conv.append(conv)
-        row_factory = functools.partial(Row, col_names)
-        return row_factory, col_conv
-
-    def _iterate_external_disposition(self, execute_response: ExecuteStatementResponse) -> Iterator[Row]:
-        # ensure that we close the HTTP session after fetching the external links
-        result_data = execute_response.result
-        row_factory, col_conv = self._result_schema(execute_response)
-        with self._api._new_session() as http:
-            while True:
-                for external_link in result_data.external_links:
-                    response = http.get(external_link.external_link)
-                    response.raise_for_status()
-                    for data in response.json():
-                        yield row_factory(col_conv[i](value) for i, value in enumerate(data))
-
-                    if external_link.next_chunk_index is None:
-                        return
-
-                    result_data = self._ws.statement_execution.get_statement_result_chunk_n(execute_response.statement_id,
-                                                                    external_link.next_chunk_index)
-
-    def _iterate_inline_disposition(self, execute_response: ExecuteStatementResponse) -> Iterator[Row]:
-        result_data = execute_response.result
-        row_factory, col_conv = self._result_schema(execute_response)
-        while True:
-            # case for Disposition.INLINE, where we get rows embedded into a response
-            for data in result_data.data_array:
-                # enumerate() + iterator + tuple constructor makes it more performant
-                # on larger humber of records for Python, even though it's less
-                # readable code.
-                yield row_factory(col_conv[i](value) for i, value in enumerate(data))
-
-            if result_data.next_chunk_index is None:
-                return
-
-            result_data = self._ws.statement_execution.get_statement_result_chunk_n(execute_response.statement_id,
-                                                            result_data.next_chunk_index)
+        return Row.factory(col_names), col_conv

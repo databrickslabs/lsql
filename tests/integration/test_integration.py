@@ -1,15 +1,18 @@
 import functools
 
+import pytest
+
 from databricks.labs.lsql.lib import StatementExecutionExt
 from databricks.sdk.service.sql import Disposition
 
 
-def test_sql_execution_chunked(ws):
-    see = StatementExecutionExt(ws)
+@pytest.mark.parametrize("disposition", [None, Disposition.INLINE, Disposition.EXTERNAL_LINKS])
+def test_sql_execution_chunked(ws, disposition):
+    see = StatementExecutionExt(ws, disposition=disposition)
     total = 0
-    for (x,) in see("SELECT id FROM range(2000000)", disposition=Disposition.EXTERNAL_LINKS):
+    for (x,) in see("SELECT id FROM range(2000000)"):
         total += x
-    print(total)
+    assert total == 1999999000000
 
 
 def test_sql_execution(w, env_or_skip):

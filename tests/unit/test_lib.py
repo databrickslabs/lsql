@@ -24,6 +24,41 @@ from databricks.sdk.service.sql import (
 from databricks.labs.lsql.lib import Row
 
 
+@pytest.mark.parametrize('row', [
+    Row(foo="bar", enabled=True),
+    Row(['foo', 'enabled'], ['bar', True]),
+])
+def test_row_from_kwargs(row):
+    assert row.foo == "bar"
+    assert row["foo"] == "bar"
+    assert "foo" in row
+    assert len(row) == 2
+    assert list(row) == ["bar", True]
+    assert row.as_dict() == {"foo": "bar", "enabled": True}
+    foo, enabled = row
+    assert foo == "bar"
+    assert enabled is True
+    assert str(row) == "Row(foo='bar', enabled=True)"
+    with pytest.raises(AttributeError):
+        print(row.x)
+
+
+def test_row_factory():
+    factory = Row.factory(["a", "b"])
+    row = factory(1, 2)
+    a, b = row
+    assert a == 1
+    assert b == 2
+
+
+def test_row_factory_with_generator():
+    factory = Row.factory(["a", "b"])
+    row = factory(_+1 for _ in range(2))
+    a, b = row
+    assert a == 1
+    assert b == 2
+
+
 def test_execute_poll_succeeds(config, mocker):
     w = WorkspaceClient(config=config)
 
@@ -244,25 +279,3 @@ def test_fetch_all_two_chunks(config, mocker):
 
     assert http_get.call_args_list == [mocker.call("https://first"), mocker.call("https://second")]
     next_chunk.assert_called_with("bcd", 1)
-
-
-def test_row():
-    row = Row(["a", "b", "c"], [1, 2, 3])
-
-    a, b, c = row
-    assert a == 1
-    assert b == 2
-    assert c == 3
-
-    assert "a" in row
-    assert row.a == 1
-    assert row["a"] == 1
-
-    as_dict = row.as_dict()
-    assert as_dict == row.asDict()
-    assert as_dict["b"] == 2
-
-    assert "Row(a=1, b=2, c=3)" == str(row)
-
-    with pytest.raises(AttributeError):
-        print(row.x)
