@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import Any
 
 import requests
+import sqlglot
 from databricks.sdk import WorkspaceClient, errors
 from databricks.sdk.errors import DataLoss, NotFound
 from databricks.sdk.service.sql import (
@@ -127,11 +128,22 @@ class StatementExecutionExt:
     the stateful Databricks SQL Connector for Python.
     """
 
-    def __init__(self, ws: WorkspaceClient, disposition: Disposition | None = None):
+    def __init__(self, ws: WorkspaceClient,
+                 disposition: Disposition | None = None,
+                 warehouse_id: str | None = None,
+                 byte_limit: int | None = None,
+                 catalog: str | None = None,
+                 schema: str | None = None,
+                 timeout: timedelta = timedelta(minutes=20)):
         self._ws = ws
         self._api = ws.api_client
         self._http = requests.Session()
         self._lock = threading.Lock()
+        self._warehouse_id = warehouse_id
+        self._schema = schema
+        self._timeout = timeout
+        self._catalog = catalog
+        self._byte_limit = byte_limit
         self._disposition = disposition
         self._type_converters = {
             ColumnInfoTypeName.ARRAY: json.loads,
@@ -153,16 +165,19 @@ class StatementExecutionExt:
 
     @staticmethod
     def _parse_date(value: str) -> datetime.date:
+        """Parse date from string in ISO format."""
         year, month, day = value.split('-')
         return datetime.date(int(year), int(month), int(day))
 
     @staticmethod
     def _parse_timestamp(value: str) -> datetime.datetime:
+        """Parse timestamp from string in ISO format."""
         # make it work with Python 3.7 to 3.10 as well
         return datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
 
     @staticmethod
     def _raise_if_needed(status: StatementStatus):
+        """Raise an exception if the statement status is failed, canceled, or closed."""
         if status.state not in [StatementState.FAILED, StatementState.CANCELED, StatementState.CLOSED]:
             return
         status_error = status.error
@@ -202,8 +217,14 @@ class StatementExecutionExt:
         raise error_class(error_message)
 
     def _default_warehouse(self) -> str:
+        """Get the default warehouse id from the workspace client configuration
+        or DATABRICKS_WAREHOUSE_ID environment variable. If not set, it will use
+        the first available warehouse that is not in the DELETED or DELETING state."""
         with self._lock:
+            if self._warehouse_id:
+                return self._warehouse_id
             if self._ws.config.warehouse_id:
+                self._warehouse_id = self._ws.config.warehouse_id
                 return self._ws.config.warehouse_id
             ids = []
             for v in self._ws.warehouses.list():
@@ -227,8 +248,7 @@ class StatementExecutionExt:
         byte_limit: int | None = None,
         catalog: str | None = None,
         schema: str | None = None,
-        timeout: timedelta = timedelta(minutes=20),
-        disposition: Disposition | None = None,
+        timeout: timedelta | None = None,
     ) -> ExecuteStatementResponse:
         """(Experimental) Execute a SQL statement and block until results are ready,
         including starting the warehouse if needed.
@@ -264,26 +284,20 @@ class StatementExecutionExt:
         """
         # The wait_timeout field must be 0 seconds (disables wait),
         # or between 5 seconds and 50 seconds.
-        wait_timeout = None
-        if MIN_PLATFORM_TIMEOUT <= timeout.total_seconds() <= MAX_PLATFORM_TIMEOUT:
-            # set server-side timeout
-            wait_timeout = f"{timeout.total_seconds()}s"
-        if not warehouse_id:
-            warehouse_id = self._default_warehouse()
-
+        timeout, wait_timeout = self._statement_timeouts(timeout)
         logger.debug(f"Executing SQL statement: {statement}")
 
         # technically, we can do Disposition.EXTERNAL_LINKS, but let's push it further away.
         # format is limited to Format.JSON_ARRAY, but other iterations may include ARROW_STREAM.
         immediate_response = self._ws.statement_execution.execute_statement(
-            warehouse_id=warehouse_id,
             statement=statement,
-            catalog=catalog,
-            schema=schema,
-            disposition=disposition,
-            format=Format.JSON_ARRAY,
-            byte_limit=byte_limit,
+            warehouse_id=warehouse_id or self._default_warehouse(),
+            catalog=catalog or self._catalog,
+            schema=schema or self._schema,
+            disposition=self._disposition,
+            byte_limit=byte_limit or self._byte_limit,
             wait_timeout=wait_timeout,
+            format=Format.JSON_ARRAY,
         )
 
         status = immediate_response.status
@@ -324,10 +338,19 @@ class StatementExecutionExt:
         msg = f"timed out after {timeout}: {status_message}"
         raise TimeoutError(msg)
 
-    def __call__(self, *args, **kwargs):
-        yield from self.execute_fetch_all(*args, **kwargs)
+    def _statement_timeouts(self, timeout):
+        if timeout is None:
+            timeout = self._timeout
+        wait_timeout = None
+        if MIN_PLATFORM_TIMEOUT <= timeout.total_seconds() <= MAX_PLATFORM_TIMEOUT:
+            # set server-side timeout
+            wait_timeout = f"{timeout.total_seconds()}s"
+        return timeout, wait_timeout
 
-    def execute_fetch_all(
+    def __call__(self, statement: str):
+        yield from self.fetch_all(statement)
+
+    def fetch_all(
         self,
         statement: str,
         *,
@@ -335,9 +358,9 @@ class StatementExecutionExt:
         byte_limit: int | None = None,
         catalog: str | None = None,
         schema: str | None = None,
-        timeout: timedelta = timedelta(minutes=20),
+        timeout: timedelta | None = None,
     ) -> Iterator[Row]:
-        """(Experimental) Execute a query and iterate over all available records.
+        """Execute a query and iterate over all available records.
 
         This method is a wrapper over :py:meth:`execute` with the handling of chunked result
         processing and deserialization of those into separate rows, which are yielded from
@@ -376,8 +399,7 @@ class StatementExecutionExt:
                                         byte_limit=byte_limit,
                                         catalog=catalog,
                                         schema=schema,
-                                        timeout=timeout,
-                                        disposition=self._disposition)
+                                        timeout=timeout)
         result_data = execute_response.result
         if result_data is None:
             return []
@@ -401,6 +423,51 @@ class StatementExecutionExt:
             result_data = self._ws.statement_execution.get_statement_result_chunk_n(
                 execute_response.statement_id,
                 next_chunk_index)
+
+    def fetch_one(self, statement: str, **kwargs) -> Row | None:
+        """Execute a query and fetch the first available record.
+
+        This method is a wrapper over :py:meth:`fetch_all` and fetches only the first row
+        from the result set. If no records are available, it returns `None`.
+
+        .. code-block::
+
+            row = see.fetch_one('SELECT * FROM samples.nyctaxi.trips LIMIT 1')
+            if row:
+                pickup_time, dropoff_time = row[0], row[1]
+                pickup_zip = row.pickup_zip
+                dropoff_zip = row['dropoff_zip']
+                all_fields = row.as_dict()
+                print(f'{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}')
+
+        :param statement: str
+          SQL statement to execute
+        :return: Row | None
+        """
+        statement = self._add_limit(statement)
+        for row in self.fetch_all(statement, **kwargs):
+            return row
+        return None
+
+    def fetch_value(self, statement: str, **kwargs) -> Any | None:
+        """Execute a query and fetch the first available value."""
+        for v, in self.fetch_all(statement, **kwargs):
+            return v
+        return None
+
+    def _add_limit(self, statement: str) -> str:
+        # parse with sqlglot if there's a limit statement
+        statements = sqlglot.parse(statement, read="databricks")
+        if not statements:
+            raise ValueError(f"cannot parse statement: {statement}")
+        statement_ast = statements[0]
+        if isinstance(statement_ast, sqlglot.expressions.Select):
+            if statement_ast.limit is not None:
+                limit_text = statement_ast.args.get('limit').text('expression')
+                if limit_text != '1':
+                    raise ValueError(f"limit is not 1: {limit_text}")
+            return statement_ast.limit(expression=1).sql('databricks')
+        return statement
 
     def _result_schema(self, execute_response: ExecuteStatementResponse):
         manifest = execute_response.manifest

@@ -21,7 +21,7 @@ from databricks.sdk.service.sql import (
     timedelta,
 )
 
-from databricks.labs.lsql.lib import Row
+from databricks.labs.lsql.core import Row
 
 
 @pytest.mark.parametrize('row', [

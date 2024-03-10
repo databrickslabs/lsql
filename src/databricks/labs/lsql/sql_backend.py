@@ -17,7 +17,7 @@ from databricks.sdk.errors import (
     Unknown,
 )
 
-from databricks.labs.lsql.lib import Row, StatementExecutionExt
+from databricks.labs.lsql.core import Row, StatementExecutionExt
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ class StatementExecutionBackend(SqlBackend):
 
     def fetch(self, sql: str) -> Iterator[Row]:
         logger.debug(f"[api][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
-        return self._sql.execute_fetch_all(self._warehouse_id, sql)
+        return self._sql.fetch_all(self._warehouse_id, sql)
 
     def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode="append"):
         if mode == "overwrite":

@@ -4,8 +4,9 @@ import os
 import pathlib
 import string
 import sys
-from typing import MutableMapping
+from typing import MutableMapping, Callable
 
+import pytest
 from databricks.sdk import WorkspaceClient
 from pytest import fixture
 
@@ -76,3 +77,16 @@ def ws(product_info, debug_env) -> WorkspaceClient:
     product_name, product_version = product_info
     return WorkspaceClient(host=debug_env["DATABRICKS_HOST"], product=product_name, product_version=product_version)
 
+
+@pytest.fixture
+def env_or_skip(debug_env) -> Callable[[str], str]:
+    skip = pytest.skip
+    if _is_in_debug():
+        skip = pytest.fail  # type: ignore[assignment]
+
+    def inner(var: str) -> str:
+        if var not in debug_env:
+            skip(f"Environment variable {var} is missing")
+        return debug_env[var]
+
+    return inner

@@ -1,3 +1,4 @@
-from .lib import Row
+from .core import Row
 
 __all__ = ["Row"]
+
