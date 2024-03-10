@@ -1,4 +1,5 @@
 import datetime
+from unittest.mock import create_autospec
 
 import pytest
 from databricks.sdk import WorkspaceClient
@@ -21,7 +22,7 @@ from databricks.sdk.service.sql import (
     timedelta,
 )
 
-from databricks.labs.lsql.core import Row
+from databricks.labs.lsql.core import Row, StatementExecutionExt
 
 
 @pytest.mark.parametrize('row', [
@@ -59,42 +60,36 @@ def test_row_factory_with_generator():
     assert b == 2
 
 
-def test_execute_poll_succeeds(config, mocker):
-    w = WorkspaceClient(config=config)
-
-    execute_statement = mocker.patch(
-        "databricks.sdk.service.sql.StatementExecutionAPI.execute_statement",
-        return_value=ExecuteStatementResponse(
-            status=StatementStatus(state=StatementState.PENDING),
-            statement_id="bcd",
-        ),
+def test_execute_poll_succeeds():
+    ws = create_autospec(WorkspaceClient)
+    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+        status=StatementStatus(state=StatementState.PENDING),
+        statement_id="bcd",
+    )
+    ws.statement_execution.get_statement.return_value = GetStatementResponse(
+        manifest=ResultManifest(),
+        result=ResultData(byte_count=100500),
+        statement_id="bcd",
+        status=StatementStatus(state=StatementState.SUCCEEDED),
     )
 
-    get_statement = mocker.patch(
-        "databricks.sdk.service.sql.StatementExecutionAPI.get_statement",
-        return_value=GetStatementResponse(
-            manifest=ResultManifest(),
-            result=ResultData(byte_count=100500),
-            statement_id="bcd",
-            status=StatementStatus(state=StatementState.SUCCEEDED),
-        ),
-    )
+    see = StatementExecutionExt(ws)
 
-    response = w.statement_execution.execute("abc", "SELECT 2+2")
+    response = see.execute("SELECT 2+2", warehouse_id="abc")
 
     assert response.status.state == StatementState.SUCCEEDED
     assert response.result.byte_count == 100500
-    execute_statement.assert_called_with(
+    ws.statement_execution.execute_statement.assert_called_with(
         warehouse_id="abc",
         statement="SELECT 2+2",
-        disposition=Disposition.EXTERNAL_LINKS,
         format=Format.JSON_ARRAY,
+        disposition=None,
         byte_limit=None,
         catalog=None,
         schema=None,
         wait_timeout=None,
     )
-    get_statement.assert_called_with("bcd")
+    ws.statement_execution.get_statement.assert_called_with("bcd")
 
 
 def test_execute_fails(config, mocker):
