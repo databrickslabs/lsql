@@ -1,9 +1,9 @@
 import logging
 
 import pytest
+from databricks.sdk.service.sql import Disposition
 
 from databricks.labs.lsql.core import StatementExecutionExt
-from databricks.sdk.service.sql import Disposition
 
 logger = logging.getLogger(__name__)
 
@@ -21,21 +21,20 @@ def test_sql_execution(ws, env_or_skip):
     results = []
     see = StatementExecutionExt(ws, warehouse_id=env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
     for pickup_zip, dropoff_zip in see.fetch_all(
-        "SELECT pickup_zip, dropoff_zip FROM nyctaxi.trips LIMIT 10",
-        catalog="samples"
+        "SELECT pickup_zip, dropoff_zip FROM nyctaxi.trips LIMIT 10", catalog="samples"
     ):
         results.append((pickup_zip, dropoff_zip))
     assert results == [
-         (10282, 10171),
-         (10110, 10110),
-         (10103, 10023),
-         (10022, 10017),
-         (10110, 10282),
-         (10009, 10065),
-         (10153, 10199),
-         (10112, 10069),
-         (10023, 10153),
-         (10012, 10003)
+        (10282, 10171),
+        (10110, 10110),
+        (10103, 10023),
+        (10022, 10017),
+        (10110, 10282),
+        (10009, 10065),
+        (10153, 10199),
+        (10112, 10069),
+        (10023, 10153),
+        (10012, 10003),
     ]
 
 
@@ -59,7 +58,7 @@ def test_sql_execution_partial(ws, env_or_skip):
         (10153, 10199),
         (10112, 10069),
         (10023, 10153),
-        (10012, 10003)
+        (10012, 10003),
     ]
 
 

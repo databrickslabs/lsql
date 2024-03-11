@@ -4,14 +4,14 @@ import os
 import pathlib
 import string
 import sys
-from typing import MutableMapping, Callable
+from typing import Callable, MutableMapping
 
 import pytest
+from databricks.labs.blueprint.logger import install_logger
 from databricks.sdk import WorkspaceClient
 from pytest import fixture
 
 from databricks.labs.lsql.__about__ import __version__
-from databricks.labs.blueprint.logger import install_logger
 
 install_logger()
 logging.getLogger("databricks").setLevel("DEBUG")

@@ -1,15 +1,14 @@
 import base64
 import datetime
-import functools
 import json
 import logging
 import random
 import threading
 import time
 import types
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import timedelta
-from typing import Any, Callable
+from typing import Any
 
 import requests
 import sqlglot
@@ -20,11 +19,11 @@ from databricks.sdk.service.sql import (
     Disposition,
     ExecuteStatementResponse,
     Format,
-    ResultData,
     ServiceError,
     ServiceErrorCode,
+    State,
     StatementState,
-    StatementStatus, State,
+    StatementStatus,
 )
 
 MAX_SLEEP_PER_ATTEMPT = 10
@@ -38,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 class Row(tuple):
     """Row is a tuple with named fields that resembles PySpark's SQL Row API."""
+
     def __new__(cls, *args, **kwargs):
         """Create a new instance of Row."""
         if args and kwargs:
@@ -47,7 +47,7 @@ class Row(tuple):
             row = tuple.__new__(cls, list(kwargs.values()))
             row.__columns__ = list(kwargs.keys())
             return row
-        if len(args) == 1 and hasattr(cls, '__columns__') and isinstance(args[0], (types.GeneratorType, list, tuple)):
+        if len(args) == 1 and hasattr(cls, "__columns__") and isinstance(args[0], (types.GeneratorType, list, tuple)):
             # this type returned by Row.factory() and we already know the column names
             return cls(*args[0])
         if len(args) == 2 and isinstance(args[0], (list, tuple)) and isinstance(args[1], (list, tuple)):
@@ -115,19 +115,21 @@ class StatementExecutionExt:
     megabytes or gigabytes of data serialized in Apache Arrow format, and low result fetching latency, should use
     the stateful Databricks SQL Connector for Python."""
 
-    def __init__(self, ws: WorkspaceClient,
-                 disposition: Disposition | None = None,
-                 warehouse_id: str | None = None,
-                 byte_limit: int | None = None,
-                 catalog: str | None = None,
-                 schema: str | None = None,
-                 timeout: timedelta = timedelta(minutes=20),
-                 disable_magic: bool = False,
-                 http_session_factory: Callable[[], requests.Session] | None = None):
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        ws: WorkspaceClient,
+        disposition: Disposition | None = None,
+        warehouse_id: str | None = None,
+        byte_limit: int | None = None,
+        catalog: str | None = None,
+        schema: str | None = None,
+        timeout: timedelta = timedelta(minutes=20),
+        disable_magic: bool = False,
+        http_session_factory: Callable[[], requests.Session] | None = None,
+    ):
         if not http_session_factory:
             http_session_factory = requests.Session
         self._ws = ws
-        self._api = ws.api_client
         self._http = http_session_factory()
         self._lock = threading.Lock()
         self._warehouse_id = warehouse_id
@@ -301,15 +303,13 @@ class StatementExecutionExt:
             Timeout after which the query is cancelled. See :py:meth:`execute` for more details.
         :return: Iterator[Row]
         """
-        execute_response = self.execute(statement,
-                                        warehouse_id=warehouse_id,
-                                        byte_limit=byte_limit,
-                                        catalog=catalog,
-                                        schema=schema,
-                                        timeout=timeout)
+        execute_response = self.execute(
+            statement, warehouse_id=warehouse_id, byte_limit=byte_limit, catalog=catalog, schema=schema, timeout=timeout
+        )
+        assert execute_response.statement_id is not None
         result_data = execute_response.result
         if result_data is None:
-            return []
+            return
         row_factory, col_conv = self._result_schema(execute_response)
         while True:
             if result_data.data_array:
@@ -318,6 +318,7 @@ class StatementExecutionExt:
             next_chunk_index = result_data.next_chunk_index
             if result_data.external_links:
                 for external_link in result_data.external_links:
+                    assert external_link.external_link is not None
                     next_chunk_index = external_link.next_chunk_index
                     response = self._http.get(external_link.external_link)
                     response.raise_for_status()
@@ -326,8 +327,8 @@ class StatementExecutionExt:
             if not next_chunk_index:
                 return
             result_data = self._ws.statement_execution.get_statement_result_chunk_n(
-                execute_response.statement_id,
-                next_chunk_index)
+                execute_response.statement_id, next_chunk_index
+            )
 
     def fetch_one(self, statement: str, disable_magic: bool = False, **kwargs) -> Row | None:
         """Execute a query and fetch the first available record.
@@ -360,11 +361,11 @@ class StatementExecutionExt:
 
     def fetch_value(self, statement: str, **kwargs) -> Any | None:
         """Execute a query and fetch the first available value."""
-        for v, in self.fetch_all(statement, **kwargs):
+        for (v,) in self.fetch_all(statement, **kwargs):
             return v
         return None
 
-    def _statement_timeouts(self, timeout):
+    def _statement_timeouts(self, timeout) -> tuple[timedelta, str | None]:
         """Set server-side and client-side timeouts for statement execution."""
         if timeout is None:
             timeout = self._timeout
@@ -372,19 +373,20 @@ class StatementExecutionExt:
         if MIN_PLATFORM_TIMEOUT <= timeout.total_seconds() <= MAX_PLATFORM_TIMEOUT:
             # set server-side timeout
             wait_timeout = f"{timeout.total_seconds()}s"
+        assert timeout is not None
         return timeout, wait_timeout
 
     @staticmethod
     def _parse_date(value: str) -> datetime.date:
         """Parse date from string in ISO format."""
-        year, month, day = value.split('-')
+        year, month, day = value.split("-")
         return datetime.date(int(year), int(month), int(day))
 
     @staticmethod
     def _parse_timestamp(value: str) -> datetime.datetime:
         """Parse timestamp from string in ISO format."""
         # make it work with Python 3.7 to 3.10 as well
-        return datetime.datetime.fromisoformat(value.replace('Z', '+00:00'))
+        return datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
 
     @staticmethod
     def _raise_if_needed(status: StatementStatus):
@@ -440,9 +442,10 @@ class StatementExecutionExt:
                 return self._ws.config.warehouse_id
             ids = []
             for v in self._ws.warehouses.list():
+                assert v.id is not None
                 if v.state in [State.DELETED, State.DELETING]:
                     continue
-                elif v.state == State.RUNNING:
+                if v.state == State.RUNNING:
                     self._ws.config.warehouse_id = v.id
                     return self._ws.config.warehouse_id
                 ids.append(v.id)
@@ -450,9 +453,11 @@ class StatementExecutionExt:
                 # otherwise - first warehouse
                 self._ws.config.warehouse_id = ids[0]
                 return self._ws.config.warehouse_id
-            raise ValueError("no warehouse_id=... given, "
-                             "neither it is set in the WorkspaceClient(..., warehouse_id=...), "
-                             "nor in the DATABRICKS_WAREHOUSE_ID environment variable")
+            raise ValueError(
+                "no warehouse_id=... given, "
+                "neither it is set in the WorkspaceClient(..., warehouse_id=...), "
+                "nor in the DATABRICKS_WAREHOUSE_ID environment variable"
+            )
 
     @staticmethod
     def _add_limit(statement: str) -> str:
@@ -463,10 +468,10 @@ class StatementExecutionExt:
         statement_ast = statements[0]
         if isinstance(statement_ast, sqlglot.expressions.Select):
             if statement_ast.limit is not None:
-                limit = statement_ast.args.get('limit', None)
-                if limit and limit.text('expression') != '1':
+                limit = statement_ast.args.get("limit", None)
+                if limit and limit.text("expression") != "1":
                     raise ValueError(f"limit is not 1: {limit.text('expression')}")
-            return statement_ast.limit(expression=1).sql('databricks')
+            return statement_ast.limit(expression=1).sql("databricks")
         return statement
 
     def _result_schema(self, execute_response: ExecuteStatementResponse):
@@ -485,6 +490,8 @@ class StatementExecutionExt:
         if not columns:
             columns = []
         for col in columns:
+            assert col.name is not None
+            assert col.type_name is not None
             col_names.append(col.name)
             conv = self._type_converters.get(col.type_name, None)
             if conv is None:

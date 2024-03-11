@@ -2,20 +2,34 @@ import os
 import sys
 from dataclasses import dataclass
 from unittest import mock
-from unittest.mock import create_autospec, MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
-from databricks.labs.lsql import Row
-from databricks.labs.lsql.backends import StatementExecutionBackend, RuntimeBackend, MockBackend
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.sql import ExecuteStatementResponse, StatementStatus, StatementState, Disposition, Format, \
-    ResultManifest, ResultSchema, ColumnInfo, ColumnInfoTypeName, ResultData
 from databricks.sdk.errors import (
     BadRequest,
     DataLoss,
     NotFound,
     PermissionDenied,
     Unknown,
+)
+from databricks.sdk.service.sql import (
+    ColumnInfo,
+    ColumnInfoTypeName,
+    ExecuteStatementResponse,
+    Format,
+    ResultData,
+    ResultManifest,
+    ResultSchema,
+    StatementState,
+    StatementStatus,
+)
+
+from databricks.labs.lsql import Row
+from databricks.labs.lsql.backends import (
+    MockBackend,
+    RuntimeBackend,
+    StatementExecutionBackend,
 )
 
 # pylint: disable=protected-access
@@ -67,9 +81,7 @@ def test_statement_execution_backend_fetch_happy():
 
     ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
-        manifest=ResultManifest(
-            schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])
-        ),
+        manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["1"], ["2"], ["3"]]),
         statement_id="bcd",
     )
@@ -101,7 +113,7 @@ def test_statement_execution_backend_save_table_empty_records():
     ws.statement_execution.execute_statement.assert_called_with(
         warehouse_id="abc",
         statement="CREATE TABLE IF NOT EXISTS a.b.c "
-                  "(first STRING NOT NULL, second BOOLEAN NOT NULL, third FLOAT NOT NULL) USING DELTA",
+        "(first STRING NOT NULL, second BOOLEAN NOT NULL, third FLOAT NOT NULL) USING DELTA",
         catalog=None,
         schema=None,
         disposition=None,
@@ -122,28 +134,30 @@ def test_statement_execution_backend_save_table_two_records():
 
     seb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
 
-    ws.statement_execution.execute_statement.assert_has_calls([
-        mock.call(
-            warehouse_id="abc",
-            statement="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
-            catalog=None,
-            schema=None,
-            disposition=None,
-            format=Format.JSON_ARRAY,
-            byte_limit=None,
-            wait_timeout=None,
-        ),
-        mock.call(
-            warehouse_id="abc",
-            statement="INSERT INTO a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
-            catalog=None,
-            schema=None,
-            disposition=None,
-            format=Format.JSON_ARRAY,
-            byte_limit=None,
-            wait_timeout=None,
-        ),
-    ])
+    ws.statement_execution.execute_statement.assert_has_calls(
+        [
+            mock.call(
+                warehouse_id="abc",
+                statement="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            mock.call(
+                warehouse_id="abc",
+                statement="INSERT INTO a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+        ]
+    )
 
 
 def test_statement_execution_backend_save_table_in_batches_of_two(mocker):
@@ -157,38 +171,40 @@ def test_statement_execution_backend_save_table_in_batches_of_two(mocker):
 
     seb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo)
 
-    ws.statement_execution.execute_statement.assert_has_calls([
-        mock.call(
-            warehouse_id="abc",
-            statement="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
-            catalog=None,
-            schema=None,
-            disposition=None,
-            format=Format.JSON_ARRAY,
-            byte_limit=None,
-            wait_timeout=None,
-        ),
-        mock.call(
-            warehouse_id="abc",
-            statement="INSERT INTO a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
-            catalog=None,
-            schema=None,
-            disposition=None,
-            format=Format.JSON_ARRAY,
-            byte_limit=None,
-            wait_timeout=None,
-        ),
-        mock.call(
-            warehouse_id="abc",
-            statement="INSERT INTO a.b.c (first, second) VALUES ('ccc', TRUE)",
-            catalog=None,
-            schema=None,
-            disposition=None,
-            format=Format.JSON_ARRAY,
-            byte_limit=None,
-            wait_timeout=None,
-        ),
-    ])
+    ws.statement_execution.execute_statement.assert_has_calls(
+        [
+            mock.call(
+                warehouse_id="abc",
+                statement="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            mock.call(
+                warehouse_id="abc",
+                statement="INSERT INTO a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            mock.call(
+                warehouse_id="abc",
+                statement="INSERT INTO a.b.c (first, second) VALUES ('ccc', TRUE)",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+        ]
+    )
 
 
 def test_runtime_backend_execute():
@@ -270,21 +286,25 @@ def test_save_table_with_not_null_constraint_violated():
 
         runtime_backend = RuntimeBackend()
 
-        with pytest.raises(Exception,
-                           match="Not null constraint violated for column key, row = {'key': None, 'value': 'value'}"):
+        with pytest.raises(
+            Exception, match="Not null constraint violated for column key, row = {'key': None, 'value': 'value'}"
+        ):
             runtime_backend.save_table("a.b.c", rows, DummyClass)
 
 
-@pytest.mark.parametrize('msg,err_t', [
-    ("SCHEMA_NOT_FOUND foo schema does not exist", NotFound),
-    (".. TABLE_OR_VIEW_NOT_FOUND ..", NotFound),
-    (".. UNRESOLVED_COLUMN.WITH_SUGGESTION ..", BadRequest),
-    ("DELTA_TABLE_NOT_FOUND foo table does not exist", NotFound),
-    ("DELTA_MISSING_TRANSACTION_LOG foo table does not exist", DataLoss),
-    ("PARSE_SYNTAX_ERROR foo", BadRequest),
-    ("foo Operation not allowed", PermissionDenied),
-    ("foo error failure", Unknown),
-])
+@pytest.mark.parametrize(
+    "msg,err_t",
+    [
+        ("SCHEMA_NOT_FOUND foo schema does not exist", NotFound),
+        (".. TABLE_OR_VIEW_NOT_FOUND ..", NotFound),
+        (".. UNRESOLVED_COLUMN.WITH_SUGGESTION ..", BadRequest),
+        ("DELTA_TABLE_NOT_FOUND foo table does not exist", NotFound),
+        ("DELTA_MISSING_TRANSACTION_LOG foo table does not exist", DataLoss),
+        ("PARSE_SYNTAX_ERROR foo", BadRequest),
+        ("foo Operation not allowed", PermissionDenied),
+        ("foo error failure", Unknown),
+    ],
+)
 def test_runtime_backend_error_mapping_similar_to_statement_execution(msg, err_t):
     with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
         pyspark_sql_session = MagicMock()
@@ -303,16 +323,14 @@ def test_runtime_backend_error_mapping_similar_to_statement_execution(msg, err_t
 
 
 def test_mock_backend_fails_on_first():
-    mock_backend = MockBackend(fails_on_first={"CREATE": '.. DELTA_TABLE_NOT_FOUND ..'})
+    mock_backend = MockBackend(fails_on_first={"CREATE": ".. DELTA_TABLE_NOT_FOUND .."})
 
     with pytest.raises(NotFound):
         mock_backend.execute("CREATE TABLE foo")
 
 
 def test_mock_backend_rows():
-    mock_backend = MockBackend(rows={
-        r"SELECT id FROM range\(3\)": [Row(id=1), Row(id=2), Row(id=3)]
-    })
+    mock_backend = MockBackend(rows={r"SELECT id FROM range\(3\)": [Row(id=1), Row(id=2), Row(id=3)]})
 
     result = list(mock_backend.fetch("SELECT id FROM range(3)"))
 
@@ -325,6 +343,6 @@ def test_mock_backend_save_table():
     mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
 
     assert mock_backend.rows_written_for("a.b.c", "append") == [
-        Row(first='aaa', second=True),
-        Row(first='bbb', second=False),
+        Row(first="aaa", second=True),
+        Row(first="bbb", second=False),
     ]

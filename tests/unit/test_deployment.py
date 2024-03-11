@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from databricks.labs.lsql.backends import MockBackend
 from databricks.labs.lsql.deployment import SchemaDeployer
+
 from . import views
 
 
@@ -13,10 +14,10 @@ def test_deploys_view():
         mod=views,
     )
 
-    deployment.deploy_view('some', 'some.sql')
+    deployment.deploy_view("some", "some.sql")
 
     assert mock_backend.queries == [
-        'CREATE OR REPLACE VIEW hive_metastore.inventory.some AS SELECT id, name FROM hive_metastore.inventory.something'
+        "CREATE OR REPLACE VIEW hive_metastore.inventory.some AS SELECT id, name FROM hive_metastore.inventory.something"
     ]
 
 
@@ -34,12 +35,11 @@ def test_deploys_dataclass():
         mod=views,
     )
     deployment.deploy_schema()
-    deployment.deploy_table('foo', Foo)
+    deployment.deploy_table("foo", Foo)
     deployment.delete_schema()
 
     assert mock_backend.queries == [
-        'CREATE SCHEMA IF NOT EXISTS hive_metastore.inventory',
-        'CREATE TABLE IF NOT EXISTS hive_metastore.inventory.foo (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA',
-        'DROP SCHEMA IF EXISTS hive_metastore.inventory CASCADE'
+        "CREATE SCHEMA IF NOT EXISTS hive_metastore.inventory",
+        "CREATE TABLE IF NOT EXISTS hive_metastore.inventory.foo (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
+        "DROP SCHEMA IF EXISTS hive_metastore.inventory CASCADE",
     ]
-

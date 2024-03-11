@@ -1,14 +1,13 @@
 import datetime
-import requests
 from unittest.mock import create_autospec
 
 import pytest
-from databricks.sdk import WorkspaceClient
-from databricks.sdk import errors
+import requests
+from databricks.sdk import WorkspaceClient, errors
 from databricks.sdk.service.sql import (
     ColumnInfo,
     ColumnInfoTypeName,
-    Disposition,
+    EndpointInfo,
     ExecuteStatementResponse,
     ExternalLink,
     Format,
@@ -18,18 +17,22 @@ from databricks.sdk.service.sql import (
     ResultSchema,
     ServiceError,
     ServiceErrorCode,
+    State,
     StatementState,
     StatementStatus,
-    timedelta, EndpointInfo, State,
+    timedelta,
 )
 
 from databricks.labs.lsql.core import Row, StatementExecutionExt
 
 
-@pytest.mark.parametrize('row', [
-    Row(foo="bar", enabled=True),
-    Row(['foo', 'enabled'], ['bar', True]),
-])
+@pytest.mark.parametrize(
+    "row",
+    [
+        Row(foo="bar", enabled=True),
+        Row(["foo", "enabled"], ["bar", True]),
+    ],
+)
 def test_row_from_kwargs(row):
     assert row.foo == "bar"
     assert row["foo"] == "bar"
@@ -55,7 +58,7 @@ def test_row_factory():
 
 def test_row_factory_with_generator():
     factory = Row.factory(["a", "b"])
-    row = factory(_+1 for _ in range(2))
+    row = factory(_ + 1 for _ in range(2))
     a, b = row
     assert a == 1
     assert b == 2
@@ -182,17 +185,20 @@ def test_execute_poll_succeeds():
     ws.statement_execution.get_statement.assert_called_with("bcd")
 
 
-@pytest.mark.parametrize("status_error,platform_error_type", [
-    (None, errors.Unknown),
-    (ServiceError(), errors.Unknown),
-    (ServiceError(message="..."), errors.Unknown),
-    (ServiceError(error_code=ServiceErrorCode.RESOURCE_EXHAUSTED, message="..."), errors.ResourceExhausted),
-    (ServiceError(message="... SCHEMA_NOT_FOUND ..."), errors.NotFound),
-    (ServiceError(message="... TABLE_OR_VIEW_NOT_FOUND ..."), errors.NotFound),
-    (ServiceError(message="... DELTA_TABLE_NOT_FOUND ..."), errors.NotFound),
-    (ServiceError(message="... DELTA_TABLE_NOT_FOUND ..."), errors.NotFound),
-    (ServiceError(message="... DELTA_MISSING_TRANSACTION_LOG ..."), errors.DataLoss),
-])
+@pytest.mark.parametrize(
+    "status_error,platform_error_type",
+    [
+        (None, errors.Unknown),
+        (ServiceError(), errors.Unknown),
+        (ServiceError(message="..."), errors.Unknown),
+        (ServiceError(error_code=ServiceErrorCode.RESOURCE_EXHAUSTED, message="..."), errors.ResourceExhausted),
+        (ServiceError(message="... SCHEMA_NOT_FOUND ..."), errors.NotFound),
+        (ServiceError(message="... TABLE_OR_VIEW_NOT_FOUND ..."), errors.NotFound),
+        (ServiceError(message="... DELTA_TABLE_NOT_FOUND ..."), errors.NotFound),
+        (ServiceError(message="... DELTA_TABLE_NOT_FOUND ..."), errors.NotFound),
+        (ServiceError(message="... DELTA_MISSING_TRANSACTION_LOG ..."), errors.DataLoss),
+    ],
+)
 def test_execute_fails(status_error, platform_error_type):
     ws = create_autospec(WorkspaceClient)
 
@@ -205,6 +211,7 @@ def test_execute_fails(status_error, platform_error_type):
 
     with pytest.raises(platform_error_type):
         see.execute("SELECT 2+2")
+
 
 def test_execute_poll_waits():
     ws = create_autospec(WorkspaceClient)
@@ -278,9 +285,7 @@ def test_fetch_all_no_chunks():
 
     see = StatementExecutionExt(ws, warehouse_id="abc", http_session_factory=lambda: http_session)
 
-    rows = list(
-        see.fetch_all("SELECT id, CAST(NOW() AS DATE) AS since, NOW() AS now FROM range(2)")
-    )
+    rows = list(see.fetch_all("SELECT id, CAST(NOW() AS DATE) AS since, NOW() AS now FROM range(2)"))
 
     assert len(rows) == 2
     assert rows[0].id == 1
@@ -358,9 +363,7 @@ def test_fetch_one():
 
     ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
-        manifest=ResultManifest(
-            schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])
-        ),
+        manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["4"]]),
         statement_id="bcd",
     )
@@ -388,9 +391,7 @@ def test_fetch_one_none():
 
     ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
-        manifest=ResultManifest(
-            schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])
-        ),
+        manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         statement_id="bcd",
     )
 
@@ -406,9 +407,7 @@ def test_fetch_one_disable_magic():
 
     ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
-        manifest=ResultManifest(
-            schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])
-        ),
+        manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["4"], ["5"], ["6"]]),
         statement_id="bcd",
     )
@@ -436,9 +435,7 @@ def test_fetch_value():
 
     ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
-        manifest=ResultManifest(
-            schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])
-        ),
+        manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["4"]]),
         statement_id="bcd",
     )
@@ -455,9 +452,7 @@ def test_fetch_value_none():
 
     ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
-        manifest=ResultManifest(
-            schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])
-        ),
+        manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         statement_id="bcd",
     )
 
@@ -473,9 +468,7 @@ def test_callable_returns_iterator():
 
     ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
-        manifest=ResultManifest(
-            schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])
-        ),
+        manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["4"], ["5"], ["6"]]),
         statement_id="bcd",
     )

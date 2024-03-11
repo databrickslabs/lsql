@@ -155,7 +155,7 @@ class StatementExecutionBackend(SqlBackend):
             self.execute(sql)
 
     @staticmethod
-    def _row_to_sql(row: DataclassInstance, fields: list[dataclasses.Field]):
+    def _row_to_sql(row: DataclassInstance, fields: tuple[dataclasses.Field[Any], ...]):
         data = []
         for f in fields:
             value = getattr(row, f.name)
@@ -215,8 +215,11 @@ class RuntimeBackend(_SparkBackend):
             msg = "Not in the Databricks Runtime"
             raise RuntimeError(msg)
         try:
-            # pylint: disable-next=import-error,import-outside-toplevel
-            from pyspark.sql.session import SparkSession  # type: ignore[import-not-found]
+            # pylint: disable-next=import-error,import-outside-toplevel,useless-suppression
+            from pyspark.sql.session import (  # type: ignore[import-not-found]
+                SparkSession,
+            )
+
             super().__init__(SparkSession.builder.getOrCreate(), debug_truncate_bytes)
         except ImportError as e:
             raise RuntimeError("pyspark is not available") from e
@@ -225,7 +228,11 @@ class RuntimeBackend(_SparkBackend):
 class DatabricksConnectBackend(_SparkBackend):
     def __init__(self, ws: WorkspaceClient):
         try:
-            from databricks.connect import DatabricksSession
+            # pylint: disable-next=import-outside-toplevel
+            from databricks.connect import (  # type: ignore[import-untyped]
+                DatabricksSession,
+            )
+
             spark = DatabricksSession.builder().sdk_config(ws.config).getOrCreate()
             super().__init__(spark, ws.config.debug_truncate_bytes)
         except ImportError as e:
@@ -233,7 +240,9 @@ class DatabricksConnectBackend(_SparkBackend):
 
 
 class MockBackend(SqlBackend):
-    def __init__(self, *, fails_on_first: dict[str,str] | None = None, rows: dict | None = None, debug_truncate_bytes=96):
+    def __init__(
+        self, *, fails_on_first: dict[str, str] | None = None, rows: dict | None = None, debug_truncate_bytes=96
+    ):
         self._fails_on_first = fails_on_first
         if not rows:
             rows = {}
