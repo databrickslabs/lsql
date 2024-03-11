@@ -1,5 +1,45 @@
 # Library size comparison
 
+<!-- TOC -->
+* [Library size comparison](#library-size-comparison)
+  * [Pick the library that you need](#pick-the-library-that-you-need)
+  * [Databricks Connect](#databricks-connect)
+  * [Databricks SQL Connector](#databricks-sql-connector)
+  * [Databricks Labs LightSQL](#databricks-labs-lightsql)
+<!-- TOC -->
+
+## Pick the library that you need
+
+_Simple applications_, like AWS Lambdas or Azure Functions, and scripts, that are **constrained by the size of external 
+dependencies** or **cannot depend on compiled libraries**, like `pyarrow` (88M), `pandas` (71M), `numpy` (60M), 
+`libarrow` (41M), `cygrpc` (30M), `libopenblas64` (22M), **need less than 5M of dependencies** (see [detailed report](docs/comparison.md)), 
+experience the [Unified Authentication](https://docs.databricks.com/en/dev-tools/auth.html#databricks-client-unified-authentication), and **work only with Databricks SQL Warehouses**, should use this library. 
+
+Applications, that need the full power of Databricks Runtime locally with the full velocity of PySpark SDL, experience
+the [Unified Authentication](https://docs.databricks.com/en/dev-tools/auth.html#databricks-client-unified-authentication) 
+across all Databricks tools, efficient data transfer serialized in Apache Arrow format, and low result fetching latency, 
+should use the stateful [Databricks Connect 2.x](https://docs.databricks.com/en/dev-tools/databricks-connect/index.html).
+
+Applications, that need to a more traditional SQL Python APIs with cursors, efficient data transfer of hundreds of
+megabytes or gigabytes of data serialized in Apache Arrow format, and low result fetching latency, should use
+the stateful [Databricks SQL Connector for Python](https://docs.databricks.com/en/dev-tools/python-sql-connector.html).
+
+| ...                                     | Databricks Connect 2.x                 | Databricks SQL Connector                          | PyODBC + ODBC Driver                              | Databricks Labs LightSQL           |
+|-----------------------------------------|----------------------------------------|---------------------------------------------------|---------------------------------------------------|------------------------------------|
+ | Light-weight mocking                    | no                                     | no                                                | no                                                | **yes**                            |
+ | Extended support for dataclasses        | limited                                | no                                                | no                                                | **yes**                            |
+ | Strengths                               | almost Databricks Runtime, but locally | works with Python ecosystem                       | works with ODBC ecosystem                         | **tiny**                           |
+ | Compressed size                         | 60M                                    | 51M (85%)                                         | 44M (73.3%)                                       | **0.8M (1.3%)**                    |
+ | Uncompressed size                       | 312M                                   | 280M (89.7%)                                      | ?                                                 | **30M (9.6%)**                     |
+ | Direct dependencies                     | 23                                     | 14                                                | 2                                                 | **1** (Python SDK)                 |
+ | Unified Authentication                  | yes (via Python SDK)                   | no                                                | no                                                | **yes** (via Python SDK)           |
+ | Works with                              | Databricks Clusters only               | Databricks Clusters and Databricks SQL Warehouses | Databricks Clusters and Databricks SQL Warehouses | **Databricks SQL Warehouses only** |
+ | Full equivalent of Databricks Runtime   | yes                                    | no                                                | no                                                | **no**                             |
+ | Efficient memory usage via Apache Arrow | yes                                    | yes                                               | yes                                               | **no**                             |
+ | Connection handling                     | stateful                               | stateful                                          | stateful                                          | **stateless**                      |
+ | Official                                | yes                                    | yes                                               | yes                                               | **no**                             |
+ | Version checked                         | 14.0.1                                 | 2.9.3                                             | driver v2.7.5                                     | 0.1.0                              |
+
 
 ## Databricks Connect
 
@@ -67,7 +107,7 @@ Direct dependencies       23
 ```
 
 
-### Databricks SQL Connector
+## Databricks SQL Connector
 
 Compressed:
 
@@ -138,11 +178,9 @@ Compressed:
 
 ```shell
 $ cd $(mktemp -d) && pip3 wheel databricks-sdk && echo "All wheels $(du -hs)" && echo "1Mb+ wheels: $(find . -type f -size +1M | xargs du -h | sort -h -r)" && cd -
-All wheels:
-816K
-
+All wheels 1.8M	.
 1Mb+ wheels:
-0
+~
 ```
 
 Uncompressed:

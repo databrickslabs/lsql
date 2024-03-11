@@ -32,6 +32,14 @@ ResultFn = Callable[[], Iterable[Result]]
 
 
 class SqlBackend(ABC):
+    """Abstract base class for SQL backends.
+
+    This class is used to define the interface for SQL backends. It is used to
+    define the methods that are required to be implemented by any SQL backend
+    that is used by the library. The methods defined in this class are used to
+    execute SQL statements, fetch results from SQL statements, and save data
+    to tables."""
+
     @abstractmethod
     def execute(self, sql: str) -> None:
         raise NotImplementedError
