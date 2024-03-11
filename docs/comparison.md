@@ -29,9 +29,9 @@ the stateful [Databricks SQL Connector for Python](https://docs.databricks.com/e
  | Light-weight mocking                    | no                                     | no                                                | no                                                | **yes**                            |
  | Extended support for dataclasses        | limited                                | no                                                | no                                                | **yes**                            |
  | Strengths                               | almost Databricks Runtime, but locally | works with Python ecosystem                       | works with ODBC ecosystem                         | **tiny**                           |
- | Compressed size                         | 60M                                    | 51M (85%)                                         | 44M (73.3%)                                       | **0.8M (1.3%)**                    |
- | Uncompressed size                       | 312M                                   | 280M (89.7%)                                      | ?                                                 | **30M (9.6%)**                     |
- | Direct dependencies                     | 23                                     | 14                                                | 2                                                 | **1** (Python SDK)                 |
+ | Compressed size                         | 60M                                    | 51M (85%)                                         | 44M (73.3%)                                       | **2M (3.3%)**                      |
+ | Uncompressed size                       | 312M                                   | 280M (89.7%)                                      | ?                                                 | **43M (13.7%)**                    |
+ | Direct dependencies                     | 23                                     | 14                                                | 2                                                 | **3** (Python SDK, SQLglot)        |
  | Unified Authentication                  | yes (via Python SDK)                   | no                                                | no                                                | **yes** (via Python SDK)           |
  | Works with                              | Databricks Clusters only               | Databricks Clusters and Databricks SQL Warehouses | Databricks Clusters and Databricks SQL Warehouses | **Databricks SQL Warehouses only** |
  | Full equivalent of Databricks Runtime   | yes                                    | no                                                | no                                                | **no**                             |
@@ -40,6 +40,7 @@ the stateful [Databricks SQL Connector for Python](https://docs.databricks.com/e
  | Official                                | yes                                    | yes                                               | yes                                               | **no**                             |
  | Version checked                         | 14.0.1                                 | 2.9.3                                             | driver v2.7.5                                     | 0.1.0                              |
 
+[[back to top](#library-size-comparison)]
 
 ## Databricks Connect
 
@@ -106,6 +107,7 @@ urllib3-2.0.6
 Direct dependencies       23
 ```
 
+[[back to top](#library-size-comparison)]
 
 ## Databricks SQL Connector
 
@@ -172,13 +174,16 @@ thrift-0.16.0 typing-extensions-4.8.0 tzdata-2023.3 urllib3-2.0.6
 Direct dependencies       14
 ```
 
+[[back to top](#library-size-comparison)]
+
 ## Databricks Labs LightSQL
 
 Compressed:
 
 ```shell
-$ cd $(mktemp -d) && pip3 wheel databricks-sdk && echo "All wheels $(du -hs)" && echo "1Mb+ wheels: $(find . -type f -size +1M | xargs du -h | sort -h -r)" && cd -
-All wheels 1.8M	.
+$ cd $(mktemp -d) && pip3 wheel databricks-labs-lsql && echo "All wheels $(du -hs)" && echo "1Mb+ wheels: $(find . -type f -size +1M | xargs du -h | sort -h -r)" && cd -
+All wheels 
+2.0M	.
 1Mb+ wheels:
 ~
 ```
@@ -188,21 +193,22 @@ Uncompressed:
 ```shell
 databricks-sdk $ python3 -m venv venv
 databricks-sdk $ source ./venv/bin/activate
-(venv) databricks-labs-lsql $  pip install databricks-sdk
+(venv) databricks-labs-lsql $ pip install databricks-labs-lsql
 ...
-Successfully installed certifi-2023.7.22 charset-normalizer-3.3.0 databricks-sdk-0.10.0 idna-3.4 requests-2.31.0 
-urllib3-2.0.6
+Successfully installed cachetools-5.3.3 certifi-2024.2.2 charset-normalizer-3.3.2 databricks-labs-blueprint-0.2.5 databricks-labs-lsql-0.1.0 databricks-sdk-0.21.0 google-auth-2.28.2 idna-3.6 pyasn1-0.5.1 pyasn1-modules-0.3.0 requests-2.31.0 rsa-4.9 sqlglot-22.2.1
 (venv) databricks-labs-lsql $  du -hs .
- 30M	.
+ 43M	.
 (venv) databricks-labs-lsql $  du -ha . | sort -h -r | head
- 30M	./venv/lib/python3.11/site-packages
- 30M	./venv/lib/python3.11
- 30M	./venv/lib
- 30M	./venv
- 30M	.
+ 43M	./venv/lib/python3.11/site-packages
+ 43M	./venv/lib/python3.11
+ 43M	./venv/lib
+ 43M	./venv
+ 43M	.
  16M	./venv/lib/python3.11/site-packages/pip
  13M	./venv/lib/python3.11/site-packages/pip/_vendor
-5.2M	./venv/lib/python3.11/site-packages/setuptools
-4.4M	./venv/lib/python3.11/site-packages/databricks/sdk
-4.4M	./venv/lib/python3.11/site-packages/databricks
+6.3M	./venv/lib/python3.11/site-packages/databricks
+5.9M	./venv/lib/python3.11/site-packages/databricks/sdk
+5.3M	./venv/lib/python3.11/site-packages/setuptools
 ```
+
+[[back to top](#library-size-comparison)]

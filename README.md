@@ -4,7 +4,7 @@ Databricks Labs LSQL
 [![PyPI - Version](https://img.shields.io/pypi/v/databricks-labs-lightsql.svg)](https://pypi.org/project/databricks-labs-lsql)
 [![build](https://github.com/databrickslabs/ucx/actions/workflows/push.yml/badge.svg)](https://github.com/databrickslabs/lsql/actions/workflows/push.yml) [![codecov](https://codecov.io/github/databrickslabs/lsql/graph/badge.svg?token=p0WKAfW5HQ)](https://codecov.io/github/databrickslabs/ucx)  [![lines of code](https://tokei.rs/b1/github/databrickslabs/lsql)]([https://codecov.io/github/databrickslabs/lsql](https://github.com/databrickslabs/lsql))
 
-Execute SQL statements in a stateless manner.
+[Lightweight](https://github.com/databrickslabs/lsql/blob/main/docs/comparison.md) execution of SQL queries through Databricks SDK for Python.
 
 <!-- TOC -->
 * [Databricks Labs LSQL](#databricks-labs-lsql)
