@@ -39,6 +39,7 @@ class SqlBackend(ABC):
     that is used by the library. The methods defined in this class are used to
     execute SQL statements, fetch results from SQL statements, and save data
     to tables."""
+
     @abstractmethod
     def execute(self, sql: str) -> None:
         raise NotImplementedError
