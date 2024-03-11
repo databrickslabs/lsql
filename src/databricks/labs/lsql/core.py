@@ -9,7 +9,7 @@ import time
 import types
 from collections.abc import Iterator
 from datetime import timedelta
-from typing import Any
+from typing import Any, Callable
 
 import requests
 import sqlglot
@@ -134,15 +134,20 @@ class StatementExecutionExt:
                  byte_limit: int | None = None,
                  catalog: str | None = None,
                  schema: str | None = None,
-                 timeout: timedelta = timedelta(minutes=20)):
+                 timeout: timedelta = timedelta(minutes=20),
+                 disable_magic: bool = False,
+                 http_session_factory: Callable[[], requests.Session] | None = None):
+        if not http_session_factory:
+            http_session_factory = requests.Session
         self._ws = ws
         self._api = ws.api_client
-        self._http = requests.Session()
+        self._http = http_session_factory()
         self._lock = threading.Lock()
         self._warehouse_id = warehouse_id
         self._schema = schema
         self._timeout = timeout
         self._catalog = catalog
+        self._disable_magic = disable_magic
         self._byte_limit = byte_limit
         self._disposition = disposition
         self._type_converters = {
@@ -223,7 +228,8 @@ class StatementExecutionExt:
         with self._lock:
             if self._warehouse_id:
                 return self._warehouse_id
-            if self._ws.config.warehouse_id:
+            # if we create_autospec(WorkspaceClient), the warehouse_id is a MagicMock
+            if isinstance(self._ws.config.warehouse_id, str) and self._ws.config.warehouse_id:
                 self._warehouse_id = self._ws.config.warehouse_id
                 return self._ws.config.warehouse_id
             ids = []
@@ -234,11 +240,13 @@ class StatementExecutionExt:
                     self._ws.config.warehouse_id = v.id
                     return self._ws.config.warehouse_id
                 ids.append(v.id)
-            if self._ws.config.warehouse_id == "" and len(ids) > 0:
+            if len(ids) > 0:
                 # otherwise - first warehouse
                 self._ws.config.warehouse_id = ids[0]
                 return self._ws.config.warehouse_id
-            raise ValueError("no warehouse id given")
+            raise ValueError("no warehouse_id=... given, "
+                             "neither it is set in the WorkspaceClient(..., warehouse_id=...), "
+                             "nor in the DATABRICKS_WAREHOUSE_ID environment variable")
 
     def execute(
         self,
@@ -407,24 +415,22 @@ class StatementExecutionExt:
         while True:
             if result_data.data_array:
                 for data in result_data.data_array:
-                    # enumerate() + iterator + tuple constructor makes it more performant
-                    # on larger humber of records for Python, even though it's less
-                    # readable code.
                     yield row_factory(col_conv[i](value) for i, value in enumerate(data))
             next_chunk_index = result_data.next_chunk_index
-            for external_link in result_data.external_links:
-                next_chunk_index = external_link.next_chunk_index
-                response = self._http.get(external_link.external_link)
-                response.raise_for_status()
-                for data in response.json():
-                    yield row_factory(col_conv[i](value) for i, value in enumerate(data))
+            if result_data.external_links:
+                for external_link in result_data.external_links:
+                    next_chunk_index = external_link.next_chunk_index
+                    response = self._http.get(external_link.external_link)
+                    response.raise_for_status()
+                    for data in response.json():
+                        yield row_factory(col_conv[i](value) for i, value in enumerate(data))
             if not next_chunk_index:
                 return
             result_data = self._ws.statement_execution.get_statement_result_chunk_n(
                 execute_response.statement_id,
                 next_chunk_index)
 
-    def fetch_one(self, statement: str, **kwargs) -> Row | None:
+    def fetch_one(self, statement: str, disable_magic: bool = False, **kwargs) -> Row | None:
         """Execute a query and fetch the first available record.
 
         This method is a wrapper over :py:meth:`fetch_all` and fetches only the first row
@@ -441,10 +447,14 @@ class StatementExecutionExt:
                 print(f'{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}')
 
         :param statement: str
-          SQL statement to execute
+            SQL statement to execute
+        :param disable_magic: bool (optional)
+            Disables the magic of adding `LIMIT 1` to the statement. By default, it is `False`.
         :return: Row | None
         """
-        statement = self._add_limit(statement)
+        disable_magic = disable_magic or self._disable_magic
+        if not disable_magic:
+            statement = self._add_limit(statement)
         for row in self.fetch_all(statement, **kwargs):
             return row
         return None
@@ -455,7 +465,8 @@ class StatementExecutionExt:
             return v
         return None
 
-    def _add_limit(self, statement: str) -> str:
+    @staticmethod
+    def _add_limit(statement: str) -> str:
         # parse with sqlglot if there's a limit statement
         statements = sqlglot.parse(statement, read="databricks")
         if not statements:
@@ -463,9 +474,9 @@ class StatementExecutionExt:
         statement_ast = statements[0]
         if isinstance(statement_ast, sqlglot.expressions.Select):
             if statement_ast.limit is not None:
-                limit_text = statement_ast.args.get('limit').text('expression')
-                if limit_text != '1':
-                    raise ValueError(f"limit is not 1: {limit_text}")
+                limit = statement_ast.args.get('limit', None)
+                if limit and limit.text('expression') != '1':
+                    raise ValueError(f"limit is not 1: {limit.text('expression')}")
             return statement_ast.limit(expression=1).sql('databricks')
         return statement
 

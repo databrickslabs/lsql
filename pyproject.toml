@@ -31,6 +31,14 @@ Documentation = "https://github.com/databrickslabs/databricks-labs-lsql#readme"
 Issues = "https://github.com/databrickslabs/databricks-labs-lsql/issues"
 Source = "https://github.com/databrickslabs/databricks-labs-lsql"
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+sources = ["src"]
+include = ["src"]
+
 [tool.hatch.version]
 path = "src/databricks/labs/lsql/__about__.py"
 
