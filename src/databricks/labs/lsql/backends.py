@@ -123,7 +123,7 @@ class SqlBackend(ABC):
 
 class StatementExecutionBackend(SqlBackend):
     def __init__(self, ws: WorkspaceClient, warehouse_id, *, max_records_per_batch: int = 1000):
-        self._sql = StatementExecutionExt(ws)
+        self._sql = StatementExecutionExt(ws, warehouse_id=warehouse_id)
         self._warehouse_id = warehouse_id
         self._max_records_per_batch = max_records_per_batch
         debug_truncate_bytes = ws.config.debug_truncate_bytes
@@ -132,11 +132,11 @@ class StatementExecutionBackend(SqlBackend):
 
     def execute(self, sql: str) -> None:
         logger.debug(f"[api][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
-        self._sql.execute(self._warehouse_id, sql)
+        self._sql.execute(sql)
 
     def fetch(self, sql: str) -> Iterator[Row]:
         logger.debug(f"[api][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
-        return self._sql.fetch_all(self._warehouse_id, sql)
+        return self._sql.fetch_all(sql)
 
     def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode="append"):
         if mode == "overwrite":
@@ -155,7 +155,7 @@ class StatementExecutionBackend(SqlBackend):
             self.execute(sql)
 
     @staticmethod
-    def _row_to_sql(row, fields):
+    def _row_to_sql(row: DataclassInstance, fields: list[dataclasses.Field]):
         data = []
         for f in fields:
             value = getattr(row, f.name)
@@ -177,17 +177,10 @@ class StatementExecutionBackend(SqlBackend):
         return ", ".join(data)
 
 
-class RuntimeBackend(SqlBackend):
-    def __init__(self, debug_truncate_bytes: int | None = None):
-        # pylint: disable-next=import-error,import-outside-toplevel
-        from pyspark.sql.session import SparkSession  # type: ignore[import-not-found]
-
-        if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
-            msg = "Not in the Databricks Runtime"
-            raise RuntimeError(msg)
-
-        self._spark = SparkSession.builder.getOrCreate()
-        self._debug_truncate_bytes = debug_truncate_bytes if debug_truncate_bytes else 96
+class _SparkBackend(SqlBackend):
+    def __init__(self, spark, debug_truncate_bytes):
+        self._spark = spark
+        self._debug_truncate_bytes = debug_truncate_bytes if debug_truncate_bytes is not None else 96
 
     def execute(self, sql: str) -> None:
         logger.debug(f"[spark][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
@@ -216,8 +209,31 @@ class RuntimeBackend(SqlBackend):
         df.write.saveAsTable(full_name, mode=mode)
 
 
+class RuntimeBackend(_SparkBackend):
+    def __init__(self, debug_truncate_bytes: int | None = None):
+        if "DATABRICKS_RUNTIME_VERSION" not in os.environ:
+            msg = "Not in the Databricks Runtime"
+            raise RuntimeError(msg)
+        try:
+            # pylint: disable-next=import-error,import-outside-toplevel
+            from pyspark.sql.session import SparkSession  # type: ignore[import-not-found]
+            super().__init__(SparkSession.builder.getOrCreate(), debug_truncate_bytes)
+        except ImportError as e:
+            raise RuntimeError("pyspark is not available") from e
+
+
+class DatabricksConnectBackend(_SparkBackend):
+    def __init__(self, ws: WorkspaceClient):
+        try:
+            from databricks.connect import DatabricksSession
+            spark = DatabricksSession.builder().sdk_config(ws.config).getOrCreate()
+            super().__init__(spark, ws.config.debug_truncate_bytes)
+        except ImportError as e:
+            raise RuntimeError("Please run `pip install databricks-connect`") from e
+
+
 class MockBackend(SqlBackend):
-    def __init__(self, *, fails_on_first: dict | None = None, rows: dict | None = None, debug_truncate_bytes=96):
+    def __init__(self, *, fails_on_first: dict[str,str] | None = None, rows: dict | None = None, debug_truncate_bytes=96):
         self._fails_on_first = fails_on_first
         if not rows:
             rows = {}
@@ -250,8 +266,14 @@ class MockBackend(SqlBackend):
         logger.debug(f"Returning rows: {rows}")
         return iter(rows)
 
-    def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass, mode: str = "append"):
+    def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode: str = "append"):
+        if mode == "overwrite":
+            msg = "Overwrite mode is not yet supported"
+            raise NotImplementedError(msg)
+        rows = self._filter_none_rows(rows, klass)
         if klass.__class__ == type:
+            row_factory = self._row_factory(klass)
+            rows = [row_factory(*dataclasses.astuple(r)) for r in rows]
             self._save_table.append((full_name, rows, mode))
 
     def rows_written_for(self, full_name: str, mode: str) -> list[DataclassInstance]:
@@ -261,3 +283,7 @@ class MockBackend(SqlBackend):
                 continue
             rows += stub_rows
         return rows
+
+    @staticmethod
+    def _row_factory(klass: Dataclass) -> type:
+        return Row.factory([f.name for f in dataclasses.fields(klass)])

@@ -2,7 +2,7 @@ import logging
 import pkgutil
 from typing import Any
 
-from databricks.labs.lsql.sql_backend import Dataclass, SqlBackend
+from databricks.labs.lsql.backends import Dataclass, SqlBackend
 
 logger = logging.getLogger(__name__)
 
