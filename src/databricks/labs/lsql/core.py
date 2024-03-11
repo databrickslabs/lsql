@@ -37,7 +37,9 @@ logger = logging.getLogger(__name__)
 
 
 class Row(tuple):
+    """Row is a tuple with named fields that resembles PySpark's SQL Row API."""
     def __new__(cls, *args, **kwargs):
+        """Create a new instance of Row."""
         if args and kwargs:
             raise ValueError("cannot mix positional and keyword arguments")
         if kwargs:
@@ -57,23 +59,26 @@ class Row(tuple):
 
     @classmethod
     def factory(cls, col_names: list[str]) -> type:
+        """Create a new Row class with the given column names."""
         return type("Row", (Row,), {"__columns__": col_names})
 
-    # Python SDK convention
     def as_dict(self) -> dict[str, Any]:
+        """Convert the row to a dictionary with the same conventions as Databricks SDK."""
         return dict(zip(self.__columns__, self, strict=True))
 
-    # PySpark convention
     def __contains__(self, item):
+        """Check if the column is in the row."""
         return item in self.__columns__
 
     def __getitem__(self, col):
+        """Get the column by index or name."""
         if isinstance(col, int | slice):
             return super().__getitem__(col)
         # if columns are named `2 + 2`, for example
         return self.__getattr__(col)
 
     def __getattr__(self, col):
+        """Get the column by name."""
         if col.startswith("__"):
             raise AttributeError(col)
         try:
@@ -85,48 +90,30 @@ class Row(tuple):
             raise AttributeError(col) from None
 
     def __repr__(self):
+        """Get the string representation of the row."""
         return f"Row({', '.join(f'{k}={v!r}' for (k, v) in zip(self.__columns__, self, strict=True))})"
 
 
 class StatementExecutionExt:
-    """
-    Execute SQL statements in a stateless manner.
+    """Execute SQL statements in a stateless manner.
 
-    Primary use-case of :py:meth:`iterate_rows` and :py:meth:`execute` methods is oriented at executing SQL queries in
+    Primary use-case of :py:meth:`fetch_all` and :py:meth:`execute` methods is oriented at executing SQL queries in
     a stateless manner straight away from Databricks SDK for Python, without requiring any external dependencies.
     Results are fetched in JSON format through presigned external links. This is perfect for serverless applications
     like AWS Lambda, Azure Functions, or any other containerised short-lived applications, where container startup
     time is faster with the smaller dependency set.
 
-    .. code-block:
+    >>> for (pickup_zip, dropoff_zip) in see('SELECT pickup_zip, dropoff_zip FROM samples.nyctaxi.trips LIMIT 10'):
+    >>>     print(f'pickup_zip={pickup_zip}, dropoff_zip={dropoff_zip}')
 
-        for (pickup_zip, dropoff_zip) in w.statement_execution.iterate_rows(warehouse_id,
-            'SELECT pickup_zip, dropoff_zip FROM nyctaxi.trips LIMIT 10', catalog='samples'):
-            print(f'pickup_zip={pickup_zip}, dropoff_zip={dropoff_zip}')
-
-    Method :py:meth:`iterate_rows` returns an iterator of objects, that resemble :class:`pyspark.sql.Row` APIs, but full
-    compatibility is not the goal of this implementation.
-
-    .. code-block::
-
-        iterate_rows = functools.partial(w.statement_execution.iterate_rows, warehouse_id, catalog='samples')
-        for row in iterate_rows('SELECT * FROM nyctaxi.trips LIMIT 10'):
-            pickup_time, dropoff_time = row[0], row[1]
-            pickup_zip = row.pickup_zip
-            dropoff_zip = row['dropoff_zip']
-            all_fields = row.as_dict()
-            print(f'{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}')
+    Method :py:meth:`fetch_all` returns an iterator of objects, that resemble :class:`pyspark.sql.Row` APIs, but full
+    compatibility is not the goal of this implementation. See :class:`Row` for more details.
 
     When you only need to execute the query and have no need to iterate over results, use the :py:meth:`execute`.
 
-    .. code-block::
-
-        w.statement_execution.execute(warehouse_id, 'CREATE TABLE foo AS SELECT * FROM range(10)')
-
     Applications, that need to a more traditional SQL Python APIs with cursors, efficient data transfer of hundreds of
     megabytes or gigabytes of data serialized in Apache Arrow format, and low result fetching latency, should use
-    the stateful Databricks SQL Connector for Python.
-    """
+    the stateful Databricks SQL Connector for Python."""
 
     def __init__(self, ws: WorkspaceClient,
                  disposition: Disposition | None = None,
@@ -167,6 +154,225 @@ class StatementExecutionExt:
             ColumnInfoTypeName.STRUCT: json.loads,
             ColumnInfoTypeName.TIMESTAMP: self._parse_timestamp,
         }
+
+    def execute(
+        self,
+        statement: str,
+        *,
+        warehouse_id: str | None = None,
+        byte_limit: int | None = None,
+        catalog: str | None = None,
+        schema: str | None = None,
+        timeout: timedelta | None = None,
+    ) -> ExecuteStatementResponse:
+        """Execute a SQL statement and block until results are ready, including starting
+        the warehouse if needed.
+
+        This is a high-level implementation that works with fetching records in JSON format.
+        It can be considered as a quick way to run SQL queries by just depending on
+        Databricks SDK for Python without the need of any other compiled library dependencies.
+
+        This method is a higher-level wrapper over Databricks SDK and fetches results
+        in JSON format through the external link disposition, with client-side polling until
+        the statement succeeds in execution. Whenever the statement is failed, cancelled, or
+        closed, this method raises `DatabricksError` subclass with the state message and
+        the relevant error code.
+
+        To seamlessly iterate over the rows from query results, please use :py:meth:`fetch_all`.
+
+        :param statement: str
+          SQL statement to execute
+        :param warehouse_id: str (optional)
+            Warehouse upon which to execute a statement. If not given, it will use the warehouse specified
+            in the constructor or the first available warehouse that is not in the DELETED or DELETING state.
+        :param byte_limit: int (optional)
+            Applies the given byte limit to the statement's result size. Byte counts are based on internal
+            representations and may not match measurable sizes in the JSON format.
+        :param catalog: str (optional)
+            Sets default catalog for statement execution, similar to `USE CATALOG` in SQL. If not given,
+            it will use the default catalog or the catalog specified in the constructor.
+        :param schema: str (optional)
+            Sets default schema for statement execution, similar to `USE SCHEMA` in SQL. If not given,
+            it will use the default schema or the schema specified in the constructor.
+        :param timeout: timedelta (optional)
+            Timeout after which the query is cancelled. If timeout is less than 50 seconds,
+            it is handled on the server side. If the timeout is greater than 50 seconds,
+            Databricks SDK for Python cancels the statement execution and throws `TimeoutError`.
+            If not given, it will use the timeout specified in the constructor.
+        :return: ExecuteStatementResponse
+        """
+        # The wait_timeout field must be 0 seconds (disables wait),
+        # or between 5 seconds and 50 seconds.
+        timeout, wait_timeout = self._statement_timeouts(timeout)
+        logger.debug(f"Executing SQL statement: {statement}")
+
+        # technically, we can do Disposition.EXTERNAL_LINKS, but let's push it further away.
+        # format is limited to Format.JSON_ARRAY, but other iterations may include ARROW_STREAM.
+        immediate_response = self._ws.statement_execution.execute_statement(
+            statement=statement,
+            warehouse_id=warehouse_id or self._default_warehouse(),
+            catalog=catalog or self._catalog,
+            schema=schema or self._schema,
+            disposition=self._disposition,
+            byte_limit=byte_limit or self._byte_limit,
+            wait_timeout=wait_timeout,
+            format=Format.JSON_ARRAY,
+        )
+
+        status = immediate_response.status
+        if status is None:
+            status = StatementStatus(state=StatementState.FAILED)
+        if status.state == StatementState.SUCCEEDED:
+            return immediate_response
+
+        self._raise_if_needed(status)
+
+        attempt = 1
+        status_message = "polling..."
+        deadline = time.time() + timeout.total_seconds()
+        statement_id = immediate_response.statement_id
+        if not statement_id:
+            msg = f"No statement id: {immediate_response}"
+            raise ValueError(msg)
+        while time.time() < deadline:
+            res = self._ws.statement_execution.get_statement(statement_id)
+            result_status = res.status
+            if not result_status:
+                msg = f"Result status is none: {res}"
+                raise ValueError(msg)
+            state = result_status.state
+            if not state:
+                state = StatementState.FAILED
+            if state == StatementState.SUCCEEDED:
+                return ExecuteStatementResponse(
+                    manifest=res.manifest, result=res.result, statement_id=statement_id, status=result_status
+                )
+            status_message = f"current status: {state.value}"
+            self._raise_if_needed(result_status)
+            sleep = min(attempt, MAX_SLEEP_PER_ATTEMPT)
+            logger.debug(f"SQL statement {statement_id}: {status_message} (sleeping ~{sleep}s)")
+            time.sleep(sleep + random.random())
+            attempt += 1
+        self._ws.statement_execution.cancel_execution(statement_id)
+        msg = f"timed out after {timeout}: {status_message}"
+        raise TimeoutError(msg)
+
+    def __call__(self, statement: str):
+        """Execute a SQL statement and block until results are ready."""
+        yield from self.fetch_all(statement)
+
+    def fetch_all(
+        self,
+        statement: str,
+        *,
+        warehouse_id: str | None = None,
+        byte_limit: int | None = None,
+        catalog: str | None = None,
+        schema: str | None = None,
+        timeout: timedelta | None = None,
+    ) -> Iterator[Row]:
+        """Execute a query and iterate over all available records.
+
+        This method is a wrapper over :py:meth:`execute` with the handling of chunked result
+        processing and deserialization of those into separate rows, which are yielded from
+        a returned iterator. Every row API resembles those of :class:`pyspark.sql.Row`,
+        but full compatibility is not the goal of this implementation.
+
+        >>> ws = WorkspaceClient(...)
+        >>> see = StatementExecutionExt(ws, warehouse_id=env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"), catalog="samples")
+        >>> for row in see("SELECT * FROM nyctaxi.trips LIMIT 10"):
+        >>>     pickup_time, dropoff_time = row[0], row[1]
+        >>>     pickup_zip = row.pickup_zip
+        >>>     dropoff_zip = row["dropoff_zip"]
+        >>>     all_fields = row.as_dict()
+        >>>     logger.info(f"{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}")
+
+        :param statement: str
+            SQL statement to execute
+        :param warehouse_id: str (optional)
+            Warehouse upon which to execute a statement. See :py:meth:`execute` for more details.
+        :param byte_limit: int (optional)
+            Result-size limit in bytes. See :py:meth:`execute` for more details.
+        :param catalog: str (optional)
+            Catalog for statement execution. See :py:meth:`execute` for more details.
+        :param schema: str (optional)
+            Schema for statement execution. See :py:meth:`execute` for more details.
+        :param timeout: timedelta (optional)
+            Timeout after which the query is cancelled. See :py:meth:`execute` for more details.
+        :return: Iterator[Row]
+        """
+        execute_response = self.execute(statement,
+                                        warehouse_id=warehouse_id,
+                                        byte_limit=byte_limit,
+                                        catalog=catalog,
+                                        schema=schema,
+                                        timeout=timeout)
+        result_data = execute_response.result
+        if result_data is None:
+            return []
+        row_factory, col_conv = self._result_schema(execute_response)
+        while True:
+            if result_data.data_array:
+                for data in result_data.data_array:
+                    yield row_factory(col_conv[i](value) for i, value in enumerate(data))
+            next_chunk_index = result_data.next_chunk_index
+            if result_data.external_links:
+                for external_link in result_data.external_links:
+                    next_chunk_index = external_link.next_chunk_index
+                    response = self._http.get(external_link.external_link)
+                    response.raise_for_status()
+                    for data in response.json():
+                        yield row_factory(col_conv[i](value) for i, value in enumerate(data))
+            if not next_chunk_index:
+                return
+            result_data = self._ws.statement_execution.get_statement_result_chunk_n(
+                execute_response.statement_id,
+                next_chunk_index)
+
+    def fetch_one(self, statement: str, disable_magic: bool = False, **kwargs) -> Row | None:
+        """Execute a query and fetch the first available record.
+
+        This method is a wrapper over :py:meth:`fetch_all` and fetches only the first row
+        from the result set. If no records are available, it returns `None`.
+
+        >>> row = see.fetch_one('SELECT * FROM samples.nyctaxi.trips LIMIT 1')
+        >>> if row:
+        >>>     pickup_time, dropoff_time = row[0], row[1]
+        >>>     pickup_zip = row.pickup_zip
+        >>>     dropoff_zip = row['dropoff_zip']
+        >>>     all_fields = row.as_dict()
+        >>>     print(f'{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}')
+
+        :param statement: str
+            SQL statement to execute
+        :param disable_magic: bool (optional)
+            Disables the magic of adding `LIMIT 1` to the statement. By default, it is `False`.
+        :param kwargs: dict
+            Additional keyword arguments to pass to :py:meth:`fetch_all`
+        :return: Row | None
+        """
+        disable_magic = disable_magic or self._disable_magic
+        if not disable_magic:
+            statement = self._add_limit(statement)
+        for row in self.fetch_all(statement, **kwargs):
+            return row
+        return None
+
+    def fetch_value(self, statement: str, **kwargs) -> Any | None:
+        """Execute a query and fetch the first available value."""
+        for v, in self.fetch_all(statement, **kwargs):
+            return v
+        return None
+
+    def _statement_timeouts(self, timeout):
+        """Set server-side and client-side timeouts for statement execution."""
+        if timeout is None:
+            timeout = self._timeout
+        wait_timeout = None
+        if MIN_PLATFORM_TIMEOUT <= timeout.total_seconds() <= MAX_PLATFORM_TIMEOUT:
+            # set server-side timeout
+            wait_timeout = f"{timeout.total_seconds()}s"
+        return timeout, wait_timeout
 
     @staticmethod
     def _parse_date(value: str) -> datetime.date:
@@ -248,226 +454,9 @@ class StatementExecutionExt:
                              "neither it is set in the WorkspaceClient(..., warehouse_id=...), "
                              "nor in the DATABRICKS_WAREHOUSE_ID environment variable")
 
-    def execute(
-        self,
-        statement: str,
-        *,
-        warehouse_id: str | None = None,
-        byte_limit: int | None = None,
-        catalog: str | None = None,
-        schema: str | None = None,
-        timeout: timedelta | None = None,
-    ) -> ExecuteStatementResponse:
-        """(Experimental) Execute a SQL statement and block until results are ready,
-        including starting the warehouse if needed.
-
-        This is a high-level implementation that works with fetching records in JSON format.
-        It can be considered as a quick way to run SQL queries by just depending on
-        Databricks SDK for Python without the need of any other compiled library dependencies.
-
-        This method is a higher-level wrapper over :py:meth:`execute_statement` and fetches results
-        in JSON format through the external link disposition, with client-side polling until
-        the statement succeeds in execution. Whenever the statement is failed, cancelled, or
-        closed, this method raises `DatabricksError` with the state message and the relevant
-        error code.
-
-        To seamlessly iterate over the rows from query results, please use :py:meth:`iterate_rows`.
-
-        :param warehouse_id: str
-          Warehouse upon which to execute a statement.
-        :param statement: str
-          SQL statement to execute
-        :param byte_limit: int (optional)
-          Applies the given byte limit to the statement's result size. Byte counts are based on internal
-          representations and may not match measurable sizes in the JSON format.
-        :param catalog: str (optional)
-          Sets default catalog for statement execution, similar to `USE CATALOG` in SQL.
-        :param schema: str (optional)
-          Sets default schema for statement execution, similar to `USE SCHEMA` in SQL.
-        :param timeout: timedelta (optional)
-          Timeout after which the query is cancelled. If timeout is less than 50 seconds,
-          it is handled on the server side. If the timeout is greater than 50 seconds,
-          Databricks SDK for Python cancels the statement execution and throws `TimeoutError`.
-        :return: ExecuteStatementResponse
-        """
-        # The wait_timeout field must be 0 seconds (disables wait),
-        # or between 5 seconds and 50 seconds.
-        timeout, wait_timeout = self._statement_timeouts(timeout)
-        logger.debug(f"Executing SQL statement: {statement}")
-
-        # technically, we can do Disposition.EXTERNAL_LINKS, but let's push it further away.
-        # format is limited to Format.JSON_ARRAY, but other iterations may include ARROW_STREAM.
-        immediate_response = self._ws.statement_execution.execute_statement(
-            statement=statement,
-            warehouse_id=warehouse_id or self._default_warehouse(),
-            catalog=catalog or self._catalog,
-            schema=schema or self._schema,
-            disposition=self._disposition,
-            byte_limit=byte_limit or self._byte_limit,
-            wait_timeout=wait_timeout,
-            format=Format.JSON_ARRAY,
-        )
-
-        status = immediate_response.status
-        if status is None:
-            status = StatementStatus(state=StatementState.FAILED)
-        if status.state == StatementState.SUCCEEDED:
-            return immediate_response
-
-        self._raise_if_needed(status)
-
-        attempt = 1
-        status_message = "polling..."
-        deadline = time.time() + timeout.total_seconds()
-        statement_id = immediate_response.statement_id
-        if not statement_id:
-            msg = f"No statement id: {immediate_response}"
-            raise ValueError(msg)
-        while time.time() < deadline:
-            res = self._ws.statement_execution.get_statement(statement_id)
-            result_status = res.status
-            if not result_status:
-                msg = f"Result status is none: {res}"
-                raise ValueError(msg)
-            state = result_status.state
-            if not state:
-                state = StatementState.FAILED
-            if state == StatementState.SUCCEEDED:
-                return ExecuteStatementResponse(
-                    manifest=res.manifest, result=res.result, statement_id=statement_id, status=result_status
-                )
-            status_message = f"current status: {state.value}"
-            self._raise_if_needed(result_status)
-            sleep = min(attempt, MAX_SLEEP_PER_ATTEMPT)
-            logger.debug(f"SQL statement {statement_id}: {status_message} (sleeping ~{sleep}s)")
-            time.sleep(sleep + random.random())
-            attempt += 1
-        self._ws.statement_execution.cancel_execution(statement_id)
-        msg = f"timed out after {timeout}: {status_message}"
-        raise TimeoutError(msg)
-
-    def _statement_timeouts(self, timeout):
-        if timeout is None:
-            timeout = self._timeout
-        wait_timeout = None
-        if MIN_PLATFORM_TIMEOUT <= timeout.total_seconds() <= MAX_PLATFORM_TIMEOUT:
-            # set server-side timeout
-            wait_timeout = f"{timeout.total_seconds()}s"
-        return timeout, wait_timeout
-
-    def __call__(self, statement: str):
-        yield from self.fetch_all(statement)
-
-    def fetch_all(
-        self,
-        statement: str,
-        *,
-        warehouse_id: str | None = None,
-        byte_limit: int | None = None,
-        catalog: str | None = None,
-        schema: str | None = None,
-        timeout: timedelta | None = None,
-    ) -> Iterator[Row]:
-        """Execute a query and iterate over all available records.
-
-        This method is a wrapper over :py:meth:`execute` with the handling of chunked result
-        processing and deserialization of those into separate rows, which are yielded from
-        a returned iterator. Every row API resembles those of :class:`pyspark.sql.Row`,
-        but full compatibility is not the goal of this implementation.
-
-        .. code-block::
-
-            iterate_rows = functools.partial(w.statement_execution.iterate_rows, warehouse_id, catalog='samples')
-            for row in iterate_rows('SELECT * FROM nyctaxi.trips LIMIT 10'):
-                pickup_time, dropoff_time = row[0], row[1]
-                pickup_zip = row.pickup_zip
-                dropoff_zip = row['dropoff_zip']
-                all_fields = row.as_dict()
-                print(f'{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}')
-
-        :param warehouse_id: str
-          Warehouse upon which to execute a statement.
-        :param statement: str
-          SQL statement to execute
-        :param byte_limit: int (optional)
-          Applies the given byte limit to the statement's result size. Byte counts are based on internal
-          representations and may not match measurable sizes in the JSON format.
-        :param catalog: str (optional)
-          Sets default catalog for statement execution, similar to `USE CATALOG` in SQL.
-        :param schema: str (optional)
-          Sets default schema for statement execution, similar to `USE SCHEMA` in SQL.
-        :param timeout: timedelta (optional)
-          Timeout after which the query is cancelled. If timeout is less than 50 seconds,
-          it is handled on the server side. If the timeout is greater than 50 seconds,
-          Databricks SDK for Python cancels the statement execution and throws `TimeoutError`.
-        :return: Iterator[Row]
-        """
-        execute_response = self.execute(statement,
-                                        warehouse_id=warehouse_id,
-                                        byte_limit=byte_limit,
-                                        catalog=catalog,
-                                        schema=schema,
-                                        timeout=timeout)
-        result_data = execute_response.result
-        if result_data is None:
-            return []
-        row_factory, col_conv = self._result_schema(execute_response)
-        while True:
-            if result_data.data_array:
-                for data in result_data.data_array:
-                    yield row_factory(col_conv[i](value) for i, value in enumerate(data))
-            next_chunk_index = result_data.next_chunk_index
-            if result_data.external_links:
-                for external_link in result_data.external_links:
-                    next_chunk_index = external_link.next_chunk_index
-                    response = self._http.get(external_link.external_link)
-                    response.raise_for_status()
-                    for data in response.json():
-                        yield row_factory(col_conv[i](value) for i, value in enumerate(data))
-            if not next_chunk_index:
-                return
-            result_data = self._ws.statement_execution.get_statement_result_chunk_n(
-                execute_response.statement_id,
-                next_chunk_index)
-
-    def fetch_one(self, statement: str, disable_magic: bool = False, **kwargs) -> Row | None:
-        """Execute a query and fetch the first available record.
-
-        This method is a wrapper over :py:meth:`fetch_all` and fetches only the first row
-        from the result set. If no records are available, it returns `None`.
-
-        .. code-block::
-
-            row = see.fetch_one('SELECT * FROM samples.nyctaxi.trips LIMIT 1')
-            if row:
-                pickup_time, dropoff_time = row[0], row[1]
-                pickup_zip = row.pickup_zip
-                dropoff_zip = row['dropoff_zip']
-                all_fields = row.as_dict()
-                print(f'{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}')
-
-        :param statement: str
-            SQL statement to execute
-        :param disable_magic: bool (optional)
-            Disables the magic of adding `LIMIT 1` to the statement. By default, it is `False`.
-        :return: Row | None
-        """
-        disable_magic = disable_magic or self._disable_magic
-        if not disable_magic:
-            statement = self._add_limit(statement)
-        for row in self.fetch_all(statement, **kwargs):
-            return row
-        return None
-
-    def fetch_value(self, statement: str, **kwargs) -> Any | None:
-        """Execute a query and fetch the first available value."""
-        for v, in self.fetch_all(statement, **kwargs):
-            return v
-        return None
-
     @staticmethod
     def _add_limit(statement: str) -> str:
-        # parse with sqlglot if there's a limit statement
+        """Add a limit 1 to the statement if it does not have one already."""
         statements = sqlglot.parse(statement, read="databricks")
         if not statements:
             raise ValueError(f"cannot parse statement: {statement}")
@@ -481,6 +470,7 @@ class StatementExecutionExt:
         return statement
 
     def _result_schema(self, execute_response: ExecuteStatementResponse):
+        """Get the result schema from the execute response."""
         manifest = execute_response.manifest
         if not manifest:
             msg = f"missing manifest: {execute_response}"
