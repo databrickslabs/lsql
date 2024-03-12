@@ -302,5 +302,31 @@ class MockBackend(SqlBackend):
         return rows
 
     @staticmethod
+    def rows(*column_names: str):
+        """This method is used to create rows for the mock backend."""
+        number_of_columns = len(column_names)
+        row_factory = Row.factory(list(column_names))
+
+        class MagicFactory:
+            """This class is used to create rows for the mock backend."""
+
+            def __getitem__(self, tuples: list[tuple | list] | tuple[list | tuple]) -> list[Row]:
+                if not isinstance(tuples, (list, tuple)):
+                    raise TypeError(f"Expected list or tuple, got {type(tuples)}")
+                # fix sloppy input
+                if tuples and not isinstance(tuples[0], (list, tuple)):
+                    tuples = [tuples]
+                out = []
+                for record in tuples:
+                    if not isinstance(record, (list, tuple)):
+                        raise TypeError(f"Expected list or tuple, got {type(record)}")
+                    if number_of_columns != len(record):
+                        raise TypeError(f"Expected {number_of_columns} columns, got {len(record)}: {record}")
+                    out.append(row_factory(*record))
+                return out
+
+        return MagicFactory()
+
+    @staticmethod
     def _row_factory(klass: Dataclass) -> type:
         return Row.factory([f.name for f in dataclasses.fields(klass)])

@@ -66,6 +66,14 @@ class Row(tuple):
         """Convert the row to a dictionary with the same conventions as Databricks SDK."""
         return dict(zip(self.__columns__, self, strict=True))
 
+    def __eq__(self, other):
+        """Check if the rows are equal."""
+        if not isinstance(other, Row):
+            return False
+        # compare rows as dictionaries, because the order
+        # of fields in constructor is not guaranteed
+        return self.as_dict() == other.as_dict()
+
     def __contains__(self, item):
         """Check if the column is in the row."""
         return item in self.__columns__
