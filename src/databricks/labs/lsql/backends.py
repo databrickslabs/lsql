@@ -309,6 +309,7 @@ class MockBackend(SqlBackend):
 
         class MagicFactory:
             """This class is used to create rows for the mock backend."""
+
             def __getitem__(self, tuples: list[tuple | list] | tuple[list | tuple]) -> list[Row]:
                 if not isinstance(tuples, (list, tuple)):
                     raise TypeError(f"Expected list or tuple, got {type(tuples)}")
