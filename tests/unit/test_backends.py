@@ -346,3 +346,14 @@ def test_mock_backend_save_table():
         Row(first="aaa", second=True),
         Row(first="bbb", second=False),
     ]
+
+
+def test_mock_backend_rows_dsl():
+    rows = MockBackend.rows("foo", "bar")[
+        [1, 2],
+        (3, 4),
+    ]
+    assert rows == [
+        Row(foo=1, bar=2),
+        Row(foo=3, bar=4),
+    ]
