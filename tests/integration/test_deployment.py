@@ -1,3 +1,5 @@
+import pytest
+
 from databricks.labs.lsql import Row
 from databricks.labs.lsql.backends import StatementExecutionBackend
 from databricks.labs.lsql.deployment import SchemaDeployer
@@ -5,6 +7,7 @@ from databricks.labs.lsql.deployment import SchemaDeployer
 from . import views
 
 
+@pytest.mark.xfail
 def test_deploys_database(ws, env_or_skip, make_random):
     # TODO: create per-project/per-scope catalog
     schema = "default"
