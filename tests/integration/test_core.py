@@ -3,7 +3,7 @@ import logging
 import pytest
 from databricks.sdk.service.sql import Disposition
 
-from databricks.labs.lsql.core import StatementExecutionExt, Row
+from databricks.labs.lsql.core import Row, StatementExecutionExt
 
 logger = logging.getLogger(__name__)
 

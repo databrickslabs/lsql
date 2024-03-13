@@ -147,10 +147,10 @@ class StatementExecutionExt:
         self._disable_magic = disable_magic
         self._byte_limit = byte_limit
         self._disposition = disposition
-        self._type_converters = {
+        self._type_converters: dict[ColumnInfoTypeName, Callable[[str], Any]] = {
             ColumnInfoTypeName.ARRAY: json.loads,
             ColumnInfoTypeName.BINARY: base64.b64decode,
-            ColumnInfoTypeName.BOOLEAN: bool,
+            ColumnInfoTypeName.BOOLEAN: lambda value: value.lower() == "true",
             ColumnInfoTypeName.CHAR: str,
             ColumnInfoTypeName.DATE: self._parse_date,
             ColumnInfoTypeName.DOUBLE: float,
@@ -318,11 +318,11 @@ class StatementExecutionExt:
         result_data = execute_response.result
         if result_data is None:
             return
-        row_factory, col_conv = self._result_schema(execute_response)
+        converter = self._result_converter(execute_response)
         while True:
             if result_data.data_array:
                 for data in result_data.data_array:
-                    yield row_factory(col_conv[i](value) for i, value in enumerate(data))
+                    yield converter(data)
             next_chunk_index = result_data.next_chunk_index
             if result_data.external_links:
                 for external_link in result_data.external_links:
@@ -331,7 +331,7 @@ class StatementExecutionExt:
                     response = self._http.get(external_link.external_link)
                     response.raise_for_status()
                     for data in response.json():
-                        yield row_factory(col_conv[i](value) for i, value in enumerate(data))
+                        yield converter(data)
             if not next_chunk_index:
                 return
             result_data = self._ws.statement_execution.get_statement_result_chunk_n(
@@ -372,6 +372,41 @@ class StatementExecutionExt:
         for (v,) in self.fetch_all(statement, **kwargs):
             return v
         return None
+
+    def _result_converter(self, execute_response: ExecuteStatementResponse):
+        """Get the result schema from the execute response."""
+        manifest = execute_response.manifest
+        if not manifest:
+            msg = f"missing manifest: {execute_response}"
+            raise ValueError(msg)
+        manifest_schema = manifest.schema
+        if not manifest_schema:
+            msg = f"missing schema: {manifest}"
+            raise ValueError(msg)
+        col_names = []
+        col_conv: list[Callable[[str], Any]] = []
+        columns = manifest_schema.columns
+        if not columns:
+            columns = []
+        for col in columns:
+            assert col.name is not None
+            col_names.append(col.name)
+            type_name = col.type_name
+            if not type_name:
+                type_name = ColumnInfoTypeName.NULL
+            conv = self._type_converters.get(type_name, None)
+            if conv is None:
+                msg = f"{col.name} has no {type_name.value} converter"
+                raise ValueError(msg)
+            col_conv.append(conv)
+        row_factory = Row.factory(col_names)
+
+        def converter(data: list[str | None]) -> Row:
+            # enumerate() + iterator + tuple constructor makes it more performant on larger humber of records
+            # for Python, even though it's far less readable code.
+            return row_factory(col_conv[i](value) if value else None for i, value in enumerate(data))
+
+        return converter
 
     def _statement_timeouts(self, timeout) -> tuple[timedelta, str | None]:
         """Set server-side and client-side timeouts for statement execution."""
@@ -481,29 +516,3 @@ class StatementExecutionExt:
                     raise ValueError(f"limit is not 1: {limit.text('expression')}")
             return statement_ast.limit(expression=1).sql("databricks")
         return statement
-
-    def _result_schema(self, execute_response: ExecuteStatementResponse):
-        """Get the result schema from the execute response."""
-        manifest = execute_response.manifest
-        if not manifest:
-            msg = f"missing manifest: {execute_response}"
-            raise ValueError(msg)
-        manifest_schema = manifest.schema
-        if not manifest_schema:
-            msg = f"missing schema: {manifest}"
-            raise ValueError(msg)
-        col_names = []
-        col_conv = []
-        columns = manifest_schema.columns
-        if not columns:
-            columns = []
-        for col in columns:
-            assert col.name is not None
-            assert col.type_name is not None
-            col_names.append(col.name)
-            conv = self._type_converters.get(col.type_name, None)
-            if conv is None:
-                msg = f"{col.name} has no {col.type_name.value} converter"
-                raise ValueError(msg)
-            col_conv.append(conv)
-        return Row.factory(col_names), col_conv
