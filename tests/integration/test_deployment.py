@@ -6,7 +6,8 @@ from . import views
 
 
 def test_deploys_database(ws, env_or_skip, make_random):
-    schema = make_random(4)
+    # TODO: create per-project/per-scope catalog
+    schema = "default"
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
 
     deployer = SchemaDeployer(sql_backend, schema, views)
