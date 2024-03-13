@@ -59,6 +59,15 @@ def make_random():
     import random
 
     def inner(k=16) -> str:
+        """Generate a random string of fixed length"""
+        # get a random meaningful word from the system dictionary if it exists
+        system_wordlist = pathlib.Path("/usr/share/dict/words")
+        if system_wordlist.exists():
+            with system_wordlist.open("r", encoding=sys.getdefaultencoding()) as f:
+                at_lest_len = [_.lower() for _ in f.read().splitlines() if len(_) > k]
+                first = random.choice(at_lest_len)
+                second = random.choice(at_lest_len)
+                return f"{first}_{second}"
         charset = string.ascii_uppercase + string.ascii_lowercase + string.digits
         return "".join(random.choices(charset, k=int(k)))
 

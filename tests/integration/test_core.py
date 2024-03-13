@@ -3,7 +3,7 @@ import logging
 import pytest
 from databricks.sdk.service.sql import Disposition
 
-from databricks.labs.lsql.core import StatementExecutionExt
+from databricks.labs.lsql.core import StatementExecutionExt, Row
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ def test_sql_execution_partial(ws, env_or_skip):
 
 def test_fetch_one(ws):
     see = StatementExecutionExt(ws)
-    assert see.fetch_one("SELECT 1") == (1,)
+    assert see.fetch_one("SELECT 1 AS id") == Row(id=1)
 
 
 def test_fetch_one_fails_if_limit_is_bigger(ws):
