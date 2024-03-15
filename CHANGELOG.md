@@ -1,5 +1,10 @@
 # Version changelog
 
+## 0.2.2
+
+* Updating packages. In this update, the dependencies specified in the pyproject.toml file have been updated to more recent versions. The outdated packages "databricks-labs-blueprint~=0.4.0" and "databricks-sdk~=0.21.0" have been replaced with "databricks-labs-blueprint>=0.4.2" and "databricks-sdk>=0.22.0", respectively. These updates are expected to bring new features and bug fixes to the software. The dependency `sqlglot` remains unchanged, with the same version requirement range of "sqlglot>=22.3.1,<22.5.0". These updates ensure that the software will function as intended, while also taking advantage of the enhancements provided by the more recent versions of the packages.
+
+
 ## 0.2.1
 
 * Fixed row converter to properly handle nullable values ([#53](https://github.com/databrickslabs/lsql/issues/53)). In this release, the row converter in the `databricks.labs.lsql.core` module has been updated to handle nullable values correctly. A new method `StatementExecutionExt` has been added, which manages the handling of nullable values during SQL statement execution. The `Row` class has also been modified to include nullable values, improving the robustness and flexibility of SQL execution in dealing with various data types, including null values. These enhancements increase the overall reliability of the system, making it more production-ready.
