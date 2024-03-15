@@ -20,8 +20,8 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "databricks-labs-blueprint~=0.4.0",
-  "databricks-sdk~=0.22.0",
+  "databricks-labs-blueprint>=0.4.2",
+  "databricks-sdk>=0.22.0",
   "sqlglot>=22.3.1,<22.5.0"
 ]
 
