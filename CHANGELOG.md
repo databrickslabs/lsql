@@ -1,5 +1,10 @@
 # Version changelog
 
+## 0.2.3
+
+* Added support for common parameters in StatementExecutionBackend ([#59](https://github.com/databrickslabs/lsql/issues/59)). The `StatementExecutionBackend` class in the `databricks.labs.lsql` package's `backends.py` file now supports the passing of common parameters through keyword arguments (kwargs). This enhancement allows for greater customization and flexibility in the backend's operation, as the kwargs are passed to the `StatementExecutionExt` constructor. This change empowers users to control the behavior of the backend, making it more adaptable to various use cases. The key modification in this commit is the addition of the `**kwargs` parameter in the constructor signature and passing it to `StatementExecutionExt`, with no changes made to any methods within the class.
+
+
 ## 0.2.2
 
 * Updating packages. In this update, the dependencies specified in the pyproject.toml file have been updated to more recent versions. The outdated packages "databricks-labs-blueprint~=0.4.0" and "databricks-sdk~=0.21.0" have been replaced with "databricks-labs-blueprint>=0.4.2" and "databricks-sdk>=0.22.0", respectively. These updates are expected to bring new features and bug fixes to the software. The dependency `sqlglot` remains unchanged, with the same version requirement range of "sqlglot>=22.3.1,<22.5.0". These updates ensure that the software will function as intended, while also taking advantage of the enhancements provided by the more recent versions of the packages.
