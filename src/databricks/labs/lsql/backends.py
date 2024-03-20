@@ -200,7 +200,7 @@ class _SparkBackend(SqlBackend):
     def fetch(self, sql: str) -> Iterator[Row]:
         logger.debug(f"[spark][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
         try:
-            return self._spark.sql(sql).collect()
+            return iter(self._spark.sql(sql).collect())
         except Exception as e:
             error_message = str(e)
             raise self._api_error_from_message(error_message) from None
