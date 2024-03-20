@@ -232,7 +232,7 @@ def test_runtime_backend_fetch():
 
         result = runtime_backend.fetch("SELECT id FROM range(3)")
 
-        assert [Row(id=1), Row(id=2), Row(id=3)] == result
+        assert [Row(id=1), Row(id=2), Row(id=3)] == list(result)
 
         spark.sql.assert_called_with("SELECT id FROM range(3)")
 
