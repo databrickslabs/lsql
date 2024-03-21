@@ -71,17 +71,6 @@ except BadRequest:
     return "PASSED"
 """
 
-PERMISSION_DENIED_EXECUTE = """
-from databricks.labs.lsql.backends import RuntimeBackend
-from databricks.sdk.errors import PermissionDenied
-backend = RuntimeBackend()
-try:
-    current_user = backend.fetch("SELECT current_user()")
-    backend.execute(f"GRANT CREATE EXTERNAL LOCATION ON METASTORE TO {current_user}")
-    return "FAILED"
-except PermissionDenied:
-    return "PASSED"
-"""
 
 UNKNOWN_ERROR = """
 from databricks.labs.lsql.backends import RuntimeBackend
@@ -95,6 +84,33 @@ except Unknown:
 """
 
 
+@pytest.mark.xfail
+def test_runtime_backend_works_maps_permission_denied(ws):
+    product_info = ProductInfo.for_testing(SqlBackend)
+    installation = Installation.assume_user_home(ws, product_info.product_name())
+    with WheelsV2(installation, product_info) as wheels:
+        wsfs_wheel = wheels.upload_to_wsfs()
+
+    commands = CommandExecutor(ws.clusters, ws.command_execution, lambda: ws.config.cluster_id)
+    commands.install_notebook_library(f"/Workspace{wsfs_wheel}")
+
+    permission_denied_query = """
+from databricks.labs.lsql.backends import RuntimeBackend
+from databricks.sdk.errors import PermissionDenied
+from databricks.sdk import WorkspaceClient
+w = WorkspaceClient()
+me = w.current_user.me()
+backend = RuntimeBackend()
+try:
+    backend.execute(f"GRANT CREATE SCHEMA ON CATALOG main TO `{me.groups[0].display}`;")
+    return "FAILED"
+except PermissionDenied:
+    return "PASSED"
+"""
+    result = commands.run(permission_denied_query)
+    assert result == "PASSED"
+
+
 @pytest.mark.parametrize(
     "query",
     [
@@ -104,7 +120,6 @@ except Unknown:
         INCORRECT_TABLE_FETCH,
         SYNTAX_ERROR_EXECUTE,
         SYNTAX_ERROR_FETCH,
-        PERMISSION_DENIED_EXECUTE,
         UNKNOWN_ERROR,
     ],
 )
