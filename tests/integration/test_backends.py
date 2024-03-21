@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 
 import pytest
 from databricks.labs.blueprint.commands import CommandExecutor
@@ -6,7 +7,13 @@ from databricks.labs.blueprint.wheels import ProductInfo, WheelsV2
 
 from databricks.labs.lsql import Row
 from databricks.labs.lsql.backends import SqlBackend, StatementExecutionBackend
-from tests.unit.test_backends import ComplexFoo
+
+
+@dataclass
+class ComplexFoo:
+    first: str
+    second: dict[str, str]
+
 
 INCORRECT_SCHEMA = """
 from databricks.labs.lsql.backends import RuntimeBackend
