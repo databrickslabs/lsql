@@ -42,6 +42,12 @@ class Foo:
 
 
 @dataclass
+class ComplexFoo:
+    first: str
+    second: dict[str, str]
+
+
+@dataclass
 class Baz:
     first: str
     second: str | None = None
@@ -357,3 +363,31 @@ def test_mock_backend_rows_dsl():
         Row(foo=1, bar=2),
         Row(foo=3, bar=4),
     ]
+
+
+def test_mock_backend_complex_type():
+    mock_backend = MockBackend()
+
+    mock_backend.save_table("a.b.c", [ComplexFoo("aaa", {"k", "v"}), ComplexFoo("bbb", {})], ComplexFoo)
+
+    assert mock_backend.rows_written_for("a.b.c", "append") == [
+        Row(first="aaa", second={"k", "v"}),
+        Row(first="bbb", second={}),
+    ]
+
+
+def test_runtime_backend_save_table_complex_type():
+    with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
+        pyspark_sql_session = MagicMock()
+        sys.modules["pyspark.sql.session"] = pyspark_sql_session
+        spark = pyspark_sql_session.SparkSession.builder.getOrCreate()
+
+        runtime_backend = RuntimeBackend()
+
+        runtime_backend.save_table("a.b.c", [ComplexFoo("aaa", {"k", "v"}), ComplexFoo("bbb", {})], ComplexFoo)
+
+        spark.createDataFrame.assert_called_with(
+            [ComplexFoo("aaa", {"k", "v"}), ComplexFoo("bbb", {})],
+            "first STRING NOT NULL, second MAP<STRING,STRING> NOT NULL",
+        )
+        spark.createDataFrame().write.saveAsTable.assert_called_with("a.b.c", mode="append")

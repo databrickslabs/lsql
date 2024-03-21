@@ -61,6 +61,7 @@ class SqlBackend(ABC):
         int: "LONG",
         bool: "BOOLEAN",
         float: "FLOAT",
+        dict[str, str]: "MAP<STRING,STRING>",
     }
 
     @classmethod
@@ -178,6 +179,8 @@ class StatementExecutionBackend(SqlBackend):
                 data.append(f"'{value}'")
             elif field_type == int:
                 data.append(f"{value}")
+            elif field_type == dict[str, str]:
+                data.append("map(" + " , ".join([f"'{k}', '{v}'" for k, v in value.items()]) + ")")
             else:
                 msg = f"unknown type: {field_type}"
                 raise ValueError(msg)

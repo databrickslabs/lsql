@@ -1,9 +1,12 @@
+
 import pytest
 from databricks.labs.blueprint.commands import CommandExecutor
 from databricks.labs.blueprint.installation import Installation
 from databricks.labs.blueprint.wheels import ProductInfo, WheelsV2
 
+from databricks.labs.lsql import Row
 from databricks.labs.lsql.backends import SqlBackend, StatementExecutionBackend
+from tests.unit.test_backends import ComplexFoo
 
 INCORRECT_SCHEMA = """
 from databricks.labs.lsql.backends import RuntimeBackend
@@ -140,3 +143,12 @@ def test_statement_execution_backend_works(ws, env_or_skip):
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
     rows = list(sql_backend.fetch("SELECT * FROM samples.nyctaxi.trips LIMIT 10"))
     assert len(rows) == 10
+
+
+def test_saving_complex_type(ws, env_or_skip):
+    sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
+    sql_backend.save_table("test_table", [ComplexFoo("xxx", {"key1": "val1", "key2": "val2"})], ComplexFoo)
+
+    rows = list(sql_backend.fetch("SELECT * FROM test_table"))
+
+    assert rows == [Row(first="xxx", second={"key1": "val1", "key2": "val2"})]
