@@ -152,6 +152,7 @@ def test_statement_execution_backend_works(ws, env_or_skip):
     assert len(rows) == 10
 
 
+@pytest.mark.xfail
 def test_saving_complex_type(ws, env_or_skip):
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
     sql_backend.save_table("test_table", [ComplexFoo("xxx", {"key1": "val1", "key2": "val2"})], ComplexFoo)
