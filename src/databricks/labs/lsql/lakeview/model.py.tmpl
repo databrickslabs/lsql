@@ -1,0 +1,219 @@
+# Code generated from OpenAPI specs by Databricks SDK Generator. DO NOT EDIT.
+
+from __future__ import annotations
+from dataclasses import dataclass
+from datetime import timedelta
+from enum import Enum
+from typing import Dict, List, Any, Iterator, Type, Callable, Optional, BinaryIO, get_args, get_type_hints
+import time
+import random
+import logging
+import types
+import enum
+import dataclasses
+import abc
+from databricks.sdk.service._internal import _enum, _from_dict, _repeated_dict, _repeated_enum
+
+Json = dict[str, Any]
+
+
+def _snake_to_camel(snake_name: str) -> str:
+    words = snake_name.split('_')
+    return words[0] + ''.join(word.capitalize() for word in words[1:])
+
+
+def _is_assignable(
+    type_ref: type, raw: Any, path: list[str], name_transform: Callable[[str], str]
+) -> tuple[bool, str | None]:
+    if dataclasses.is_dataclass(type_ref):
+        if not isinstance(raw, dict):
+            return False, _explain_why(dict, raw, path)
+        for field, hint in get_type_hints(type_ref).items():
+            field = name_transform(field)
+            valid, why_not = _is_assignable(hint, raw.get(field), [*path, field], name_transform)
+            if not valid:
+                return False, why_not
+        return True, None
+    if isinstance(type_ref, types.GenericAlias):
+        if not isinstance(raw, list):
+            return False, _explain_why(list, raw, path)
+        type_args = get_args(type_ref)
+        if not type_args:
+            raise TypeError(f"Missing type arguments: {type_args}")
+        item_ref = type_args[0]
+        for i, v in enumerate(raw):
+            valid, why_not = _is_assignable(item_ref, v, [*path, f"{i}"], name_transform)
+            if not valid:
+                return False, why_not
+        return True, None
+    if isinstance(type_ref, types.UnionType):
+        combo = []
+        for variant in get_args(type_ref):
+            valid, why_not = _is_assignable(variant, raw, [], name_transform)
+            if valid:
+                return True, None
+            if why_not:
+                combo.append(why_not)
+        return False, f'{".".join(path)}: union: {" or ".join(combo)}'
+    if isinstance(type_ref, abc.ABCMeta):
+        # until we generate method that returns subtypes
+        return True, None
+    if isinstance(type_ref, enum.EnumMeta):
+        if raw in type_ref._value2member_map_:
+            return True, None
+        return False, _explain_why(type_ref, raw, path)
+    if type_ref == types.NoneType:
+        if raw is None:
+            return True, None
+        return False, None
+    if type_ref in (int, bool, float, str):
+        if type_ref == type(raw):
+            return True, None
+        return False, _explain_why(type_ref, raw, path)
+    return False, f'{".".join(path)}: unknown: {raw}'
+
+
+{{range .Packages}}
+
+{{range .Types}}
+{{if .Fields -}}{{if not .IsRequest}}{{if not .ChildTypes}}@dataclass{{end}}
+class {{.PascalName}}{{if eq "List" .PascalName}}Request{{end}}
+    {{- if .AbstractType -}}
+        ({{.AbstractType.PascalName}})
+    {{- else if .ChildTypes -}}
+        (abc.ABC)
+    {{- end}}:{{if .Description}}
+    """{{.Comment "    " 100}}"""
+    {{end}}{{- range .RequiredFields | alphanumOnly | noConst}}
+    {{template "safe-snake-name" .}}: {{template "type" .Entity}}{{if .Description}}
+    """{{.Comment "    " 100 | trimSuffix "\""}}"""{{end}}
+    {{- end}}
+    {{- range .NonRequiredFields | alphanumOnly | noConst}}
+    {{template "safe-snake-name" .}}: {{template "type" .Entity}} | None = None{{if .Description}}
+    """{{.Comment "    " 100 | trimSuffix "\""}}"""{{end}}
+    {{- end}}
+    {{if .HasJsonField -}}{{if .ChildTypes}}
+    @abc.abstractmethod
+    def as_dict(self) -> Json:
+        raise NotImplemented
+    {{else}}
+    def as_dict(self) -> Json:
+        body: Json = { {{range .Fields | constOnly}}'{{.Name}}': {{template "const" .Entity}},{{end}} }
+        {{range .Fields | alphanumOnly | noConst}}if self.{{template "safe-snake-name" .}}{{with .Entity.IsPrimitive}} is not None{{end}}: body['{{.Name}}'] = {{template "as_request_type" .}}
+        {{end -}}
+        return body
+    {{end}}
+    @classmethod
+    def from_dict(cls, d: Json) -> {{template "type" . }}:
+        {{if .ChildTypes -}}
+        {{if .ChildTypes.IsConstant}}
+        {{range $i, $_ := .ChildTypes}}{{if $i}}el{{end}}if {{range $j, $_ := .TypeLookup}}{{if $j}} and {{end}}d['{{.Name}}'] == {{template "const" .Entity}}{{end}}:
+            return {{template "type" .Entity}}.from_dict(d)
+        {{end}}else: raise KeyError(f'unknown:{{range .ChildTypes.TypeLookup}} {{.Name}}={d["{{.Name}}"]}{{end}}')
+        {{else}}reasons = []
+        {{range .ChildTypes -}}
+        yes, why_not = _is_assignable({{template "type" .Entity}}, d, [], _snake_to_camel)
+        if yes:
+            return {{template "type" .Entity}}.from_dict(d)
+        if why_not:
+            reasons.append(why_not)
+        {{end}}raise KeyError(" and ".join(reasons)){{end}}
+        {{- else -}}
+        return cls({{range $i, $f := .Fields | alphanumOnly | noConst}}{{if $i}}, {{end}}{{template "safe-snake-name" $f}}={{template "from_dict_type" $f}}{{end}})
+        {{- end}}
+    {{end}}
+{{end}}
+{{else if .ArrayValue}}type {{.PascalName}} []{{template "type" .ArrayValue}}
+{{else if .MapValue}}{{.PascalName}} = {{template "type-nq" .}}
+{{else if .Enum}}class {{.PascalName}}(Enum):
+    {{if .Description}}"""{{.Comment "    " 100 | trimSuffix "\"" }}"""{{end}}
+    {{range .Enum }}
+    {{.ConstantName}} = '{{.Content}}'{{end}}{{end}}
+{{end}}
+
+{{end}}
+
+{{- define "from_dict_type" -}}
+	{{- if not .Entity }}None
+	{{- else if .Entity.ArrayValue }}
+		{{- if (or .Entity.ArrayValue.IsObject .Entity.ArrayValue.IsExternal) }}_repeated_dict(d, '{{.Name}}', {{template "type-nq" .Entity.ArrayValue}})
+		{{- else if .Entity.ArrayValue.Enum }}_repeated_enum(d, '{{.Name}}', {{template "type-nq" .Entity.ArrayValue}})
+		{{- else}}d.get('{{.Name}}', None){{- end -}}
+	{{- else if (or .Entity.IsObject .Entity.IsExternal) }}_from_dict(d, '{{.Name}}', {{template "type-nq" .Entity}})
+	{{- else if .Entity.Enum }}_enum(d, '{{.Name}}', {{template "type-nq" .Entity}})
+	{{- else}}d.get('{{.Name}}', None){{- end -}}
+{{- end -}}
+{{- define "as_request_type" -}}
+	{{- if not .Entity }}None # ERROR: No Type
+	{{- /* This should be done recursively, but recursion in text templates is not supported. */ -}}
+	{{- else if .Entity.ArrayValue }}[{{if or .Entity.ArrayValue.IsObject .Entity.ArrayValue.IsExternal}}v.as_dict(){{ else if .Entity.ArrayValue.Enum }}v.value{{else}}v{{end}} for v in self.{{template "safe-snake-name" .}}]
+	{{- else if or .Entity.IsObject .Entity.IsExternal }}self.{{template "safe-snake-name" .}}.as_dict()
+	{{- else if .Entity.Enum }}self.{{template "safe-snake-name" .}}.value
+	{{- else}}self.{{template "safe-snake-name" .}}{{- end -}}
+{{- end -}}
+{{- define "type" -}}
+	{{- if not . }}any # ERROR: No Type
+	{{- else if .ArrayValue }}List[{{template "type-nq" .ArrayValue}}]
+	{{- else if .MapValue }}Dict[str,{{template "type-nq" .MapValue}}]
+	{{- else if .IsExternal }}{{.Package.Name}}.{{.PascalName}}
+	{{- else if .IsObject }}{{.PascalName}}{{if eq "List" .PascalName}}Request{{end}}
+	{{- else if .Enum }}{{.PascalName}}
+	{{- else}}{{template "type-nq" .}}{{- end -}}
+{{- end -}}
+{{- define "type-nq" -}}
+	{{- if .IsString}}str
+	{{- else if .IsEmpty}}Any
+	{{- else if .IsAny}}Any
+	{{- else if .IsBool}}bool
+	{{- else if .IsInt64}}int
+	{{- else if .IsFloat64}}float
+	{{- else if .IsInt}}int
+	{{- else if .IsByteStream}}BinaryIO
+	{{- else if .ArrayValue }}List[{{template "type-nq" .ArrayValue}}]
+	{{- else if .MapValue }}Dict[str,{{template "type-nq" .MapValue}}]
+	{{- else if .IsExternal }}{{.Package.Name}}.{{.PascalName}}
+	{{- else if .IsObject }}{{.PascalName}}{{if eq "List" .PascalName}}Request{{end}}
+	{{- else if .Enum }}{{.PascalName}}
+	{{- else}}any /* MISSING TYPE */
+	{{- end -}}
+{{- end -}}
+
+{{- define "type-doc" -}}
+	{{- if .IsString}}str
+	{{- else if .IsEmpty}}Any
+	{{- else if .IsAny}}Any
+	{{- else if .IsBool}}bool
+	{{- else if .IsInt64}}int
+	{{- else if .IsFloat64}}float
+	{{- else if .IsInt}}int
+	{{- else if .IsByteStream}}BinaryIO
+	{{- else if .ArrayValue }}List[{{template "type-doc" .ArrayValue}}]
+	{{- else if .MapValue }}Dict[str,{{template "type-doc" .MapValue}}]
+	{{- else if .IsExternal }}:class:`{{.PascalName}}`
+	{{- else if .IsObject }}:class:`{{.PascalName}}{{if eq "List" .PascalName}}Request{{end}}`
+	{{- else if .Enum }}:class:`{{.PascalName}}`
+	{{- else}}any /* MISSING TYPE */
+	{{- end -}}
+{{- end -}}
+
+{{- define "const" -}}
+	{{- if .IsString}}'{{.Const}}'
+	{{- else if .IsInt}}{{.Const}}
+	{{- else}}None/* MISSING CONST */
+	{{- end -}}
+{{- end -}}
+
+{{ define "safe-name" -}}
+  {{/* https://docs.python.org/3/reference/lexical_analysis.html#keywords */}}
+  {{- $keywords := list	"False" "await" "else" "import" "pass" "None" "break" "except" "in" "raise"
+                       	"True" "class" "finally" "is" "return" "and" "continue" "for" "lambda" "try"
+                       	"as" "def" "from" "nonlocal" "while" "assert" "del" "global" "not" "with"
+                       	"async" "elif" "if" "or" "yield" -}}
+  {{.}}{{ if in $keywords . }}_{{ end }}
+{{- end}}
+
+{{ define "safe-snake-name" -}}
+  {{ template "safe-name" .SnakeName }}
+{{- end}}
+
+
