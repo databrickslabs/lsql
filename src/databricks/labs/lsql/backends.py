@@ -240,7 +240,7 @@ class DatabricksConnectBackend(_SparkBackend):
                 DatabricksSession,
             )
 
-            spark = DatabricksSession.builder().sdk_config(ws.config).getOrCreate()
+            spark = DatabricksSession.builder.sdk_config(ws.config).getOrCreate()
             super().__init__(spark, ws.config.debug_truncate_bytes)
         except ImportError as e:
             raise RuntimeError("Please run `pip install databricks-connect`") from e
