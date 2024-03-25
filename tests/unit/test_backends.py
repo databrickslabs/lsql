@@ -42,6 +42,12 @@ class Foo:
 
 
 @dataclass
+class ComplexFoo:
+    first: str
+    second: dict[str, str]
+
+
+@dataclass
 class Baz:
     first: str
     second: str | None = None
@@ -357,3 +363,67 @@ def test_mock_backend_rows_dsl():
         Row(foo=1, bar=2),
         Row(foo=3, bar=4),
     ]
+
+
+def test_statement_execution_backend_save_table_two_records_complex():
+    ws = create_autospec(WorkspaceClient)
+
+    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+        status=StatementStatus(state=StatementState.SUCCEEDED)
+    )
+
+    seb = StatementExecutionBackend(ws, "abc")
+    seb.save_table("test_table", [ComplexFoo("xxx", {"key1": "val1", "key2": "val2"})], ComplexFoo)
+
+    ws.statement_execution.execute_statement.assert_has_calls(
+        [
+            mock.call(
+                warehouse_id="abc",
+                statement="CREATE TABLE IF NOT EXISTS test_table (first STRING NOT NULL, second MAP<STRING,STRING> NOT NULL) USING DELTA",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            mock.call(
+                warehouse_id="abc",
+                statement="INSERT INTO test_table (first, second) VALUES ('xxx', map('key1', 'val1' , 'key2', 'val2'))",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+        ]
+    )
+
+
+def test_mock_backend_complex_type():
+    mock_backend = MockBackend()
+
+    mock_backend.save_table("a.b.c", [ComplexFoo("aaa", {"k": "v"}), ComplexFoo("bbb", {})], ComplexFoo)
+
+    assert mock_backend.rows_written_for("a.b.c", "append") == [
+        Row(first="aaa", second={"k": "v"}),
+        Row(first="bbb", second={}),
+    ]
+
+
+def test_runtime_backend_save_table_complex_type():
+    with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
+        pyspark_sql_session = MagicMock()
+        sys.modules["pyspark.sql.session"] = pyspark_sql_session
+        spark = pyspark_sql_session.SparkSession.builder.getOrCreate()
+
+        runtime_backend = RuntimeBackend()
+
+        runtime_backend.save_table("a.b.c", [ComplexFoo("aaa", {"k": "v"}), ComplexFoo("bbb", {})], ComplexFoo)
+
+        spark.createDataFrame.assert_called_with(
+            [ComplexFoo("aaa", {"k": "v"}), ComplexFoo("bbb", {})],
+            "first STRING NOT NULL, second MAP<STRING,STRING> NOT NULL",
+        )
+        spark.createDataFrame().write.saveAsTable.assert_called_with("a.b.c", mode="append")
