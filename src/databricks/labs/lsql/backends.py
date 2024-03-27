@@ -146,15 +146,14 @@ class StatementExecutionBackend(SqlBackend):
         return self._sql.fetch_all(sql)
 
     def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode="append"):
-        if mode == "overwrite":
-            msg = "Overwrite mode is not yet supported"
-            raise NotImplementedError(msg)
         rows = self._filter_none_rows(rows, klass)
         self.create_table(full_name, klass)
         if len(rows) == 0:
             return
         fields = dataclasses.fields(klass)
         field_names = [f.name for f in fields]
+        if mode == "overwrite":
+            self.execute(f"TRUNCATE TABLE {full_name}")
         for i in range(0, len(rows), self._max_records_per_batch):
             batch = rows[i : i + self._max_records_per_batch]
             vals = "), (".join(self._row_to_sql(r, fields) for r in batch)
@@ -283,10 +282,9 @@ class MockBackend(SqlBackend):
         return iter(rows)
 
     def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode: str = "append"):
-        if mode == "overwrite":
-            msg = "Overwrite mode is not yet supported"
-            raise NotImplementedError(msg)
         rows = self._filter_none_rows(rows, klass)
+        if mode == "overwrite":
+            self._save_table = []
         if klass.__class__ == type:
             row_factory = self._row_factory(klass)
             rows = [row_factory(*dataclasses.astuple(r)) for r in rows]
