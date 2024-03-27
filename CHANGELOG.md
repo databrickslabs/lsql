@@ -1,5 +1,10 @@
 # Version changelog
 
+## 0.3.0
+
+* Added support for `save_table(..., mode="overwrite")` to `StatementExecutionBackend` ([#74](https://github.com/databrickslabs/lsql/issues/74)). In this release, we've added support for overwriting a table when saving data using the `save_table` method in the `StatementExecutionBackend`. Previously, attempting to use the `overwrite` mode would raise a `NotImplementedError`. Now, when this mode is specified, the method first truncates the table before inserting the new rows. The truncation is done using the `execute` method to run a `TRUNCATE TABLE` SQL command. Additionally, we've added a new integration test, `test_overwrite`, to the `test_deployment.py` file to verify the new `overwrite` mode functionality. A new option, `mode="overwrite"`, has been added to the `save_table` method, allowing for the existing data in the table to be deleted and replaced with the new data being written. We've also added two new test cases, `test_statement_execution_backend_save_table_overwrite_empty_table` and `test_mock_backend_overwrite`, to verify the new functionality. It's important to note that the method signature has been updated to include a default value for the `mode` parameter, setting it to `append` by default. This change does not affect the functionality and only provides a more convenient default behavior for users of the method.
+
+
 ## 0.2.5
 
 * Fixed PyPI badge ([#72](https://github.com/databrickslabs/lsql/issues/72)). In this release, we have implemented a fix to the PyPI badge in the README file of our open-source library. The PyPI badge displays the version of the package and serves as a quick reference for users. This fix ensures the accuracy and proper functioning of the badge, without involving any changes to the functionality or methods within the project. Software engineers can be assured that this update is limited to the README file, specifically the PyPI badge, and will not affect the overall functionality of the library.
