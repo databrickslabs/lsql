@@ -93,10 +93,47 @@ def test_statement_execution_backend_fetch_happy():
     assert [Row(id=1), Row(id=2), Row(id=3)] == result
 
 
-def test_statement_execution_backend_save_table_overwrite(mocker):
-    seb = StatementExecutionBackend(mocker.Mock(), "abc")
-    with pytest.raises(NotImplementedError):
-        seb.save_table("a.b.c", [1, 2, 3], Bar, mode="overwrite")
+def test_statement_execution_backend_save_table_overwrite_empty_table():
+    ws = create_autospec(WorkspaceClient)
+    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+        status=StatementStatus(state=StatementState.SUCCEEDED)
+    )
+    seb = StatementExecutionBackend(ws, "abc")
+    seb.save_table("a.b.c", [Baz("1")], Baz, mode="overwrite")
+    ws.statement_execution.execute_statement.assert_has_calls(
+        [
+            mock.call(
+                warehouse_id="abc",
+                statement="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second STRING) USING DELTA",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            mock.call(
+                warehouse_id="abc",
+                statement="TRUNCATE TABLE a.b.c",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            mock.call(
+                warehouse_id="abc",
+                statement="INSERT INTO a.b.c (first, second) VALUES ('1', NULL)",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+        ]
+    )
 
 
 def test_statement_execution_backend_save_table_empty_records():
@@ -356,4 +393,17 @@ def test_mock_backend_rows_dsl():
     assert rows == [
         Row(foo=1, bar=2),
         Row(foo=3, bar=4),
+    ]
+
+
+def test_mock_backend_overwrite():
+    mock_backend = MockBackend()
+    mock_backend.save_table("a.b.c", [Foo("a1", True), Foo("c2", False)], Foo, "append")
+    mock_backend.save_table("a.b.c", [Foo("aa", True), Foo("bb", False)], Foo, "overwrite")
+    mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo, "overwrite")
+
+    assert mock_backend.rows_written_for("a.b.c", "append") == []
+    assert mock_backend.rows_written_for("a.b.c", "overwrite") == [
+        Row(first="aaa", second=True),
+        Row(first="bbb", second=False),
     ]
