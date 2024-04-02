@@ -1,5 +1,17 @@
 # Version changelog
 
+## 0.3.1
+
+* Check UCX and LSQL for backwards compatibility ([#78](https://github.com/databrickslabs/lsql/issues/78)). In this release, we introduce a new GitHub Actions workflow, downstreams.yml, which automates unit testing for downstream projects upon changes made to the upstream project. The workflow runs on pull requests, merge groups, and pushes to the main branch and sets permissions for id-token, contents, and pull-requests. It includes a compatibility job that runs on Ubuntu, checks out the code, sets up Python, installs the toolchain, and accepts downstream projects using the databrickslabs/sandbox/downstreams action. The job matrix includes two downstream projects, ucx and remorph, and uses the build cache to speed up the pip install step. This feature ensures that changes to the upstream project do not break compatibility with downstream projects, maintaining a stable and reliable library for software engineers.
+* Fixed `Builder` object has no attribute `sdk_config` error ([#86](https://github.com/databrickslabs/lsql/issues/86)). In this release, we've resolved a `Builder` object has no attribute `sdk_config` error that occurred when initializing a Spark session using the `DatabricksSession.builder` method. The issue was caused by using dot notation to access the `sdk_config` attribute, which is incorrect. This has been updated to the correct syntax of `sdkConfig`. This change enables successful creation of the Spark session, preventing the error from recurring. The `DatabricksSession` class and its methods, such as `getOrCreate`, continue to be used for interacting with Databricks clusters and workspaces, while the `WorkspaceClient` class manages Databricks resources within a workspace.
+
+Dependency updates:
+
+ * Bump codecov/codecov-action from 1 to 4 ([#84](https://github.com/databrickslabs/lsql/pull/84)).
+ * Bump actions/setup-python from 4 to 5 ([#83](https://github.com/databrickslabs/lsql/pull/83)).
+ * Bump actions/checkout from 2.5.0 to 4.1.2 ([#81](https://github.com/databrickslabs/lsql/pull/81)).
+ * Bump softprops/action-gh-release from 1 to 2 ([#80](https://github.com/databrickslabs/lsql/pull/80)).
+
 ## 0.3.0
 
 * Added support for `save_table(..., mode="overwrite")` to `StatementExecutionBackend` ([#74](https://github.com/databrickslabs/lsql/issues/74)). In this release, we've added support for overwriting a table when saving data using the `save_table` method in the `StatementExecutionBackend`. Previously, attempting to use the `overwrite` mode would raise a `NotImplementedError`. Now, when this mode is specified, the method first truncates the table before inserting the new rows. The truncation is done using the `execute` method to run a `TRUNCATE TABLE` SQL command. Additionally, we've added a new integration test, `test_overwrite`, to the `test_deployment.py` file to verify the new `overwrite` mode functionality. A new option, `mode="overwrite"`, has been added to the `save_table` method, allowing for the existing data in the table to be deleted and replaced with the new data being written. We've also added two new test cases, `test_statement_execution_backend_save_table_overwrite_empty_table` and `test_mock_backend_overwrite`, to verify the new functionality. It's important to note that the method signature has been updated to include a default value for the `mode` parameter, setting it to `append` by default. This change does not affect the functionality and only provides a more convenient default behavior for users of the method.
