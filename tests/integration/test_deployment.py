@@ -28,8 +28,8 @@ def test_overwrite(ws, env_or_skip, make_random):
     schema = "default"
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
 
-    sql_backend.save_table(f"hive_metastore.{schema}.foo", [views.Foo("abc", True)], views.Foo, "append")
-    sql_backend.save_table(f"hive_metastore.{schema}.foo", [views.Foo("xyz", True)], views.Foo, "overwrite")
+    sql_backend.save_table(f"sandbox.{schema}.foo", [views.Foo("abc", True)], views.Foo, "append")
+    sql_backend.save_table(f"sandbox.{schema}.foo", [views.Foo("xyz", True)], views.Foo, "overwrite")
     rows = list(sql_backend.fetch(f"SELECT * FROM hive_metastore.{schema}.some"))
 
     assert rows == [Row(name="xyz", id=1)]
