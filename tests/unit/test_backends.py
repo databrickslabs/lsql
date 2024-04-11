@@ -2,7 +2,7 @@ import os
 import sys
 from dataclasses import dataclass
 from unittest import mock
-from unittest.mock import MagicMock, create_autospec
+from unittest.mock import MagicMock, call, create_autospec
 
 import pytest
 from databricks.sdk import WorkspaceClient
@@ -69,6 +69,28 @@ def test_statement_execution_backend_execute_happy():
         statement="CREATE TABLE foo",
         catalog=None,
         schema=None,
+        disposition=None,
+        format=Format.JSON_ARRAY,
+        byte_limit=None,
+        wait_timeout=None,
+    )
+
+
+def test_statement_execution_backend_with_overrides():
+    ws = create_autospec(WorkspaceClient)
+    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+        status=StatementStatus(state=StatementState.SUCCEEDED)
+    )
+
+    seb = StatementExecutionBackend(ws, "abc")
+
+    seb.execute("CREATE TABLE foo", catalog="foo", schema="bar")
+
+    ws.statement_execution.execute_statement.assert_called_with(
+        warehouse_id="abc",
+        statement="CREATE TABLE foo",
+        catalog="foo",
+        schema="bar",
         disposition=None,
         format=Format.JSON_ARRAY,
         byte_limit=None,
@@ -267,11 +289,12 @@ def test_runtime_backend_fetch():
 
         runtime_backend = RuntimeBackend()
 
-        result = runtime_backend.fetch("SELECT id FROM range(3)")
+        result = runtime_backend.fetch("SELECT id FROM range(3)", catalog="foo", schema="bar")
 
         assert [Row(id=1), Row(id=2), Row(id=3)] == list(result)
 
-        spark.sql.assert_called_with("SELECT id FROM range(3)")
+        calls = [call("USE CATALOG foo"), call("USE SCHEMA bar"), call("SELECT id FROM range(3)")]
+        spark.sql.assert_has_calls(calls)
 
 
 def test_runtime_backend_save_table():
