@@ -41,11 +41,11 @@ class SqlBackend(ABC):
     to tables."""
 
     @abstractmethod
-    def execute(self, sql: str) -> None:
+    def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def fetch(self, sql: str) -> Iterator[Any]:
+    def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -137,13 +137,13 @@ class StatementExecutionBackend(SqlBackend):
         # while unit-testing, this value will contain a mock
         self._debug_truncate_bytes = debug_truncate_bytes if isinstance(debug_truncate_bytes, int) else 96
 
-    def execute(self, sql: str) -> None:
+    def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
         logger.debug(f"[api][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
-        self._sql.execute(sql)
+        self._sql.execute(sql, catalog=catalog, schema=schema)
 
-    def fetch(self, sql: str) -> Iterator[Row]:
+    def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Row]:
         logger.debug(f"[api][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
-        return self._sql.fetch_all(sql)
+        return self._sql.fetch_all(sql, catalog=catalog, schema=schema)
 
     def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode="append"):
         rows = self._filter_none_rows(rows, klass)
@@ -188,17 +188,25 @@ class _SparkBackend(SqlBackend):
         self._spark = spark
         self._debug_truncate_bytes = debug_truncate_bytes if debug_truncate_bytes is not None else 96
 
-    def execute(self, sql: str) -> None:
+    def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
         logger.debug(f"[spark][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
         try:
+            if catalog:
+                self._spark.sql(f"USE CATALOG {catalog}")
+            if schema:
+                self._spark.sql(f"USE SCHEMA {schema}")
             self._spark.sql(sql)
         except Exception as e:
             error_message = str(e)
             raise self._api_error_from_message(error_message) from None
 
-    def fetch(self, sql: str) -> Iterator[Row]:
+    def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Row]:
         logger.debug(f"[spark][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
         try:
+            if catalog:
+                self._spark.sql(f"USE CATALOG {catalog}")
+            if schema:
+                self._spark.sql(f"USE SCHEMA {schema}")
             return iter(self._spark.sql(sql).collect())
         except Exception as e:
             error_message = str(e)
@@ -266,10 +274,10 @@ class MockBackend(SqlBackend):
                 if match in sql:
                     raise self._api_error_from_message(failure) from None
 
-    def execute(self, sql):
+    def execute(self, sql, *, catalog=None, schema=None):
         self._sql(sql)
 
-    def fetch(self, sql) -> Iterator[Row]:
+    def fetch(self, sql, *, catalog=None, schema=None) -> Iterator[Row]:
         self._sql(sql)
         rows = []
         if self._rows:

@@ -140,3 +140,34 @@ def test_statement_execution_backend_works(ws, env_or_skip):
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
     rows = list(sql_backend.fetch("SELECT * FROM samples.nyctaxi.trips LIMIT 10"))
     assert len(rows) == 10
+
+
+def test_statement_execution_backend_overrides(ws, env_or_skip):
+    sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
+    rows = list(sql_backend.fetch("SELECT * FROM trips LIMIT 10", catalog="samples", schema="nyctaxi"))
+    assert len(rows) == 10
+
+
+def test_runtime_backend_use_statements(ws):
+    product_info = ProductInfo.for_testing(SqlBackend)
+    installation = Installation.assume_user_home(ws, product_info.product_name())
+    with WheelsV2(installation, product_info) as wheels:
+        wsfs_wheel = wheels.upload_to_wsfs()
+
+    commands = CommandExecutor(ws.clusters, ws.command_execution, lambda: ws.config.cluster_id)
+    commands.install_notebook_library(f"/Workspace{wsfs_wheel}")
+
+    permission_denied_query = """
+from databricks.labs.lsql.backends import RuntimeBackend
+from databricks.sdk import WorkspaceClient
+w = WorkspaceClient()
+me = w.current_user.me()
+backend = RuntimeBackend()
+result_set = backend.fetch(f"SELECT * FROM trips LIMIT 10", catalog="samples", schema="nyctaxi")
+if len(list(result_set)) == 10:
+    return "PASSED"
+else:
+    return "FAILED"
+"""
+    result = commands.run(permission_denied_query)
+    assert result == "PASSED"
