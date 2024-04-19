@@ -135,6 +135,9 @@ class ExecutionBackend(SqlBackend):
     """Abstract base class for Statement & Command Execution backends.
     This class defines the save_table method that is used to save data to tables."""
 
+    def __init__(self, max_records_per_batch: int = 1000):
+        self._max_records_per_batch = max_records_per_batch
+
     @abstractmethod
     def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
         raise NotImplementedError
@@ -153,7 +156,7 @@ class ExecutionBackend(SqlBackend):
         if mode == "overwrite":
             self.execute(f"TRUNCATE TABLE {full_name}")
         for i in range(0, len(rows), self._max_records_per_batch):
-            batch = rows[i: i + self._max_records_per_batch]
+            batch = rows[i : i + self._max_records_per_batch]
             vals = "), (".join(self._row_to_sql(r, fields) for r in batch)
             sql = f'INSERT INTO {full_name} ({", ".join(field_names)}) VALUES ({vals})'
             self.execute(sql)
@@ -184,10 +187,10 @@ class ExecutionBackend(SqlBackend):
 class StatementExecutionBackend(ExecutionBackend):
     def __init__(self, ws: WorkspaceClient, warehouse_id, *, max_records_per_batch: int = 1000, **kwargs):
         self._sql = StatementExecutionExt(ws, warehouse_id=warehouse_id, **kwargs)
-        self._max_records_per_batch = max_records_per_batch
         debug_truncate_bytes = ws.config.debug_truncate_bytes
         # while unit-testing, this value will contain a mock
         self._debug_truncate_bytes = debug_truncate_bytes if isinstance(debug_truncate_bytes, int) else 96
+        super().__init__(max_records_per_batch)
 
     def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
         logger.debug(f"[api][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
@@ -201,9 +204,9 @@ class StatementExecutionBackend(ExecutionBackend):
 class CommandContextBackend(ExecutionBackend):
     def __init__(self, ws: WorkspaceClient, cluster_id, *, max_records_per_batch: int = 1000):
         self._sql = CommandExecutor(ws.clusters, ws.command_execution, lambda: cluster_id, language=Language.SQL)
-        self._max_records_per_batch = max_records_per_batch
         debug_truncate_bytes = ws.config.debug_truncate_bytes
         self._debug_truncate_bytes = debug_truncate_bytes if isinstance(debug_truncate_bytes, int) else 96
+        super().__init__(max_records_per_batch)
 
     def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
         logger.debug(f"[api][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
@@ -294,7 +297,7 @@ class DatabricksConnectBackend(_SparkBackend):
 
 class MockBackend(SqlBackend):
     def __init__(
-            self, *, fails_on_first: dict[str, str] | None = None, rows: dict | None = None, debug_truncate_bytes=96
+        self, *, fails_on_first: dict[str, str] | None = None, rows: dict | None = None, debug_truncate_bytes=96
     ):
         self._fails_on_first = fails_on_first
         if not rows:

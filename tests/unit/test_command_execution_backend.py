@@ -1,41 +1,19 @@
-import os
-import sys
 from dataclasses import dataclass
 from unittest import mock
-from unittest.mock import MagicMock, call, create_autospec
+from unittest.mock import call, create_autospec
 
-import pytest
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.errors import (
-    BadRequest,
-    DataLoss,
-    NotFound,
-    PermissionDenied,
-    Unknown,
-)
-from databricks.sdk.service.sql import (
-    ColumnInfo,
-    ColumnInfoTypeName,
-    ExecuteStatementResponse,
-    Format,
-    ResultData,
-    ResultManifest,
-    ResultSchema,
-    StatementState,
-    StatementStatus,
-)
-
 from databricks.sdk.service._internal import Wait
-
-from databricks.sdk.service.compute import CommandStatusResponse, CommandStatus, Results, Language, \
-    ContextStatusResponse, ResultType
-
-from databricks.labs.lsql import Row
-from databricks.labs.lsql.backends import (
-    MockBackend,
-    RuntimeBackend,
-    StatementExecutionBackend, CommandContextBackend,
+from databricks.sdk.service.compute import (
+    CommandStatus,
+    CommandStatusResponse,
+    ContextStatusResponse,
+    Language,
+    Results,
+    ResultType,
 )
+
+from databricks.labs.lsql.backends import CommandContextBackend
 
 
 @dataclass
@@ -64,8 +42,8 @@ def test_command_context_backend_execute_happy():
     )
     ws.command_execution.execute.return_value = Wait[CommandStatusResponse](
         waiter=lambda callback, timeout: CommandStatusResponse(
-            results=Results(data="success"),
-            status=CommandStatus.FINISHED)
+            results=Results(data="success"), status=CommandStatus.FINISHED
+        )
     )
 
     ccb = CommandContextBackend(ws, "abc")
@@ -73,10 +51,7 @@ def test_command_context_backend_execute_happy():
     ccb.execute("CREATE TABLE foo")
 
     ws.command_execution.execute.assert_called_with(
-        cluster_id='abc',
-        language=Language.SQL,
-        context_id="abc",
-        command='CREATE TABLE foo'
+        cluster_id="abc", language=Language.SQL, context_id="abc", command="CREATE TABLE foo"
     )
 
 
@@ -87,8 +62,8 @@ def test_command_context_backend_with_overrides():
     )
     ws.command_execution.execute.return_value = Wait[CommandStatusResponse](
         waiter=lambda callback, timeout: CommandStatusResponse(
-            results=Results(data="success"),
-            status=CommandStatus.FINISHED)
+            results=Results(data="success"), status=CommandStatus.FINISHED
+        )
     )
 
     ccb = CommandContextBackend(ws, "abc")
@@ -97,9 +72,9 @@ def test_command_context_backend_with_overrides():
 
     ws.command_execution.execute.assert_has_calls(
         [
-            call(cluster_id='abc', language=Language.SQL, context_id="abc", command='USE CATALOG foo'),
-            call(cluster_id='abc', language=Language.SQL, context_id="abc", command='USE SCHEMA bar'),
-            call(cluster_id='abc', language=Language.SQL, context_id="abc", command='CREATE TABLE foo')
+            call(cluster_id="abc", language=Language.SQL, context_id="abc", command="USE CATALOG foo"),
+            call(cluster_id="abc", language=Language.SQL, context_id="abc", command="USE SCHEMA bar"),
+            call(cluster_id="abc", language=Language.SQL, context_id="abc", command="CREATE TABLE foo"),
         ]
     )
 
@@ -114,16 +89,17 @@ def test_command_context_backend_fetch_happy():
             results=Results(
                 data=[["1"], ["2"], ["3"]],
                 result_type=ResultType.TABLE,
-                schema=[{'name': 'id', 'type': '"int"', 'metadata': '{}'}]
+                schema=[{"name": "id", "type": '"int"', "metadata": "{}"}],
             ),
-            status=CommandStatus.FINISHED)
+            status=CommandStatus.FINISHED,
+        )
     )
 
     ccb = CommandContextBackend(ws, "abc")
 
     result = list(ccb.fetch("SELECT id FROM range(3)"))
 
-    assert [['1'], ['2'], ['3']] == result
+    assert [["1"], ["2"], ["3"]] == result
 
 
 def test_command_context_backend_save_table_overwrite_empty_table():
@@ -133,8 +109,8 @@ def test_command_context_backend_save_table_overwrite_empty_table():
     )
     ws.command_execution.execute.return_value = Wait[CommandStatusResponse](
         waiter=lambda callback, timeout: CommandStatusResponse(
-            results=Results(data="success"),
-            status=CommandStatus.FINISHED)
+            results=Results(data="success"), status=CommandStatus.FINISHED
+        )
     )
 
     ccb = CommandContextBackend(ws, "abc")
@@ -143,19 +119,19 @@ def test_command_context_backend_save_table_overwrite_empty_table():
     ws.command_execution.execute.assert_has_calls(
         [
             mock.call(
-                cluster_id='abc',
+                cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
                 command="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second STRING) USING DELTA",
             ),
             mock.call(
-                cluster_id='abc',
+                cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
                 command="TRUNCATE TABLE a.b.c",
             ),
             mock.call(
-                cluster_id='abc',
+                cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
                 command="INSERT INTO a.b.c (first, second) VALUES ('1', NULL)",
@@ -171,8 +147,8 @@ def test_command_context_backend_save_table_empty_records():
     )
     ws.command_execution.execute.return_value = Wait[CommandStatusResponse](
         waiter=lambda callback, timeout: CommandStatusResponse(
-            results=Results(data="success"),
-            status=CommandStatus.FINISHED)
+            results=Results(data="success"), status=CommandStatus.FINISHED
+        )
     )
 
     ccb = CommandContextBackend(ws, "abc")
@@ -180,11 +156,11 @@ def test_command_context_backend_save_table_empty_records():
     ccb.save_table("a.b.c", [], Bar)
 
     ws.command_execution.execute.assert_called_with(
-        cluster_id='abc',
+        cluster_id="abc",
         language=Language.SQL,
         context_id="abc",
         command="CREATE TABLE IF NOT EXISTS a.b.c "
-                  "(first STRING NOT NULL, second BOOLEAN NOT NULL, third FLOAT NOT NULL) USING DELTA",
+        "(first STRING NOT NULL, second BOOLEAN NOT NULL, third FLOAT NOT NULL) USING DELTA",
     )
 
 
@@ -195,8 +171,8 @@ def test_command_context_backend_save_table_two_records():
     )
     ws.command_execution.execute.return_value = Wait[CommandStatusResponse](
         waiter=lambda callback, timeout: CommandStatusResponse(
-            results=Results(data="success"),
-            status=CommandStatus.FINISHED)
+            results=Results(data="success"), status=CommandStatus.FINISHED
+        )
     )
 
     ccb = CommandContextBackend(ws, "abc")
@@ -206,13 +182,13 @@ def test_command_context_backend_save_table_two_records():
     ws.command_execution.execute.assert_has_calls(
         [
             mock.call(
-                cluster_id='abc',
+                cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
                 command="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
             ),
             mock.call(
-                cluster_id='abc',
+                cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
                 command="INSERT INTO a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
@@ -228,8 +204,8 @@ def test_command_context_backend_save_table_in_batches_of_two(mocker):
     )
     ws.command_execution.execute.return_value = Wait[CommandStatusResponse](
         waiter=lambda callback, timeout: CommandStatusResponse(
-            results=Results(data="success"),
-            status=CommandStatus.FINISHED)
+            results=Results(data="success"), status=CommandStatus.FINISHED
+        )
     )
 
     ccb = CommandContextBackend(ws, "abc", max_records_per_batch=2)
@@ -239,19 +215,19 @@ def test_command_context_backend_save_table_in_batches_of_two(mocker):
     ws.command_execution.execute.assert_has_calls(
         [
             mock.call(
-                cluster_id='abc',
+                cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
                 command="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
             ),
             mock.call(
-                cluster_id='abc',
+                cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
                 command="INSERT INTO a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
             ),
             mock.call(
-                cluster_id='abc',
+                cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
                 command="INSERT INTO a.b.c (first, second) VALUES ('ccc', TRUE)",
