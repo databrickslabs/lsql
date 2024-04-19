@@ -201,7 +201,7 @@ class StatementExecutionBackend(ExecutionBackend):
         return self._sql.fetch_all(sql, catalog=catalog, schema=schema)
 
 
-class CommandContextBackend(ExecutionBackend):
+class CommandExecutionBackend(ExecutionBackend):
     def __init__(self, ws: WorkspaceClient, cluster_id, *, max_records_per_batch: int = 1000):
         self._sql = CommandExecutor(ws.clusters, ws.command_execution, lambda: cluster_id, language=Language.SQL)
         debug_truncate_bytes = ws.config.debug_truncate_bytes

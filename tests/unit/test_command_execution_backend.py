@@ -13,7 +13,7 @@ from databricks.sdk.service.compute import (
     ResultType,
 )
 
-from databricks.labs.lsql.backends import CommandContextBackend
+from databricks.labs.lsql.backends import CommandExecutionBackend
 
 
 @dataclass
@@ -46,9 +46,9 @@ def test_command_context_backend_execute_happy():
         )
     )
 
-    ccb = CommandContextBackend(ws, "abc")
+    ceb = CommandExecutionBackend(ws, "abc")
 
-    ccb.execute("CREATE TABLE foo")
+    ceb.execute("CREATE TABLE foo")
 
     ws.command_execution.execute.assert_called_with(
         cluster_id="abc", language=Language.SQL, context_id="abc", command="CREATE TABLE foo"
@@ -66,9 +66,9 @@ def test_command_context_backend_with_overrides():
         )
     )
 
-    ccb = CommandContextBackend(ws, "abc")
+    ceb = CommandExecutionBackend(ws, "abc")
 
-    ccb.execute("CREATE TABLE foo", catalog="foo", schema="bar")
+    ceb.execute("CREATE TABLE foo", catalog="foo", schema="bar")
 
     ws.command_execution.execute.assert_has_calls(
         [
@@ -95,9 +95,9 @@ def test_command_context_backend_fetch_happy():
         )
     )
 
-    ccb = CommandContextBackend(ws, "abc")
+    ceb = CommandExecutionBackend(ws, "abc")
 
-    result = list(ccb.fetch("SELECT id FROM range(3)"))
+    result = list(ceb.fetch("SELECT id FROM range(3)"))
 
     assert [["1"], ["2"], ["3"]] == result
 
@@ -113,8 +113,8 @@ def test_command_context_backend_save_table_overwrite_empty_table():
         )
     )
 
-    ccb = CommandContextBackend(ws, "abc")
-    ccb.save_table("a.b.c", [Baz("1")], Baz, mode="overwrite")
+    ceb = CommandExecutionBackend(ws, "abc")
+    ceb.save_table("a.b.c", [Baz("1")], Baz, mode="overwrite")
 
     ws.command_execution.execute.assert_has_calls(
         [
@@ -151,9 +151,9 @@ def test_command_context_backend_save_table_empty_records():
         )
     )
 
-    ccb = CommandContextBackend(ws, "abc")
+    ceb = CommandExecutionBackend(ws, "abc")
 
-    ccb.save_table("a.b.c", [], Bar)
+    ceb.save_table("a.b.c", [], Bar)
 
     ws.command_execution.execute.assert_called_with(
         cluster_id="abc",
@@ -175,9 +175,9 @@ def test_command_context_backend_save_table_two_records():
         )
     )
 
-    ccb = CommandContextBackend(ws, "abc")
+    ceb = CommandExecutionBackend(ws, "abc")
 
-    ccb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
+    ceb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
 
     ws.command_execution.execute.assert_has_calls(
         [
@@ -208,9 +208,9 @@ def test_command_context_backend_save_table_in_batches_of_two(mocker):
         )
     )
 
-    ccb = CommandContextBackend(ws, "abc", max_records_per_batch=2)
+    ceb = CommandExecutionBackend(ws, "abc", max_records_per_batch=2)
 
-    ccb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo)
+    ceb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo)
 
     ws.command_execution.execute.assert_has_calls(
         [
