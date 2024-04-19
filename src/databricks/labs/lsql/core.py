@@ -448,6 +448,8 @@ class StatementExecutionExt:
             raise NotFound(error_message)
         if "DELTA_TABLE_NOT_FOUND" in error_message:
             raise NotFound(error_message)
+        if "does not exists" in error_message:
+            raise NotFound(error_message)
         if "DELTA_MISSING_TRANSACTION_LOG" in error_message:
             raise DataLoss(error_message)
         mapping = {
