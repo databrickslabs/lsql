@@ -1,5 +1,10 @@
 # Version changelog
 
+## 0.4.2
+
+* Added more `NotFound` error type ([#94](https://github.com/databrickslabs/lsql/issues/94)). In the latest update, the `core.py` file in the `databricks/labs/lsql` package has undergone enhancements to the error handling functionality. The `_raise_if_needed` function has been modified to raise a `NotFound` error when the error message includes the phrase "does not exist". This update enables the system to categorize specific SQL query errors as `NotFound` error messages, thereby improving the overall error handling and reporting capabilities. This change was a collaborative effort, as indicated by the co-authored-by statement in the commit.
+
+
 ## 0.4.1
 
 * Fixing ovewrite integration tests ([#92](https://github.com/databrickslabs/lsql/issues/92)). A new enhancement has been implemented for the `overwrite` feature's integration tests, addressing a concern with write operations. Two new variables, `catalog` and "schema", have been incorporated using the `env_or_skip` function. These variables are utilized in the `save_table` method, which is now invoked twice with the same table, once with the `append` and once with the `overwrite` option. The data in the table is retrieved and checked for accuracy after each call, employing the updated `Row` class with revised field names `first` and "second", formerly `name` and "id". This modification ensures the proper operation of the `overwrite` feature during integration tests and resolves any related issues. The commit message `Fixing overwrite integration tests` signifies this change.
