@@ -207,6 +207,7 @@ class _SparkBackend(SqlBackend):
                 self._spark.sql(f"USE CATALOG {catalog}")
             if schema:
                 self._spark.sql(f"USE SCHEMA {schema}")
+            # TODO: pyspark.sql.Row is being return instead of databricks.labs.lsql.core.Row
             return iter(self._spark.sql(sql).collect())
         except Exception as e:
             error_message = str(e)

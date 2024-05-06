@@ -66,6 +66,10 @@ class Row(tuple):
         """Convert the row to a dictionary with the same conventions as Databricks SDK."""
         return dict(zip(self.__columns__, self, strict=True))
 
+    # PySpark's compatibility
+    def asDict(self, recursive: bool = False) -> dict[str, Any]:
+        return self.as_dict()
+
     def __eq__(self, other):
         """Check if the rows are equal."""
         if not isinstance(other, Row):
