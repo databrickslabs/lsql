@@ -35,7 +35,7 @@ Results are fetched in JSON format through presigned external links. This is per
 like AWS Lambda, Azure Functions, or any other containerised short-lived applications, where container startup
 time is faster with the smaller dependency set.
 
-Applications, that need to a more traditional SQL Python APIs with cursors, efficient data transfer of hundreds of
+Applications, that need a more traditional SQL Python APIs with cursors, efficient data transfer of hundreds of
 megabytes or gigabytes of data serialized in Apache Arrow format, and low result fetching latency, should use
 the stateful Databricks SQL Connector for Python.
 
