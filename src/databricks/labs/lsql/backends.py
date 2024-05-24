@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterable, Iterator, Sequence
 from types import UnionType
 from typing import Any, ClassVar, Protocol, TypeVar
 
+from databricks.labs.blueprint.commands import CommandExecutor
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.errors import (
     BadRequest,
@@ -16,6 +17,7 @@ from databricks.sdk.errors import (
     PermissionDenied,
     Unknown,
 )
+from databricks.sdk.service.compute import Language
 
 from databricks.labs.lsql.core import Row, StatementExecutionExt
 
@@ -129,21 +131,20 @@ class SqlBackend(ABC):
         return Unknown(error_message)
 
 
-class StatementExecutionBackend(SqlBackend):
-    def __init__(self, ws: WorkspaceClient, warehouse_id, *, max_records_per_batch: int = 1000, **kwargs):
-        self._sql = StatementExecutionExt(ws, warehouse_id=warehouse_id, **kwargs)
+class ExecutionBackend(SqlBackend):
+    """Abstract base class for Statement & Command Execution backends.
+    This class defines the save_table method that is used to save data to tables."""
+
+    def __init__(self, max_records_per_batch: int = 1000):
         self._max_records_per_batch = max_records_per_batch
-        debug_truncate_bytes = ws.config.debug_truncate_bytes
-        # while unit-testing, this value will contain a mock
-        self._debug_truncate_bytes = debug_truncate_bytes if isinstance(debug_truncate_bytes, int) else 96
 
+    @abstractmethod
     def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
-        logger.debug(f"[api][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
-        self._sql.execute(sql, catalog=catalog, schema=schema)
+        raise NotImplementedError
 
-    def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Row]:
-        logger.debug(f"[api][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
-        return self._sql.fetch_all(sql, catalog=catalog, schema=schema)
+    @abstractmethod
+    def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Any]:
+        raise NotImplementedError
 
     def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode="append"):
         rows = self._filter_none_rows(rows, klass)
@@ -181,6 +182,47 @@ class StatementExecutionBackend(SqlBackend):
                 msg = f"unknown type: {field_type}"
                 raise ValueError(msg)
         return ", ".join(data)
+
+
+class StatementExecutionBackend(ExecutionBackend):
+    def __init__(self, ws: WorkspaceClient, warehouse_id, *, max_records_per_batch: int = 1000, **kwargs):
+        self._sql = StatementExecutionExt(ws, warehouse_id=warehouse_id, **kwargs)
+        debug_truncate_bytes = ws.config.debug_truncate_bytes
+        # while unit-testing, this value will contain a mock
+        self._debug_truncate_bytes = debug_truncate_bytes if isinstance(debug_truncate_bytes, int) else 96
+        super().__init__(max_records_per_batch)
+
+    def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
+        logger.debug(f"[api][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
+        self._sql.execute(sql, catalog=catalog, schema=schema)
+
+    def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Row]:
+        logger.debug(f"[api][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
+        return self._sql.fetch_all(sql, catalog=catalog, schema=schema)
+
+
+class CommandExecutionBackend(ExecutionBackend):
+    def __init__(self, ws: WorkspaceClient, cluster_id, *, max_records_per_batch: int = 1000):
+        self._sql = CommandExecutor(ws.clusters, ws.command_execution, lambda: cluster_id, language=Language.SQL)
+        debug_truncate_bytes = ws.config.debug_truncate_bytes
+        self._debug_truncate_bytes = debug_truncate_bytes if isinstance(debug_truncate_bytes, int) else 96
+        super().__init__(max_records_per_batch)
+
+    def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
+        logger.debug(f"[api][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
+        if catalog:
+            self._sql.run(f"USE CATALOG {catalog}")
+        if schema:
+            self._sql.run(f"USE SCHEMA {schema}")
+        self._sql.run(sql)
+
+    def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Row]:
+        logger.debug(f"[api][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
+        if catalog:
+            self._sql.run(f"USE CATALOG {catalog}")
+        if schema:
+            self._sql.run(f"USE SCHEMA{schema}")
+        return self._sql.run(sql, result_as_json=True)
 
 
 class _SparkBackend(SqlBackend):
