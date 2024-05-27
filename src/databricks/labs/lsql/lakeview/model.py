@@ -91,6 +91,8 @@ class WidgetSpec(abc.ABC):
     def from_dict(cls, d: Json) -> WidgetSpec:
         if d["version"] == 0 and d["viz_spec"]["viz_type"].lower() == "table":
             return TableV1Spec.from_dict(json.loads(d["viz_spec"]["serialized_options"]))
+        if d["version"] == 0 and d["viz_spec"]["viz_type"].lower() == "counter":
+            return CounterSpec.from_dict(json.loads(d["viz_spec"]["serialized_options"]))
         if d["version"] == 1 and d["widgetType"] == "details":
             return DetailsV1Spec.from_dict(d)
         if d["version"] == 1 and d["widgetType"] == "table":
