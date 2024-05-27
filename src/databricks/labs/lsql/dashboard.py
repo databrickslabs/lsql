@@ -10,10 +10,17 @@ from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
     ControlFieldEncoding,
+    CounterSpec,
+    CounterEncodingMap,
     Dashboard as LakeviewDashboard,
     Dataset,
+    Field,
+    Layout,
     NamedQuery,
+    Page,
+    Position,
     Query,
+    Widget,
 )
 
 
@@ -53,13 +60,23 @@ class Dashboard:  # TODO: Rename, maybe DashboardClient?
     @staticmethod
     def deploy(dashboard_folder: Path) -> LakeviewDashboard:
         """Deploy dashboard from code, i.e. configuration and queries."""
-        datasets = []
+        datasets, layouts = [], []
         for query_path in dashboard_folder.glob("*.sql"):
             with query_path.open("r") as query_file:
-                query = query_file.read()
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query)
+                raw_query = query_file.read()
+            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
-        dashboard = LakeviewDashboard(datasets=datasets, pages=[])
+
+            query = Query(dataset_name=dataset.name, fields=[])
+            named_query = NamedQuery(name=dataset.name, query=query)
+            counter_spec = CounterSpec(CounterEncodingMap())
+            widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
+            position = Position(x=0, y=0, width=1, height=1)
+            layout = Layout(widget=widget, position=position)
+            layouts.append(layout)
+
+        page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
+        dashboard = LakeviewDashboard(datasets=datasets, pages=[page])
         return dashboard
 
     def _format_sql_file(self, sql_query, query_path):
