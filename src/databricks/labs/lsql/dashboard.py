@@ -13,7 +13,6 @@ from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
     Dashboard as LakeviewDashboard,
     Dataset,
-    Field,
     Layout,
     NamedQuery,
     Page,
