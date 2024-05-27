@@ -4,24 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from databricks.labs.lsql.dashboards import Dashboards
-from databricks.labs.lsql.lakeview.model import CounterSpec, Dashboard
-
-
-@pytest.fixture
-def dashboard_id(ws, make_random):
-    """Clean the lakeview dashboard"""
-
-    dashboard_display_name = f"created_by_lsql_{make_random()}"
-    dashboard = ws.lakeview.create(dashboard_display_name)
-
-    yield dashboard.dashboard_id
-
-    ws.lakeview.trash(dashboard.dashboard_id)
+from databricks.labs.lsql.dashboard import Dashboard
 
 
 def test_load_dashboard(ws):
-    dashboard = Dashboards(ws)
+    dashboards = Dashboard(ws)
     src = "/Workspace/Users/serge.smertin@databricks.com/Trivial Dashboard.lvdash.json"
     dst = Path(__file__).parent / "sample"
     dashboard.save_to_folder(src, dst)

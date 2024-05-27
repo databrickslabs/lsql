@@ -29,8 +29,7 @@ from databricks.labs.lsql.lakeview import (
 class _DataclassInstance(Protocol):
     __dataclass_fields__: ClassVar[dict]
 
-
-class Dashboards:
+class Dashboard:
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
 
