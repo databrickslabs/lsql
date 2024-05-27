@@ -78,7 +78,7 @@ class Dashboards:
             named_query = NamedQuery(name=self._create_random_id(), query=query)
             counter_spec = CounterSpec(CounterEncodingMap())
             widget = Widget(name=self._create_random_id(), queries=[named_query], spec=counter_spec)
-            position = Position(x=0, y=0, width=1, height=1)
+            position = Position(x=0, y=0, width=1, height=3)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
