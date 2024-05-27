@@ -51,6 +51,6 @@ def test_dashboard_deploys_dashboard(ws, dashboard_id):
     dashboard_client = Dashboards(ws)
     lakeview_dashboard = dashboard_client.create_dashboard(queries)
 
-    dashboard = dashboard_client.deploy(lakeview_dashboard, dashboard_id=dashboard_id)
+    dashboard = dashboard_client.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
 
     assert dashboard_client.get_dashboard(dashboard.path).as_dict() == lakeview_dashboard.as_dict()
