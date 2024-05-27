@@ -12,7 +12,7 @@ def test_load_dashboard(ws):
     dashboard.save_to_folder(src, dst)
 
 
-def test_dashboard_deploy_queries(ws):
-    dashboard = Dashboard(ws)
+def test_dashboard_deploys_one_dataset_per_query(ws):
     queries = Path(__file__).parent / "queries"
-    dashboard.deploy(queries)
+    dashboard = Dashboard(ws).deploy(queries)
+    assert len(dashboard.datasets) == len([query for query in queries.glob("*.sql")])
