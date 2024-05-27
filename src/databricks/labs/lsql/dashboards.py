@@ -88,7 +88,7 @@ class Dashboards:
         lakeview_dashboard = LakeviewDashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
-    def deploy(
+    def deploy_dashboard(
         self, lakeview_dashboard: LakeviewDashboard, *, display_name: str | None = None, dashboard_id: str | None = None
     ) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
