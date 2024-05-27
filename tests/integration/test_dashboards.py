@@ -54,7 +54,4 @@ def test_dashboard_deploys_dashboard(ws, dashboard_id):
 
     dashboard = dashboard_client.deploy(lakeview_dashboard, dashboard_id=dashboard_id)
 
-    verify_dashboard = ws.lakeview.get(dashboard.dashboard_id)  # To be sure the dashboard is created in the workspace
-
-    assert verify_dashboard.dashboard_id is not None
-    assert verify_dashboard.dashboard_id == dashboard_id
+    assert dashboard_client.get_dashboard(dashboard.path).as_dict() == lakeview_dashboard.as_dict()
