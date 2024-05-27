@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from databricks.sdk import WorkspaceClient
-
 from databricks.labs.lsql.dashboard import Dashboard
 
 
