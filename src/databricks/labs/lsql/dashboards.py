@@ -14,9 +14,7 @@ from databricks.labs.lsql.lakeview import (
     ControlFieldEncoding,
     CounterEncodingMap,
     CounterSpec,
-)
-from databricks.labs.lsql.lakeview import Dashboard as LakeviewDashboard
-from databricks.labs.lsql.lakeview import (
+    Dashboard,
     Dataset,
     Field,
     Layout,
@@ -41,7 +39,7 @@ class Dashboards:
         with self._ws.workspace.download(dashboard_path, format=ExportFormat.SOURCE) as f:
             raw = f.read().decode("utf-8")
             as_dict = json.loads(raw)
-            return LakeviewDashboard.from_dict(as_dict)
+            return Dashboard.from_dict(as_dict)
 
     def save_to_folder(self, dashboard_path: str, local_path: Path):
         local_path.mkdir(parents=True, exist_ok=True)
@@ -66,7 +64,7 @@ class Dashboards:
         charset = string.ascii_lowercase + string.digits
         return "".join(random.choices(charset, k=8))
 
-    def create_dashboard(self, dashboard_folder: Path) -> LakeviewDashboard:
+    def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         datasets, layouts = [], []
         for query_path in dashboard_folder.glob("*.sql"):
@@ -85,11 +83,11 @@ class Dashboards:
             layouts.append(layout)
 
         page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
-        lakeview_dashboard = LakeviewDashboard(datasets=datasets, pages=[page])
+        lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
     def deploy_dashboard(
-        self, lakeview_dashboard: LakeviewDashboard, *, display_name: str | None = None, dashboard_id: str | None = None
+        self, lakeview_dashboard: Dashboard, *, display_name: str | None = None, dashboard_id: str | None = None
     ) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
         if (display_name is None and dashboard_id is None) or (display_name is not None and dashboard_id is not None):
