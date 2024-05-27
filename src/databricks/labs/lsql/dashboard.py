@@ -45,6 +45,9 @@ class Dashboard:
             yaml.safe_dump(page, f)
         assert True
 
+    def deploy(self, dashboard_folder: Path):
+        """Deploy dashboard from code, i.e. configuration and queries."""
+
     def _format_sql_file(self, sql_query, query_path):
         with query_path.open("w") as f:
             try:
