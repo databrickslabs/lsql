@@ -8,9 +8,13 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
-from databricks.labs.lsql.lakeview import ControlFieldEncoding
-from databricks.labs.lsql.lakeview import Dashboard as LakeviewDashboard
-from databricks.labs.lsql.lakeview import NamedQuery, Query
+from databricks.labs.lsql.lakeview import (
+    ControlFieldEncoding,
+    Dashboard as LakeviewDashboard,
+    Dataset,
+    NamedQuery,
+    Query,
+)
 
 
 @runtime_checkable
@@ -46,8 +50,17 @@ class Dashboard:  # TODO: Rename, maybe DashboardClient?
             yaml.safe_dump(page, f)
         assert True
 
-    def deploy(self, dashboard_folder: Path):
+    @staticmethod
+    def deploy(dashboard_folder: Path) -> LakeviewDashboard:
         """Deploy dashboard from code, i.e. configuration and queries."""
+        datasets = []
+        for query_path in dashboard_folder.glob("*.sql"):
+            with query_path.open("r") as query_file:
+                query = query_file.read()
+            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query)
+            datasets.append(dataset)
+        dashboard = LakeviewDashboard(datasets=datasets, pages=[])
+        return dashboard
 
     def _format_sql_file(self, sql_query, query_path):
         with query_path.open("w") as f:
