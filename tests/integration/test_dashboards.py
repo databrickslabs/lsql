@@ -2,8 +2,6 @@ import json
 from dataclasses import fields, is_dataclass
 from pathlib import Path
 
-import pytest
-
 from databricks.labs.lsql.dashboard import Dashboard
 
 
