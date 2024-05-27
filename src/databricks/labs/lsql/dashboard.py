@@ -10,9 +10,11 @@ from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
     ControlFieldEncoding,
-    CounterSpec,
     CounterEncodingMap,
-    Dashboard as LakeviewDashboard,
+    CounterSpec,
+)
+from databricks.labs.lsql.lakeview import Dashboard as LakeviewDashboard
+from databricks.labs.lsql.lakeview import (
     Dataset,
     Field,
     Layout,
@@ -80,9 +82,21 @@ class Dashboard:  # TODO: Rename, maybe DashboardClient?
         lakeview_dashboard = LakeviewDashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
-    def deploy(self, display_name: str, lakeview_dashboard: LakeviewDashboard) -> SDKDashboard:
+    def deploy(
+        self, lakeview_dashboard: LakeviewDashboard, *, display_name: str | None = None, dashboard_id: str | None = None
+    ) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
-        dashboard = self._ws.lakeview.create(display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict()))
+        if (display_name is None and dashboard_id is None) or (display_name is not None and dashboard_id is not None):
+            raise ValueError("Give either display_name or dashboard_id.")
+        if display_name is not None:
+            dashboard = self._ws.lakeview.create(
+                display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
+            )
+        else:
+            assert dashboard_id is not None
+            dashboard = self._ws.lakeview.update(
+                dashboard_id, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
+            )
         return dashboard
 
     def _format_sql_file(self, sql_query, query_path):
