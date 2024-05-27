@@ -46,46 +46,8 @@ class Dashboard:
             yaml.safe_dump(page, f)
         assert True
 
-    def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
-        """Create a dashboard from code, i.e. configuration and queries."""
-        datasets, layouts = [], []
-        for query_path in dashboard_folder.glob("*.sql"):
-            with query_path.open("r") as query_file:
-                raw_query = query_file.read()
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
-            datasets.append(dataset)
-
-            fields = [Field(name="count", expression="`count`")]
-            query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
-            # As for as testing went, a NamedQuery should always have "main_query" as name
-            named_query = NamedQuery(name="main_query", query=query)
-            counter_field_encoding = CounterFieldEncoding(field_name="count", display_name="count")
-            counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
-            widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
-            position = Position(x=0, y=0, width=1, height=3)
-            layout = Layout(widget=widget, position=position)
-            layouts.append(layout)
-
-        page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
-        lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
-        return lakeview_dashboard
-
-    def deploy_dashboard(
-        self, lakeview_dashboard: Dashboard, *, display_name: str | None = None, dashboard_id: str | None = None
-    ) -> SDKDashboard:
-        """Deploy a lakeview dashboard."""
-        if (display_name is None and dashboard_id is None) or (display_name is not None and dashboard_id is not None):
-            raise ValueError("Give either display_name or dashboard_id.")
-        if display_name is not None:
-            dashboard = self._ws.lakeview.create(
-                display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
-            )
-        else:
-            assert dashboard_id is not None
-            dashboard = self._ws.lakeview.update(
-                dashboard_id, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
-            )
-        return dashboard
+    def deploy(self, dashboard_folder: Path):
+        """Deploy dashboard from code, i.e. configuration and queries."""
 
     def _format_sql_file(self, sql_query, query_path):
         with query_path.open("w") as f:
