@@ -8,26 +8,15 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
-from databricks.labs.lsql.lakeview import (
-    ControlFieldEncoding,
-    CounterEncodingMap,
-    CounterFieldEncoding,
-    CounterSpec,
-    Dashboard,
-    Dataset,
-    Field,
-    Layout,
-    NamedQuery,
-    Page,
-    Position,
-    Query,
-    Widget,
-)
+from databricks.labs.lsql.lakeview import ControlFieldEncoding
+from databricks.labs.lsql.lakeview import Dashboard as LakeviewDashboard
+from databricks.labs.lsql.lakeview import NamedQuery, Query
 
 
 @runtime_checkable
 class _DataclassInstance(Protocol):
     __dataclass_fields__: ClassVar[dict]
+
 
 class Dashboard:
     def __init__(self, ws: WorkspaceClient):
@@ -37,7 +26,7 @@ class Dashboard:
         with self._ws.workspace.download(dashboard_path, format=ExportFormat.SOURCE) as f:
             raw = f.read().decode("utf-8")
             as_dict = json.loads(raw)
-            return Dashboard.from_dict(as_dict)
+            return LakeviewDashboard.from_dict(as_dict)
 
     def save_to_folder(self, dashboard_path: str, local_path: Path):
         local_path.mkdir(parents=True, exist_ok=True)
