@@ -33,7 +33,7 @@ class _DataclassInstance(Protocol):
     __dataclass_fields__: ClassVar[dict]
 
 
-class Dashboard:  # TODO: Rename, maybe DashboardClient?
+class Dashboards:
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
 
