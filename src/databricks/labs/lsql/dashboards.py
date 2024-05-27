@@ -66,7 +66,7 @@ class Dashboards:
         charset = string.ascii_lowercase + string.digits
         return "".join(random.choices(charset, k=8))
 
-    def create(self, dashboard_folder: Path) -> LakeviewDashboard:
+    def create_dashboard(self, dashboard_folder: Path) -> LakeviewDashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         datasets, layouts = [], []
         for query_path in dashboard_folder.glob("*.sql"):

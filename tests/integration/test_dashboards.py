@@ -27,13 +27,13 @@ def test_load_dashboard(ws):
 
 def test_dashboard_creates_one_dataset_per_query(ws):
     queries = Path(__file__).parent / "queries"
-    dashboard = Dashboards(ws).create(queries)
+    dashboard = Dashboards(ws).create_dashboard(queries)
     assert len(dashboard.datasets) == len([query for query in queries.glob("*.sql")])
 
 
 def test_dashboard_creates_one_counter_widget_per_query(ws):
     queries = Path(__file__).parent / "queries"
-    dashboard = Dashboards(ws).create(queries)
+    dashboard = Dashboards(ws).create_dashboard(queries)
 
     counter_widgets = []
     for page in dashboard.pages:
@@ -47,7 +47,7 @@ def test_dashboard_creates_one_counter_widget_per_query(ws):
 def test_dashboard_deploys_dashboard(ws, dashboard_id):
     queries = Path(__file__).parent / "queries"
     dashboard_client = Dashboards(ws)
-    lakeview_dashboard = dashboard_client.create(queries)
+    lakeview_dashboard = dashboard_client.create_dashboard(queries)
 
     dashboard = dashboard_client.deploy(lakeview_dashboard, dashboard_id=dashboard_id)
 
