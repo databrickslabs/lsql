@@ -1,4 +1,6 @@
 import json
+import random
+import string
 from pathlib import Path
 from typing import ClassVar, Protocol, runtime_checkable
 
@@ -60,20 +62,24 @@ class Dashboard:  # TODO: Rename, maybe DashboardClient?
         assert True
 
     @staticmethod
-    def create(dashboard_folder: Path) -> LakeviewDashboard:
+    def _create_random_id() -> str:
+        charset = string.ascii_lowercase + string.digits
+        return "".join(random.choices(charset, k=8))
+
+    def create(self, dashboard_folder: Path) -> LakeviewDashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         datasets, layouts = [], []
         for query_path in dashboard_folder.glob("*.sql"):
             with query_path.open("r") as query_file:
                 raw_query = query_file.read()
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
+            dataset = Dataset(name=self._create_random_id(), display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
             fields = [Field(name="count", expression="`count`")]
             query = Query(dataset_name=dataset.name, fields=fields)
-            named_query = NamedQuery(name=dataset.name, query=query)
+            named_query = NamedQuery(name=self._create_random_id(), query=query)
             counter_spec = CounterSpec(CounterEncodingMap())
-            widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
+            widget = Widget(name=self._create_random_id(), queries=[named_query], spec=counter_spec)
             position = Position(x=0, y=0, width=1, height=1)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
