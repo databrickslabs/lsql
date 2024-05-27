@@ -56,8 +56,7 @@ class Dashboard:  # TODO: Rename, maybe DashboardClient?
             yaml.safe_dump(page, f)
         assert True
 
-    @staticmethod
-    def deploy(dashboard_folder: Path) -> LakeviewDashboard:
+    def deploy(self, display_name: str, dashboard_folder: Path) -> LakeviewDashboard:
         """Deploy dashboard from code, i.e. configuration and queries."""
         datasets, layouts = [], []
         for query_path in dashboard_folder.glob("*.sql"):
@@ -75,8 +74,12 @@ class Dashboard:  # TODO: Rename, maybe DashboardClient?
             layouts.append(layout)
 
         page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
-        dashboard = LakeviewDashboard(datasets=datasets, pages=[page])
-        return dashboard
+        lakeview_dashboard = LakeviewDashboard(datasets=datasets, pages=[page])
+
+        dashboard = self._ws.lakeview.create(display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict()))
+        lakeview_dashboard.dashboard = dashboard  # TODO: Refactor to get rid of this assignment
+
+        return lakeview_dashboard
 
     def _format_sql_file(self, sql_query, query_path):
         with query_path.open("w") as f:
