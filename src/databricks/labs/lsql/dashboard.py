@@ -14,6 +14,7 @@ from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
     Dashboard as LakeviewDashboard,
     Dataset,
+    Field,
     Layout,
     NamedQuery,
     Page,
@@ -66,7 +67,8 @@ class Dashboard:  # TODO: Rename, maybe DashboardClient?
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
-            query = Query(dataset_name=dataset.name, fields=[])
+            fields = [Field(name="count", expression="`count`")]
+            query = Query(dataset_name=dataset.name, fields=fields)
             named_query = NamedQuery(name=dataset.name, query=query)
             counter_spec = CounterSpec(CounterEncodingMap())
             widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
