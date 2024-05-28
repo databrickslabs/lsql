@@ -123,10 +123,8 @@ def test_dashboards_with_better_names_replaces_page_names_with_display_names():
     ws.assert_not_called()
 
 
-def test_dashboards_with_better_names_replaces_query_name_with_dataset_name():
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-
+@pytest.fixture
+def ugly_dashboard() -> Dashboard:
     datasets = [Dataset(name="ugly", query="SELECT 1", display_name="pretty")]
 
     query = Query(dataset_name="ugly", fields=[])
@@ -137,7 +135,15 @@ def test_dashboards_with_better_names_replaces_query_name_with_dataset_name():
     layout = Layout(widget=widget, position=position)
     pages = [Page(name="ugly", layout=[layout], display_name="pretty")]
 
-    dashboard = dashboards.with_better_names(Dashboard(datasets, pages))
+    dashboard = Dashboard(datasets, pages)
+    return dashboard
+
+
+def test_dashboards_with_better_names_replaces_query_name_with_dataset_name(ugly_dashboard):
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+
+    dashboard = dashboards.with_better_names(ugly_dashboard)
 
     queries = []
     for page in dashboard.pages:
