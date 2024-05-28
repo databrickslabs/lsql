@@ -141,4 +141,6 @@ class Dashboards:
             node.name = better_names.get(node.name, node.name)
         elif isinstance(node, ControlFieldEncoding):
             node.query_name = better_names.get(node.query_name, node.query_name)
+        elif isinstance(node, Widget):
+            node.name = node.spec.as_dict().get("widgetType", node.name)
         return node
