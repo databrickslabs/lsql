@@ -114,7 +114,7 @@ class Dashboards:
         for dataset in dashboard.datasets:
             if dataset.display_name is not None:
                 datasets.append(dataclasses.replace(dataset, name=dataset.display_name))
-            better_names[dataset.name] = dataset.display_name if dataset.display_name is not None else dataset.name
+                better_names[dataset.name] = dataset.display_name
 
         pages = []
         for page in dashboard.pages:
