@@ -76,6 +76,7 @@ class Dashboards:
 
             fields = [Field(name="count", expression="`count`")]
             query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
+            # As for as testing went, a NamedQuery should always have "main_query" as name
             named_query = NamedQuery(name="main_query", query=query)
             counter_field_encoding = CounterFieldEncoding(field_name="count", display_name="count")
             counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
