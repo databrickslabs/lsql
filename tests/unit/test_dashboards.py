@@ -20,6 +20,17 @@ def test_dashboards_saves_sql_files_to_folder(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboards_saves_yml_files_to_folder(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    queries = Path(__file__).parent / "queries"
+    dashboard = Dashboards(ws).create_dashboard(queries)
+
+    Dashboards(ws).save_to_folder(dashboard, tmp_path)
+
+    assert len(list(tmp_path.glob("*.yml"))) == len(dashboard.pages)
+    ws.assert_not_called()
+
+
 def test_dashboards_creates_one_dataset_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
