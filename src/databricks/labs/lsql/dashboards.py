@@ -1,6 +1,7 @@
 import json
+from dataclasses import replace
 from pathlib import Path
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable, TypeVar
 
 import sqlglot
 import yaml
@@ -25,6 +26,9 @@ from databricks.labs.lsql.lakeview import (
 )
 
 
+T = TypeVar("T")
+
+
 @runtime_checkable
 class _DataclassInstance(Protocol):
     __dataclass_fields__: ClassVar[dict]
@@ -42,21 +46,14 @@ class Dashboards:
 
     def save_to_folder(self, dashboard_path: str, local_path: Path):
         local_path.mkdir(parents=True, exist_ok=True)
-        dashboard = self.get_dashboard(dashboard_path)
-        better_names = {}
+        dashboard = self.with_better_names(self.get_dashboard(dashboard_path))
         for dataset in dashboard.datasets:
-            name = dataset.display_name
-            better_names[dataset.name] = name
-            query_path = local_path / f"{name}.sql"
-            sql_query = dataset.query
-            self._format_sql_file(sql_query, query_path)
-        lvdash_yml = local_path / "lvdash.yml"
-        with lvdash_yml.open("w") as f:
-            first_page = dashboard.pages[0]
-            self._replace_names(first_page, better_names)
-            page = first_page.as_dict()
-            yaml.safe_dump(page, f)
-        assert True
+            query_path = local_path / f"{dataset.display_name}.sql"
+            self._format_sql_file(dataset.query, query_path)
+        for page in dashboard.pages:
+            lvdash_yml = local_path / f"lvdash-{page.display_name}.yml"
+            with lvdash_yml.open("w") as f:
+                yaml.safe_dump(page.as_dict(), f)
 
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
@@ -115,8 +112,13 @@ class Dashboards:
             except sqlglot.ParseError:
                 f.write(sql_query)
 
-    def _replace_names(self, node: _DataclassInstance, better_names: dict[str, str]):
-        # walk evely dataclass instance recursively and replace names
+    def with_better_names(self, dashboard: Dashboard) -> Dashboard:
+        better_names = {dataset.name: dataset.display_name for dataset in dashboard.datasets}
+        pages = [self._replace_names(page, better_names) for page in dashboard.pages]
+        return replace(dashboard, pages=pages)
+
+    def _replace_names(self, node: T, better_names: dict[str, str]) -> T:
+        # walk every dataclass instance recursively and replace names
         if isinstance(node, _DataclassInstance):
             for field in node.__dataclass_fields__.values():
                 value = getattr(node, field.name)
