@@ -5,7 +5,19 @@ import pytest
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import Dashboards
-from databricks.labs.lsql.lakeview.model import CounterSpec, Dataset, Dashboard, Page
+from databricks.labs.lsql.lakeview import (
+    CounterEncodingMap,
+    CounterFieldEncoding,
+    CounterSpec,
+    Dashboard,
+    Dataset,
+    Layout,
+    NamedQuery,
+    Page,
+    Position,
+    Query,
+    Widget,
+)
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
@@ -108,4 +120,30 @@ def test_dashboards_with_better_names_replaces_page_names_with_display_names():
     dashboard = dashboards.with_better_names(Dashboard([], pages))
 
     assert all(page.name == "pretty" for page in dashboard.pages)
+    ws.assert_not_called()
+
+
+def test_dashboards_with_better_names_replaces_query_name_with_dataset_name():
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+
+    datasets = [Dataset(name="ugly", query="SELECT 1", display_name="pretty")]
+
+    query = Query(dataset_name="ugly", fields=[])
+    named_query = NamedQuery(name="main_query", query=query)
+    counter_spec = CounterSpec(CounterEncodingMap())
+    widget = Widget(name="ugly", queries=[named_query], spec=counter_spec)
+    position = Position(x=0, y=0, width=1, height=1)
+    layout = Layout(widget=widget, position=position)
+    pages = [Page(name="ugly", layout=[layout], display_name="pretty")]
+
+    dashboard = dashboards.with_better_names(Dashboard(datasets, pages))
+
+    queries = []
+    for page in dashboard.pages:
+        for layout in page.layout:
+            for named_query in layout.widget.queries:
+                queries.append(named_query.query)
+
+    assert all(query.dataset_name == "pretty" for query in queries)
     ws.assert_not_called()
