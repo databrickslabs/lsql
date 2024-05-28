@@ -118,10 +118,9 @@ class Dashboards:
 
         pages = []
         for page in dashboard.pages:
-            better_page = self._replace_names(page, better_names)
-            if better_page.display_name is not None:
-                better_page = dataclasses.replace(better_page, name=better_page.display_name)
-            pages.append(better_page)
+            better_page = dataclasses.replace(page, name=page.display_name or page.name)
+            pages.append(self._replace_names(better_page, better_names))
+
         return Dashboard(datasets=datasets, pages=pages)
 
     def _replace_names(self, node: T, better_names: dict[str, str]) -> T:
