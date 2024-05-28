@@ -13,10 +13,9 @@ def test_dashboards_saves_sql_files_to_folder(tmp_path):
     queries = Path(__file__).parent / "queries"
     dashboard = Dashboards(ws).create_dashboard(queries)
 
-    destination = tmp_path / "test"
-    Dashboards(ws).save_to_folder(dashboard, destination)
+    Dashboards(ws).save_to_folder(dashboard, tmp_path)
 
-    assert len(list(destination.glob("*.sql"))) == len(dashboard.datasets)
+    assert len(list(tmp_path.glob("*.sql"))) == len(dashboard.datasets)
     ws.assert_not_called()
 
 
