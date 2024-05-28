@@ -1,5 +1,5 @@
-import json
 import dataclasses
+import json
 from pathlib import Path
 from typing import TypeVar
 
@@ -24,7 +24,6 @@ from databricks.labs.lsql.lakeview import (
     Query,
     Widget,
 )
-
 
 T = TypeVar("T")
 
@@ -113,9 +112,16 @@ class Dashboards:
         """Replace names with human-readable names."""
         datasets, better_names = [], {}
         for dataset in dashboard.datasets:
-            datasets.append(dataclasses.replace(dataset, name=dataset.display_name))
-            better_names[dataset.name] = dataset.display_name
-        pages = [dataclasses.replace(self._replace_names(page, better_names), name=page.display_name) for page in dashboard.pages]
+            if dataset.display_name is not None:
+                datasets.append(dataclasses.replace(dataset, name=dataset.display_name))
+            better_names[dataset.name] = dataset.display_name if dataset.display_name is not None else dataset.name
+
+        pages = []
+        for page in dashboard.pages:
+            better_page = self._replace_names(page, better_names)
+            if better_page.display_name is not None:
+                better_page = dataclasses.replace(better_page, name=better_page.display_name)
+            pages.append(better_page)
         return Dashboard(datasets=datasets, pages=pages)
 
     def _replace_names(self, node: T, better_names: dict[str, str]) -> T:
@@ -133,13 +139,14 @@ class Dashboards:
             # 'dashboards/01eeb077e38c17e6ba3511036985960c/datasets/01eeb081882017f6a116991d124d3068_...'
             if node.name.startswith("dashboards/"):
                 parts = [node.query.dataset_name]
-                for field in node.query.fields:
-                    parts.append(field.name)
+                for query_field in node.query.fields:
+                    parts.append(query_field.name)
                 new_name = "_".join(parts)
                 better_names[node.name] = new_name
             node.name = better_names.get(node.name, node.name)
         elif isinstance(node, ControlFieldEncoding):
             node.query_name = better_names.get(node.query_name, node.query_name)
         elif isinstance(node, Widget):
-            node.name = node.spec.as_dict().get("widgetType", node.name)
+            if node.spec is not None:
+                node.name = node.spec.as_dict().get("widgetType", node.name)
         return node
