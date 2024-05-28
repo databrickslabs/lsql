@@ -47,16 +47,13 @@ def replace_recursively(dataklass, replace_fields):
     return dataklass
 
 
-def test_dashboard_deploys_dashboard(ws, dashboard_id):
+def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, dashboard_id):
     queries = Path(__file__).parent / "dashboards" / "dashboard"
     dashboards = Dashboards(ws)
-    lakeview_dashboard = dashboards.create_dashboard(queries)
+    dashboard = dashboards.create_dashboard(queries)
 
-    dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
-    deployed_lakeview_dashboard = dashboards.get_dashboard(dashboard.path)
+    sdk_dashboard = dashboards.deploy_dashboard(dashboard, dashboard_id=dashboard_id)
+    deployed_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
-    replace_name = {"name": "test", "dataset_name": "test"}  # Dynamically created names
-    lakeview_dashboard_wo_name = replace_recursively(lakeview_dashboard, replace_name)
-    deployed_lakeview_dashboard_wo_name = replace_recursively(deployed_lakeview_dashboard, replace_name)
-
-    assert lakeview_dashboard_wo_name.as_dict() == deployed_lakeview_dashboard_wo_name.as_dict()
+    assert dashboards.with_better_names(dashboard).as_dict() == dashboards.with_better_names(deployed_dashboard).as_dict()
+    print(1)
