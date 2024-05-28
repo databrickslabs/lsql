@@ -31,22 +31,6 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
     assert ws.lakeview.get(dashboard.dashboard_id)
 
 
-
-def replace_recursively(dataklass, replace_fields):
-    for field in fields(dataklass):
-        value = getattr(dataklass, field.name)
-        if is_dataclass(value):
-            new_value = replace_recursively(value, replace_fields)
-        elif isinstance(value, list):
-            new_value = [replace_recursively(v, replace_fields) for v in value]
-        elif isinstance(value, tuple):
-            new_value = (replace_recursively(v, replace_fields) for v in value)
-        else:
-            new_value = replace_fields.get(field.name, value)
-        setattr(dataklass, field.name, new_value)
-    return dataklass
-
-
 def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, dashboard_id):
     queries = Path(__file__).parent / "dashboards" / "dashboard"
     dashboards = Dashboards(ws)
