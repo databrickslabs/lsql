@@ -153,3 +153,19 @@ def test_dashboards_with_better_names_replaces_query_name_with_dataset_name(ugly
 
     assert all(query.dataset_name == "pretty" for query in queries)
     ws.assert_not_called()
+
+
+def test_dashboards_with_better_names_replaces_counter_names(ugly_dashboard):
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+
+    dashboard = dashboards.with_better_names(ugly_dashboard)
+
+    counters = []
+    for page in dashboard.pages:
+        for layout in page.layout:
+            if isinstance(layout.widget.spec, CounterSpec):
+                counters.append(layout.widget)
+
+    assert all(counter.name == "counter" for counter in counters)
+    ws.assert_not_called()
