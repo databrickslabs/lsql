@@ -5,7 +5,7 @@ import pytest
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import Dashboards
-from databricks.labs.lsql.lakeview.model import CounterSpec, Dataset, Dashboard
+from databricks.labs.lsql.lakeview.model import CounterSpec, Dataset, Dashboard, Page
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
@@ -97,4 +97,15 @@ def test_dashboards_with_better_names_replaces_dataset_names_with_display_names(
     dashboard = dashboards.with_better_names(Dashboard(datasets, []))
 
     assert all(dataset.name == "pretty" for dataset in dashboard.datasets)
+    ws.assert_not_called()
+
+
+def test_dashboards_with_better_names_replaces_page_names_with_display_names():
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+
+    pages = [Page(name="ugly", layout=[], display_name="pretty")]
+    dashboard = dashboards.with_better_names(Dashboard([], pages))
+
+    assert all(page.name == "pretty" for page in dashboard.pages)
     ws.assert_not_called()
