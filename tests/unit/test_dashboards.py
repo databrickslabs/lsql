@@ -7,7 +7,6 @@ from databricks.sdk import WorkspaceClient
 from databricks.labs.lsql.dashboards import Dashboards
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
-    CounterFieldEncoding,
     CounterSpec,
     Dashboard,
     Dataset,
