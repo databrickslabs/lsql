@@ -60,18 +60,13 @@ class Dashboards:
             yaml.safe_dump(page, f)
         assert True
 
-    @staticmethod
-    def _create_random_id() -> str:
-        charset = string.ascii_lowercase + string.digits
-        return "".join(random.choices(charset, k=8))
-
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         datasets, layouts = [], []
         for query_path in dashboard_folder.glob("*.sql"):
             with query_path.open("r") as query_file:
                 raw_query = query_file.read()
-            dataset = Dataset(name=self._create_random_id(), display_name=query_path.stem, query=raw_query)
+            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
             fields = [Field(name="count", expression="`count`")]
@@ -80,7 +75,7 @@ class Dashboards:
             named_query = NamedQuery(name="main_query", query=query)
             counter_field_encoding = CounterFieldEncoding(field_name="count", display_name="count")
             counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
-            widget = Widget(name=self._create_random_id(), queries=[named_query], spec=counter_spec)
+            widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
             position = Position(x=0, y=0, width=1, height=3)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
