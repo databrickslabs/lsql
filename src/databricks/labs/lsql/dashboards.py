@@ -1,7 +1,7 @@
 import json
-from dataclasses import replace
+import dataclasses
 from pathlib import Path
-from typing import ClassVar, Protocol, runtime_checkable, TypeVar
+from typing import TypeVar
 
 import sqlglot
 import yaml
@@ -27,11 +27,6 @@ from databricks.labs.lsql.lakeview import (
 
 
 T = TypeVar("T")
-
-
-@runtime_checkable
-class _DataclassInstance(Protocol):
-    __dataclass_fields__: ClassVar[dict]
 
 
 class Dashboards:
@@ -118,19 +113,19 @@ class Dashboards:
         """Replace names with human-readable names."""
         datasets, better_names = [], {}
         for dataset in dashboard.datasets:
-            datasets.append(replace(dataset, name=dataset.display_name))
+            datasets.append(dataclasses.replace(dataset, name=dataset.display_name))
             better_names[dataset.name] = dataset.display_name
-        pages = [replace(self._replace_names(page, better_names), name=page.display_name) for page in dashboard.pages]
+        pages = [dataclasses.replace(self._replace_names(page, better_names), name=page.display_name) for page in dashboard.pages]
         return Dashboard(datasets=datasets, pages=pages)
 
     def _replace_names(self, node: T, better_names: dict[str, str]) -> T:
         # walk every dataclass instance recursively and replace names
-        if isinstance(node, _DataclassInstance):
-            for field in node.__dataclass_fields__.values():
+        if dataclasses.is_dataclass(node):
+            for field in dataclasses.fields(node):
                 value = getattr(node, field.name)
                 if isinstance(value, list):
                     setattr(node, field.name, [self._replace_names(item, better_names) for item in value])
-                elif isinstance(value, _DataclassInstance):
+                elif dataclasses.is_dataclass(value):
                     setattr(node, field.name, self._replace_names(value, better_names))
         if isinstance(node, Query):
             node.dataset_name = better_names.get(node.dataset_name, node.dataset_name)
