@@ -115,9 +115,13 @@ class Dashboards:
                 f.write(sql_query)
 
     def with_better_names(self, dashboard: Dashboard) -> Dashboard:
-        better_names = {dataset.name: dataset.display_name for dataset in dashboard.datasets}
-        pages = [self._replace_names(page, better_names) for page in dashboard.pages]
-        return replace(dashboard, pages=pages)
+        """Replace names with human-readable names."""
+        datasets, better_names = [], {}
+        for dataset in dashboard.datasets:
+            datasets.append(replace(dataset, name=dataset.display_name))
+            better_names[dataset.name] = dataset.display_name
+        pages = [replace(self._replace_names(page, better_names), name=page.display_name) for page in dashboard.pages]
+        return Dashboard(datasets=datasets, pages=pages)
 
     def _replace_names(self, node: T, better_names: dict[str, str]) -> T:
         # walk every dataclass instance recursively and replace names
