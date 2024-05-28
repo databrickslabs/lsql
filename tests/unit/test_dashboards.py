@@ -29,6 +29,16 @@ def test_dashboard_creates_one_counter_widget_per_query():
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
+def test_dashboards_saves_sql_files_to_folder(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    queries = Path(__file__).parent / "queries"
+    dashboard = Dashboards(ws).create_dashboard(queries)
+
+    destination = tmp_path / "test"
+    Dashboards(ws).save_to_folder(dashboard, destination)
+
+    assert len(list(destination.glob("*.sql"))) == len(dashboard.datasets)
+
 
 def test_dashboard_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
     ws = create_autospec(WorkspaceClient)
