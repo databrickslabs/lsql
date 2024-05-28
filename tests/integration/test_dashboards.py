@@ -31,11 +31,15 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
     assert ws.lakeview.get(dashboard.dashboard_id)
 
 
-def test_load_dashboard(ws):
-    dashboard = Dashboards(ws)
-    src = "/Workspace/Users/serge.smertin@databricks.com/Trivial Dashboard.lvdash.json"
-    dst = Path(__file__).parent / "sample"
-    dashboard.save_to_folder(src, dst)
+def test_dashboards_saves_sql_files_to_folder(ws, tmp_path):
+    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.json"
+    with dashboard_file.open("r") as f:
+        lakeview_dashboard = Dashboard.from_dict(json.load(f))
+
+    destination = tmp_path / "test"
+    Dashboards(ws).save_to_folder(lakeview_dashboard, destination)
+
+    assert len(list(destination.glob("*.sql"))) == len(lakeview_dashboard.datasets)
 
 
 def replace_recursively(dataklass, replace_fields):
