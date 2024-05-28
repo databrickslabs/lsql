@@ -55,7 +55,8 @@ class Dashboards:
             with lvdash_yml.open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
 
-    def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
+    @staticmethod
+    def create_dashboard(dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         datasets, layouts = [], []
         for query_path in dashboard_folder.glob("*.sql"):
