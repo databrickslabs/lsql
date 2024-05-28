@@ -1,0 +1,53 @@
+{
+  "datasets": [
+    {
+      "name": "2345c0cb",
+      "displayName": "counter",
+      "query": "SELECT 6217 AS count"
+    }
+  ],
+  "pages": [
+    {
+      "name": "481fc7bd",
+      "displayName": "queries",
+      "layout": [
+        {
+          "widget": {
+            "name": "f3fd0005",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "2345c0cb",
+                  "fields": [
+                    {
+                      "name": "count",
+                      "expression": "`count`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count",
+                  "displayName": "count"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 3
+          }
+        }
+      ]
+    }
+  ]
+}

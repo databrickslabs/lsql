@@ -1,9 +1,10 @@
+import json
 from pathlib import Path
 
 import pytest
 
 from databricks.labs.lsql.dashboards import Dashboards
-from databricks.labs.lsql.lakeview.model import CounterSpec
+from databricks.labs.lsql.lakeview.model import CounterSpec, Dashboard
 
 
 @pytest.fixture
@@ -52,3 +53,14 @@ def test_dashboard_deploys_dashboard(ws, dashboard_id):
     dashboard = dashboard_client.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
 
     assert dashboard_client.get_dashboard(dashboard.path).as_dict() == lakeview_dashboard.as_dict()
+
+
+def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
+    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.json"
+    with dashboard_file.open("r") as f:
+        lakeview_dashboard = Dashboard.from_dict(json.load(f))
+
+    dashboard_client = Dashboards(ws)
+    dashboard = dashboard_client.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+
+    assert ws.lakeview.get(dashboard.dashboard_id)
