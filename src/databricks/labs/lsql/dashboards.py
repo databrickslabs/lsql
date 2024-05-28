@@ -44,9 +44,10 @@ class Dashboards:
             as_dict = json.loads(raw)
             return Dashboard.from_dict(as_dict)
 
-    def save_to_folder(self, dashboard_path: str, local_path: Path):
+    def save_to_folder(self, dashboard: Dashboard, local_path: Path):
         local_path.mkdir(parents=True, exist_ok=True)
-        dashboard = self.with_better_names(self.get_dashboard(dashboard_path))
+
+        dashboard = self.with_better_names(dashboard)
         for dataset in dashboard.datasets:
             query_path = local_path / f"{dataset.display_name}.sql"
             self._format_sql_file(dataset.query, query_path)
