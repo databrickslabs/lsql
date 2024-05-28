@@ -13,6 +13,7 @@ from databricks.sdk.service.workspace import ExportFormat
 from databricks.labs.lsql.lakeview import (
     ControlFieldEncoding,
     CounterEncodingMap,
+    CounterFieldEncoding,
     CounterSpec,
     Dashboard,
     Dataset,
@@ -78,6 +79,7 @@ class Dashboards:
             named_query = NamedQuery(name=self._create_random_id(), query=query)
             counter_spec = CounterSpec(CounterEncodingMap())
             query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
+            counter_spec = CounterSpec(CounterEncodingMap(value=CounterFieldEncoding(field_name="count", display_name="count")))
             widget = Widget(name=self._create_random_id(), queries=[named_query], spec=counter_spec)
             position = Position(x=0, y=0, width=1, height=3)
             layout = Layout(widget=widget, position=position)
