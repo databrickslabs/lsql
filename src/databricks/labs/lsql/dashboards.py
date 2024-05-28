@@ -38,7 +38,7 @@ class Dashboards:
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
 
-    def get_dashboard(self, dashboard_path: str):
+    def get_dashboard(self, dashboard_path: str) -> Dashboard:
         with self._ws.workspace.download(dashboard_path, format=ExportFormat.SOURCE) as f:
             raw = f.read().decode("utf-8")
             as_dict = json.loads(raw)
