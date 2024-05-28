@@ -68,6 +68,7 @@ class Row(tuple):
 
     # PySpark's compatibility
     def asDict(self, recursive: bool = False) -> dict[str, Any]:
+        _ = recursive
         return self.as_dict()
 
     def __eq__(self, other):
