@@ -43,7 +43,7 @@ def replace_recursively(dataklass, replace_fields):
 
 
 def test_dashboard_deploys_dashboard(ws, dashboard_id):
-    queries = Path(__file__).parent / "queries"
+    queries = Path(__file__).parent / "dashboards" / "dashboard"
     dashboard_client = Dashboards(ws)
     lakeview_dashboard = dashboard_client.create_dashboard(queries)
 
