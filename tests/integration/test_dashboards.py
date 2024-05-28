@@ -20,6 +20,17 @@ def dashboard_id(ws, make_random):
     ws.lakeview.trash(dashboard.dashboard_id)
 
 
+def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
+    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.json"
+    with dashboard_file.open("r") as f:
+        lakeview_dashboard = Dashboard.from_dict(json.load(f))
+
+    dashboards = Dashboards(ws)
+    dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+
+    assert ws.lakeview.get(dashboard.dashboard_id)
+
+
 def test_load_dashboard(ws):
     dashboard = Dashboards(ws)
     src = "/Workspace/Users/serge.smertin@databricks.com/Trivial Dashboard.lvdash.json"
@@ -55,14 +66,3 @@ def test_dashboard_deploys_dashboard(ws, dashboard_id):
     deployed_lakeview_dashboard_wo_name = replace_recursively(deployed_lakeview_dashboard, replace_name)
 
     assert lakeview_dashboard_wo_name.as_dict() == deployed_lakeview_dashboard_wo_name.as_dict()
-
-
-def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
-    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.json"
-    with dashboard_file.open("r") as f:
-        lakeview_dashboard = Dashboard.from_dict(json.load(f))
-
-    dashboards = Dashboards(ws)
-    dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
-
-    assert ws.lakeview.get(dashboard.dashboard_id)
