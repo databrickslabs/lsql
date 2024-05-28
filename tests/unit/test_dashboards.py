@@ -29,7 +29,7 @@ def test_dashboards_creates_one_counter_widget_per_query():
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
-def test_dashboardss_saves_sql_files_to_folder(tmp_path):
+def test_dashboards_saves_sql_files_to_folder(tmp_path):
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
     dashboard = Dashboards(ws).create_dashboard(queries)
