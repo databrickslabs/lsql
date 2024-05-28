@@ -1,4 +1,5 @@
 import json
+from dataclasses import fields, is_dataclass, replace
 from pathlib import Path
 
 import pytest
@@ -45,14 +46,34 @@ def test_dashboard_creates_one_counter_widget_per_query(ws):
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
+def replace_recursively(dataklass, replace_fields):
+    for field in fields(dataklass):
+        value = getattr(dataklass, field.name)
+        if is_dataclass(value):
+            new_value = replace_recursively(value, replace_fields)
+        elif isinstance(value, list):
+            new_value = [replace_recursively(v, replace_fields) for v in value]
+        elif isinstance(value, tuple):
+            new_value = (replace_recursively(v, replace_fields) for v in value)
+        else:
+            new_value = replace_fields.get(field.name, value)
+        setattr(dataklass, field.name, new_value)
+    return dataklass
+
+
 def test_dashboard_deploys_dashboard(ws, dashboard_id):
     queries = Path(__file__).parent / "queries"
     dashboard_client = Dashboards(ws)
     lakeview_dashboard = dashboard_client.create_dashboard(queries)
 
     dashboard = dashboard_client.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+    deployed_lakeview_dashboard = dashboard_client.get_dashboard(dashboard.path)
 
-    assert dashboard_client.get_dashboard(dashboard.path).as_dict() == lakeview_dashboard.as_dict()
+    replace_name = {"name": "test", "dataset_name": "test"}  # Dynamically created names
+    lakeview_dashboard_wo_name = replace_recursively(lakeview_dashboard, replace_name)
+    deployed_lakeview_dashboard_wo_name = replace_recursively(deployed_lakeview_dashboard, replace_name)
+
+    assert lakeview_dashboard_wo_name.as_dict() == deployed_lakeview_dashboard_wo_name.as_dict()
 
 
 def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
