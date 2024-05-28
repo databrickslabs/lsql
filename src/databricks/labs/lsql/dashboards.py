@@ -52,7 +52,7 @@ class Dashboards:
             query_path = local_path / f"{dataset.display_name}.sql"
             self._format_sql_file(dataset.query, query_path)
         for page in dashboard.pages:
-            lvdash_yml = local_path / f"lvdash-{page.display_name}.yml"
+            lvdash_yml = local_path / f"page-{page.display_name}.yml"
             with lvdash_yml.open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
 
