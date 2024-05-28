@@ -42,13 +42,14 @@ class Dashboards:
         local_path.mkdir(parents=True, exist_ok=True)
 
         dashboard = self.with_better_names(dashboard)
+
         for dataset in dashboard.datasets:
             query = self.format_query(dataset.query)
-            with (local_path / f"{dataset.display_name}.sql").open("w") as f:
+            with (local_path / f"{dataset.name}.sql").open("w") as f:
                 f.write(query)
+
         for page in dashboard.pages:
-            lvdash_yml = local_path / f"page-{page.display_name}.yml"
-            with lvdash_yml.open("w") as f:
+            with (local_path / f"{page.name}.yml").open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
 
     @staticmethod
