@@ -31,3 +31,11 @@ def test_dashboard_deploy_calls_create_with_display_name():
     lakeview_dashboard = Dashboard([], [])
     dashboards.deploy_dashboard(lakeview_dashboard, display_name="test")
     ws.lakeview.create.assert_called_once()
+
+
+def test_dashboard_deploy_calls_update_with_dashboard_id():
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = Dashboard([], [])
+    dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id="test")
+    ws.lakeview.update.assert_called_once()
