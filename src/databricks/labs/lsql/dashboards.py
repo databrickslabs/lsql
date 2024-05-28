@@ -43,12 +43,37 @@ class Dashboards:
 
         dashboard = self.with_better_names(dashboard)
         for dataset in dashboard.datasets:
-            query_path = local_path / f"{dataset.display_name}.sql"
-            self._format_sql_file(dataset.query, query_path)
+            query = self.format_query(dataset.query)
+            with (local_path / f"{dataset.display_name}.sql").open("w") as f:
+                f.write(query)
         for page in dashboard.pages:
             lvdash_yml = local_path / f"page-{page.display_name}.yml"
             with lvdash_yml.open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
+
+    @staticmethod
+    def format_query(query: str) -> str:
+        try:
+            parsed_query = sqlglot.parse(query)
+        except sqlglot.ParseError:
+            formatted_query = query
+        else:
+            statements = []
+            for statement in parsed_query:
+                if statement is None:
+                    continue
+                # see https://sqlglot.com/sqlglot/generator.html#Generator
+                statements.append(
+                    statement.sql(
+                        dialect="databricks",
+                        normalize=True,  # normalize identifiers to lowercase
+                        pretty=True,  # format the produced SQL string
+                        normalize_functions="upper",  # normalize function names to uppercase
+                        max_text_width=80,  # wrap text at 120 characters
+                    )
+                )
+            formatted_query = ";\n".join(statements)
+        return formatted_query
 
     @staticmethod
     def create_dashboard(dashboard_folder: Path) -> Dashboard:
@@ -91,22 +116,6 @@ class Dashboards:
                 dashboard_id, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
             )
         return dashboard
-
-    def _format_sql_file(self, sql_query, query_path):
-        with query_path.open("w") as f:
-            try:
-                for statement in sqlglot.parse(sql_query):
-                    # see https://sqlglot.com/sqlglot/generator.html#Generator
-                    pretty = statement.sql(
-                        dialect="databricks",
-                        normalize=True,  # normalize identifiers to lowercase
-                        pretty=True,  # format the produced SQL string
-                        normalize_functions="upper",  # normalize function names to uppercase
-                        max_text_width=80,  # wrap text at 120 characters
-                    )
-                    f.write(f"{pretty};\n")
-            except sqlglot.ParseError:
-                f.write(sql_query)
 
     def with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
