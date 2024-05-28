@@ -44,11 +44,11 @@ def replace_recursively(dataklass, replace_fields):
 
 def test_dashboard_deploys_dashboard(ws, dashboard_id):
     queries = Path(__file__).parent / "dashboards" / "dashboard"
-    dashboard_client = Dashboards(ws)
-    lakeview_dashboard = dashboard_client.create_dashboard(queries)
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(queries)
 
-    dashboard = dashboard_client.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
-    deployed_lakeview_dashboard = dashboard_client.get_dashboard(dashboard.path)
+    dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+    deployed_lakeview_dashboard = dashboards.get_dashboard(dashboard.path)
 
     replace_name = {"name": "test", "dataset_name": "test"}  # Dynamically created names
     lakeview_dashboard_wo_name = replace_recursively(lakeview_dashboard, replace_name)
@@ -62,7 +62,7 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
     with dashboard_file.open("r") as f:
         lakeview_dashboard = Dashboard.from_dict(json.load(f))
 
-    dashboard_client = Dashboards(ws)
-    dashboard = dashboard_client.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+    dashboards = Dashboards(ws)
+    dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
 
     assert ws.lakeview.get(dashboard.dashboard_id)
