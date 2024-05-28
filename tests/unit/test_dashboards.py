@@ -1,10 +1,33 @@
-import pytest
 from unittest.mock import create_autospec
+from pathlib import Path
 
+import pytest
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import Dashboards
-from databricks.labs.lsql.lakeview import Dashboard
+from databricks.labs.lsql.lakeview.model import CounterSpec, Dashboard
+
+
+def test_dashboard_creates_one_dataset_per_query():
+    ws = create_autospec(WorkspaceClient)
+    queries = Path(__file__).parent / "queries"
+    dashboard = Dashboards(ws).create_dashboard(queries)
+    assert len(dashboard.datasets) == len([query for query in queries.glob("*.sql")])
+
+
+def test_dashboard_creates_one_counter_widget_per_query():
+    ws = create_autospec(WorkspaceClient)
+    queries = Path(__file__).parent / "queries"
+    dashboard = Dashboards(ws).create_dashboard(queries)
+
+    counter_widgets = []
+    for page in dashboard.pages:
+        for layout in page.layout:
+            if isinstance(layout.widget.spec, CounterSpec):
+                counter_widgets.append(layout.widget)
+
+    assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
+
 
 
 def test_dashboard_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
