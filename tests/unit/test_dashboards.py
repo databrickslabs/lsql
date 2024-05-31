@@ -100,23 +100,23 @@ def test_dashboards_deploy_calls_update_with_dashboard_id():
     ws.lakeview.update.assert_called_once()
 
 
-def test_dashboards_with_better_names_replaces_dataset_names_with_display_names():
+def test_dashboards_save_to_folder_replaces_dataset_names_with_display_names(tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
 
     datasets = [Dataset(name="ugly", query="SELECT 1", display_name="pretty")]
-    dashboard = dashboards._with_better_names(Dashboard(datasets, []))
+    dashboard = dashboards.save_to_folder(Dashboard(datasets, []), tmp_path)
 
     assert all(dataset.name == "pretty" for dataset in dashboard.datasets)
     ws.assert_not_called()
 
 
-def test_dashboards_with_better_names_replaces_page_names_with_display_names():
+def test_dashboards_save_to_folder_replaces_page_names_with_display_names(tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
 
     pages = [Page(name="ugly", layout=[], display_name="pretty")]
-    dashboard = dashboards._with_better_names(Dashboard([], pages))
+    dashboard = dashboards.save_to_folder(Dashboard([], pages), tmp_path)
 
     assert all(page.name == "pretty" for page in dashboard.pages)
     ws.assert_not_called()
@@ -138,11 +138,11 @@ def ugly_dashboard() -> Dashboard:
     return dashboard
 
 
-def test_dashboards_with_better_names_replaces_query_name_with_dataset_name(ugly_dashboard):
+def test_dashboards_save_to_folder_replaces_query_name_with_dataset_name(ugly_dashboard, tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
 
-    dashboard = dashboards._with_better_names(ugly_dashboard)
+    dashboard = dashboards.save_to_folder(ugly_dashboard, tmp_path)
 
     queries = []
     for page in dashboard.pages:
@@ -154,11 +154,11 @@ def test_dashboards_with_better_names_replaces_query_name_with_dataset_name(ugly
     ws.assert_not_called()
 
 
-def test_dashboards_with_better_names_replaces_counter_names(ugly_dashboard):
+def test_dashboards_save_to_folder_replaces_counter_names(ugly_dashboard, tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
 
-    dashboard = dashboards._with_better_names(ugly_dashboard)
+    dashboard = dashboards.save_to_folder(ugly_dashboard, tmp_path)
 
     counters = []
     for page in dashboard.pages:

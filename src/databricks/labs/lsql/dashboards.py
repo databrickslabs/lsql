@@ -38,19 +38,17 @@ class Dashboards:
             as_dict = json.loads(raw)
             return Dashboard.from_dict(as_dict)
 
-    def save_to_folder(self, dashboard: Dashboard, local_path: Path):
+    def save_to_folder(self, dashboard: Dashboard, local_path: Path) -> Dashboard:
         local_path.mkdir(parents=True, exist_ok=True)
-
         dashboard = self._with_better_names(dashboard)
-
         for dataset in dashboard.datasets:
             query = self._format_query(dataset.query)
             with (local_path / f"{dataset.name}.sql").open("w") as f:
                 f.write(query)
-
         for page in dashboard.pages:
             with (local_path / f"{page.name}.yml").open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
+        return dashboard
 
     @staticmethod
     def _format_query(query: str) -> str:
