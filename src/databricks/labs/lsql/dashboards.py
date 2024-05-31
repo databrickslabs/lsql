@@ -119,18 +119,14 @@ class Dashboards:
 
     def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
-        datasets, better_names = [], {}
+        better_names = {}
         for dataset in dashboard.datasets:
             if dataset.display_name is not None:
-                datasets.append(dataclasses.replace(dataset, name=dataset.display_name))
                 better_names[dataset.name] = dataset.display_name
-
-        pages = []
         for page in dashboard.pages:
-            better_page = dataclasses.replace(page, name=page.display_name or page.name)
-            pages.append(self._replace_names(better_page, better_names))
-
-        return Dashboard(datasets=datasets, pages=pages)
+            if page.display_name is not None:
+                better_names[page.name] = page.display_name
+        return self._replace_names(dashboard, better_names)
 
     def _replace_names(self, node: T, better_names: dict[str, str]) -> T:
         # walk every dataclass instance recursively and replace names
@@ -142,6 +138,8 @@ class Dashboards:
                 elif dataclasses.is_dataclass(value):
                     setattr(node, field.name, self._replace_names(value, better_names))
         if isinstance(node, Dataset):
+            node.name = better_names.get(node.name, node.name)
+        elif isinstance(node, Page):
             node.name = better_names.get(node.name, node.name)
         elif isinstance(node, Query):
             node.dataset_name = better_names.get(node.dataset_name, node.dataset_name)
