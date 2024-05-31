@@ -44,7 +44,7 @@ class Dashboards:
         dashboard = self.with_better_names(dashboard)
 
         for dataset in dashboard.datasets:
-            query = self.format_query(dataset.query)
+            query = self._format_query(dataset.query)
             with (local_path / f"{dataset.name}.sql").open("w") as f:
                 f.write(query)
 
@@ -53,7 +53,7 @@ class Dashboards:
                 yaml.safe_dump(page.as_dict(), f)
 
     @staticmethod
-    def format_query(query: str) -> str:
+    def _format_query(query: str) -> str:
         try:
             parsed_query = sqlglot.parse(query)
         except sqlglot.ParseError:
