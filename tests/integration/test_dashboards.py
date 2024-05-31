@@ -38,4 +38,4 @@ def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, dashboard
     sdk_dashboard = dashboards.deploy_dashboard(dashboard, dashboard_id=dashboard_id)
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
-    assert dashboards.with_better_names(dashboard).as_dict() == dashboards.with_better_names(new_dashboard).as_dict()
+    assert dashboards._with_better_names(dashboard).as_dict() == dashboards._with_better_names(new_dashboard).as_dict()

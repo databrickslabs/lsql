@@ -41,7 +41,7 @@ class Dashboards:
     def save_to_folder(self, dashboard: Dashboard, local_path: Path):
         local_path.mkdir(parents=True, exist_ok=True)
 
-        dashboard = self.with_better_names(dashboard)
+        dashboard = self._with_better_names(dashboard)
 
         for dataset in dashboard.datasets:
             query = self._format_query(dataset.query)
@@ -117,7 +117,7 @@ class Dashboards:
             )
         return dashboard
 
-    def with_better_names(self, dashboard: Dashboard) -> Dashboard:
+    def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
         datasets, better_names = [], {}
         for dataset in dashboard.datasets:

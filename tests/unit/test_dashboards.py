@@ -105,7 +105,7 @@ def test_dashboards_with_better_names_replaces_dataset_names_with_display_names(
     dashboards = Dashboards(ws)
 
     datasets = [Dataset(name="ugly", query="SELECT 1", display_name="pretty")]
-    dashboard = dashboards.with_better_names(Dashboard(datasets, []))
+    dashboard = dashboards._with_better_names(Dashboard(datasets, []))
 
     assert all(dataset.name == "pretty" for dataset in dashboard.datasets)
     ws.assert_not_called()
@@ -116,7 +116,7 @@ def test_dashboards_with_better_names_replaces_page_names_with_display_names():
     dashboards = Dashboards(ws)
 
     pages = [Page(name="ugly", layout=[], display_name="pretty")]
-    dashboard = dashboards.with_better_names(Dashboard([], pages))
+    dashboard = dashboards._with_better_names(Dashboard([], pages))
 
     assert all(page.name == "pretty" for page in dashboard.pages)
     ws.assert_not_called()
@@ -142,7 +142,7 @@ def test_dashboards_with_better_names_replaces_query_name_with_dataset_name(ugly
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
 
-    dashboard = dashboards.with_better_names(ugly_dashboard)
+    dashboard = dashboards._with_better_names(ugly_dashboard)
 
     queries = []
     for page in dashboard.pages:
@@ -158,7 +158,7 @@ def test_dashboards_with_better_names_replaces_counter_names(ugly_dashboard):
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
 
-    dashboard = dashboards.with_better_names(ugly_dashboard)
+    dashboard = dashboards._with_better_names(ugly_dashboard)
 
     counters = []
     for page in dashboard.pages:
