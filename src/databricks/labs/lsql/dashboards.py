@@ -141,7 +141,9 @@ class Dashboards:
                     setattr(node, field.name, [self._replace_names(item, better_names) for item in value])
                 elif dataclasses.is_dataclass(value):
                     setattr(node, field.name, self._replace_names(value, better_names))
-        if isinstance(node, Query):
+        if isinstance(node, Dataset):
+            node.name = better_names.get(node.name, node.name)
+        elif isinstance(node, Query):
             node.dataset_name = better_names.get(node.dataset_name, node.dataset_name)
         elif isinstance(node, NamedQuery) and node.query:
             # 'dashboards/01eeb077e38c17e6ba3511036985960c/datasets/01eeb081882017f6a116991d124d3068_...'
