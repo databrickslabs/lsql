@@ -1,6 +1,7 @@
+import dataclasses
 import json
 from pathlib import Path
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import TypeVar
 
 import sqlglot
 import yaml
@@ -24,41 +25,56 @@ from databricks.labs.lsql.lakeview import (
     Widget,
 )
 
-
-@runtime_checkable
-class _DataclassInstance(Protocol):
-    __dataclass_fields__: ClassVar[dict]
+T = TypeVar("T")
 
 
 class Dashboards:
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
 
-    def get_dashboard(self, dashboard_path: str):
+    def get_dashboard(self, dashboard_path: str) -> Dashboard:
         with self._ws.workspace.download(dashboard_path, format=ExportFormat.SOURCE) as f:
             raw = f.read().decode("utf-8")
             as_dict = json.loads(raw)
             return Dashboard.from_dict(as_dict)
 
-    def save_to_folder(self, dashboard_path: str, local_path: Path):
+    def save_to_folder(self, dashboard: Dashboard, local_path: Path) -> Dashboard:
         local_path.mkdir(parents=True, exist_ok=True)
-        dashboard = self.get_dashboard(dashboard_path)
-        better_names = {}
+        dashboard = self._with_better_names(dashboard)
         for dataset in dashboard.datasets:
-            name = dataset.display_name
-            better_names[dataset.name] = name
-            query_path = local_path / f"{name}.sql"
-            sql_query = dataset.query
-            self._format_sql_file(sql_query, query_path)
-        lvdash_yml = local_path / "lvdash.yml"
-        with lvdash_yml.open("w") as f:
-            first_page = dashboard.pages[0]
-            self._replace_names(first_page, better_names)
-            page = first_page.as_dict()
-            yaml.safe_dump(page, f)
-        assert True
+            query = self._format_query(dataset.query)
+            with (local_path / f"{dataset.name}.sql").open("w") as f:
+                f.write(query)
+        for page in dashboard.pages:
+            with (local_path / f"{page.name}.yml").open("w") as f:
+                yaml.safe_dump(page.as_dict(), f)
+        return dashboard
 
-    def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
+    @staticmethod
+    def _format_query(query: str) -> str:
+        try:
+            parsed_query = sqlglot.parse(query)
+        except sqlglot.ParseError:
+            return query
+        statements = []
+        for statement in parsed_query:
+            if statement is None:
+                continue
+            # see https://sqlglot.com/sqlglot/generator.html#Generator
+            statements.append(
+                statement.sql(
+                    dialect="databricks",
+                    normalize=True,  # normalize identifiers to lowercase
+                    pretty=True,  # format the produced SQL string
+                    normalize_functions="upper",  # normalize function names to uppercase
+                    max_text_width=80,  # wrap text at 120 characters
+                )
+            )
+        formatted_query = ";\n".join(statements)
+        return formatted_query
+
+    @staticmethod
+    def create_dashboard(dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         datasets, layouts = [], []
         for query_path in dashboard_folder.glob("*.sql"):
@@ -99,42 +115,44 @@ class Dashboards:
             )
         return dashboard
 
-    def _format_sql_file(self, sql_query, query_path):
-        with query_path.open("w") as f:
-            try:
-                for statement in sqlglot.parse(sql_query):
-                    # see https://sqlglot.com/sqlglot/generator.html#Generator
-                    pretty = statement.sql(
-                        dialect="databricks",
-                        normalize=True,  # normalize identifiers to lowercase
-                        pretty=True,  # format the produced SQL string
-                        normalize_functions="upper",  # normalize function names to uppercase
-                        max_text_width=80,  # wrap text at 120 characters
-                    )
-                    f.write(f"{pretty};\n")
-            except sqlglot.ParseError:
-                f.write(sql_query)
+    def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
+        """Replace names with human-readable names."""
+        better_names = {}
+        for dataset in dashboard.datasets:
+            if dataset.display_name is not None:
+                better_names[dataset.name] = dataset.display_name
+        for page in dashboard.pages:
+            if page.display_name is not None:
+                better_names[page.name] = page.display_name
+        return self._replace_names(dashboard, better_names)
 
-    def _replace_names(self, node: _DataclassInstance, better_names: dict[str, str]):
-        # walk evely dataclass instance recursively and replace names
-        if isinstance(node, _DataclassInstance):
-            for field in node.__dataclass_fields__.values():
+    def _replace_names(self, node: T, better_names: dict[str, str]) -> T:
+        # walk every dataclass instance recursively and replace names
+        if dataclasses.is_dataclass(node):
+            for field in dataclasses.fields(node):
                 value = getattr(node, field.name)
                 if isinstance(value, list):
                     setattr(node, field.name, [self._replace_names(item, better_names) for item in value])
-                elif isinstance(value, _DataclassInstance):
+                elif dataclasses.is_dataclass(value):
                     setattr(node, field.name, self._replace_names(value, better_names))
-        if isinstance(node, Query):
+        if isinstance(node, Dataset):
+            node.name = better_names.get(node.name, node.name)
+        elif isinstance(node, Page):
+            node.name = better_names.get(node.name, node.name)
+        elif isinstance(node, Query):
             node.dataset_name = better_names.get(node.dataset_name, node.dataset_name)
         elif isinstance(node, NamedQuery) and node.query:
             # 'dashboards/01eeb077e38c17e6ba3511036985960c/datasets/01eeb081882017f6a116991d124d3068_...'
             if node.name.startswith("dashboards/"):
                 parts = [node.query.dataset_name]
-                for field in node.query.fields:
-                    parts.append(field.name)
+                for query_field in node.query.fields:
+                    parts.append(query_field.name)
                 new_name = "_".join(parts)
                 better_names[node.name] = new_name
             node.name = better_names.get(node.name, node.name)
         elif isinstance(node, ControlFieldEncoding):
             node.query_name = better_names.get(node.query_name, node.query_name)
+        elif isinstance(node, Widget):
+            if node.spec is not None:
+                node.name = node.spec.as_dict().get("widgetType", node.name)
         return node
