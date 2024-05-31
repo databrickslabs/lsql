@@ -31,7 +31,7 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
 
 
 def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, dashboard_id):
-    queries = Path(__file__).parent / "dashboards" / "dashboard"
+    queries = Path(__file__).parent / "dashboards" / "one_counter"
     dashboards = Dashboards(ws)
     dashboard = dashboards.create_dashboard(queries)
 
