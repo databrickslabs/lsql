@@ -57,23 +57,22 @@ class Dashboards:
         try:
             parsed_query = sqlglot.parse(query)
         except sqlglot.ParseError:
-            formatted_query = query
-        else:
-            statements = []
-            for statement in parsed_query:
-                if statement is None:
-                    continue
-                # see https://sqlglot.com/sqlglot/generator.html#Generator
-                statements.append(
-                    statement.sql(
-                        dialect="databricks",
-                        normalize=True,  # normalize identifiers to lowercase
-                        pretty=True,  # format the produced SQL string
-                        normalize_functions="upper",  # normalize function names to uppercase
-                        max_text_width=80,  # wrap text at 120 characters
-                    )
+            return query
+        statements = []
+        for statement in parsed_query:
+            if statement is None:
+                continue
+            # see https://sqlglot.com/sqlglot/generator.html#Generator
+            statements.append(
+                statement.sql(
+                    dialect="databricks",
+                    normalize=True,  # normalize identifiers to lowercase
+                    pretty=True,  # format the produced SQL string
+                    normalize_functions="upper",  # normalize function names to uppercase
+                    max_text_width=80,  # wrap text at 120 characters
                 )
-            formatted_query = ";\n".join(statements)
+            )
+        formatted_query = ";\n".join(statements)
         return formatted_query
 
     @staticmethod
