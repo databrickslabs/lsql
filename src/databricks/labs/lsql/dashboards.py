@@ -106,8 +106,13 @@ class Dashboards:
         parsed_query = sqlglot.parse_one(query)
         fields = []
         for projection in parsed_query.find_all(sqlglot.exp.Select):
-            field = Field(name=projection.alias_or_name, expression=f"`{projection.alias_or_name}`")
-            fields.append(field)
+            for named_select in projection.named_selects:
+                field = Field(name=named_select, expression=f"`{named_select}`")
+                fields.append(field)
+            alias_or_name = projection.alias_or_name
+            if len(alias_or_name) > 0:
+                field = Field(name=alias_or_name, expression=f"`{alias_or_name}`")
+                fields.append(field)
         return fields
 
     def _get_position(self, spec: WidgetSpec, previous_position: Position) -> Position:
