@@ -41,14 +41,13 @@ def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, dashboard
     assert dashboards._with_better_names(dashboard).as_dict() == dashboards._with_better_names(new_dashboard).as_dict()
 
 
-def test_dashboard_deploys_dashboard_with_two_counters(ws, dashboard_id):
-    queries = Path(__file__).parent / "dashboards" / "two_counters"
+def test_dashboard_deploys_dashboard_with_ten_counters(ws, dashboard_id, tmp_path):
+    for i in range(10):
+        with (tmp_path / f"counter_{i}.sql").open("w") as f:
+            f.write(f"SELECT {i} AS count")
     dashboards = Dashboards(ws)
-    lakeview_dashboard = dashboards.create_dashboard(queries)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
-    lakeview_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
-
-    assert ws.lakeview.get(lakeview_dashboard.dashboard_id)
