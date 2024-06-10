@@ -71,11 +71,15 @@ def test_dashboards_creates_one_counter_widget_per_query():
         ("SELECT 1, 'a', 100 * 20 AS calc", ["1", "a", "calc"]),
     ]
 )
-def test_dashboards_gets_fields_with_expected_names(query, names):
-    ws = create_autospec(WorkspaceClient)
-    fields = Dashboards(ws)._get_fields(query)
+def test_dashboards_gets_fields_with_expected_names(tmp_path, query, names):
+    with (tmp_path / "query.sql").open("w") as f:
+        f.write(query)
 
-    assert [field.name for field in fields] == names  # pylint: disable-next=protected-access
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    fields = lakeview_dashboard.pages[0].layout[0].widget.queries[0].query.fields
+    assert [field.name for field in fields] == names
     ws.assert_not_called()
 
 
