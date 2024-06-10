@@ -100,6 +100,47 @@ SELECT CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%') AS readiness FROM raw
             """,
             ["readiness"],
         ),
+        (
+            """
+SELECT storage, COUNT(*) count
+FROM (
+SELECT
+       CASE
+           WHEN STARTSWITH(location, "dbfs:/mnt") THEN "DBFS MOUNT"
+           WHEN STARTSWITH(location, "/dbfs/mnt") THEN "DBFS MOUNT"
+           WHEN STARTSWITH(location, "dbfs:/databricks-datasets") THEN "Databricks Demo Dataset"
+           WHEN STARTSWITH(location, "/dbfs/databricks-datasets") THEN "Databricks Demo Dataset"
+           WHEN STARTSWITH(location, "dbfs:/") THEN "DBFS ROOT"
+           WHEN STARTSWITH(location, "/dbfs/") THEN "DBFS ROOT"
+           WHEN STARTSWITH(location, "wasb") THEN "UNSUPPORTED"
+           WHEN STARTSWITH(location, "adl") THEN "UNSUPPORTED"
+           ELSE "EXTERNAL"
+       END AS storage
+FROM $inventory.tables)
+GROUP BY storage
+ORDER BY storage;
+            """,
+            ["storage", "count"],
+        ),
+        (
+            """
+WITH raw AS (
+  SELECT EXPLODE(FROM_JSON(failures, 'array<string>')) AS finding
+  FROM $inventory.objects WHERE failures <> '[]'
+)
+SELECT finding as `finding`, COUNT(*) AS count 
+FROM raw 
+GROUP BY finding
+ORDER BY count DESC, finding DESC
+            """,
+            ["finding", "count"],
+        ),
+        ("SELECT CONCAT(tables.`database`, '.', tables.name) AS name FROM table", ["name"]),
+        ('SELECT IF(object_type IN ("MANAGED", "EXTERNAL"), 1, 0) AS is_table FROM table', ["is_table"]),
+        ("SELECT DISTINCT policy_name FROM table", ["policy_name"]),
+        ("SELECT COLLECT_LIST(DISTINCT run_ids) AS run_ids FROM table", ["run_ids"]),
+        ("SELECT substring(component, length('databricks.labs.') + 1) AS component FROM table", ["component"]),
+        ("SELECT from_unixtime(timestamp) AS timestamp FROM table", ["timestamp"]),
     ],
 )
 def test_dashboards_gets_fields_with_expected_names(tmp_path, query, names):
