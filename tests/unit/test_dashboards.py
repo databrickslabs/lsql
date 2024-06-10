@@ -89,6 +89,26 @@ def test_dashboards_creates_one_counter_widget_per_query():
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
+def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_first_widget(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    counter_query = Path(__file__).parent / "queries" / "counter.sql"
+
+    first_query = tmp_path / "first.sql"
+    second_query = tmp_path / "second.sql"
+    for query in first_query, second_query:
+        with counter_query.open(mode="r") as existing:
+            with query.open("w") as new:
+                new.write(existing.read())
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    layout = lakeview_dashboard.pages[0].layout
+    first_position, second_position = layout[0].position, layout[1].position
+
+    assert first_position.x < second_position.x
+    assert second_position.y == second_position.y
+    ws.assert_not_called()
+
+
 @pytest.mark.parametrize("spec, expected", [(CounterSpec(CounterEncodingMap()), (1, 3))])
 def test_dashboards_gets_width_and_height_spec(spec, expected):
     ws = create_autospec(WorkspaceClient)
