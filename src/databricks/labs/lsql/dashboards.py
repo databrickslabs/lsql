@@ -86,7 +86,7 @@ class Dashboards:
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
-            fields = [Field(name="count", expression="`count`")]
+            fields = self._get_fields(dataset.query)
             query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
             # As for as testing went, a NamedQuery should always have "main_query" as name
             named_query = NamedQuery(name="main_query", query=query)
@@ -100,6 +100,15 @@ class Dashboards:
         page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    @staticmethod
+    def _get_fields(query: str) -> list[Field]:
+        parsed_query = sqlglot.parse_one(query)
+        fields = []
+        for projection in parsed_query.find_all(sqlglot.exp.Select):
+            field = Field(name=projection.alias_or_name, expression=f"`{projection.alias_or_name}`")
+            fields.append(field)
+        return fields
 
     def _get_position(self, spec: WidgetSpec, previous_position: Position) -> Position:
         width, height = self._get_width_and_height(spec)
