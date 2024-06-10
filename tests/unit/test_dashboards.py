@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from unittest.mock import create_autospec
 
@@ -60,6 +61,20 @@ def test_dashboards_creates_one_counter_widget_per_query():
                 counter_widgets.append(layout.widget)
 
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
+
+
+def test_dashboards_skips_invalid_query(tmp_path, caplog):
+    ws = create_autospec(WorkspaceClient)
+
+    invalid_query = "SELECT COUNT(* AS missing_closing_parenthesis"
+    with (tmp_path / "invalid.sql").open("w") as f:
+        f.write(invalid_query)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    assert len(lakeview_dashboard.pages[0].layout) == 0
+    assert invalid_query in caplog.text
 
 
 @pytest.mark.parametrize(
