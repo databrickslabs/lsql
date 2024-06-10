@@ -109,6 +109,22 @@ def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_fi
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboard_with_many_widgets_not_on_the_first_row(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    counter_query = Path(__file__).parent / "queries" / "counter.sql"
+
+    for query_name in range(10):
+        with counter_query.open(mode="r") as existing:
+            with (tmp_path / f"{query_name}.sql").open("w") as new:
+                new.write(existing.read())
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    layout = lakeview_dashboard.pages[0].layout
+
+    assert layout[-1].position.y > 0
+    ws.assert_not_called()
+
+
 @pytest.mark.parametrize("query_names", [["a", "b", "c"], ["01", "02", "10"]])
 def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_path, query_names):
     ws = create_autospec(WorkspaceClient)
