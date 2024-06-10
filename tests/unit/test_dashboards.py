@@ -95,12 +95,10 @@ def test_dashboards_creates_dashboard_with_many_widgets_not_on_the_first_row(tmp
 @pytest.mark.parametrize("query_names", [["a", "b", "c"], ["01", "02", "10"]])
 def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_path, query_names):
     ws = create_autospec(WorkspaceClient)
-    counter_query = Path(__file__).parent / "queries" / "counter.sql"
 
     for query_name in query_names:
-        with counter_query.open(mode="r") as existing:
-            with (tmp_path / f"{query_name}.sql").open("w") as new:
-                new.write(existing.read())
+        with (tmp_path / f"{query_name}.sql").open("w") as f:
+            f.write("SELECT 1 AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
