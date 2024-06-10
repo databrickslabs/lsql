@@ -62,6 +62,23 @@ def test_dashboards_creates_one_counter_widget_per_query():
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
+@pytest.mark.parametrize(
+    "query, names",
+    [
+        ("SELECT 1", ["1",]),
+        ("SELECT 1 AS foo", ["foo",]),
+        ("SELECT 'a'", ["a",]),
+        ("SELECT 1, 'a', 100 * 20 AS calc", ["1", "a", "calc"]),
+    ]
+)
+def test_dashboards_gets_fields_with_expected_names(query, names):
+    ws = create_autospec(WorkspaceClient)
+    fields = Dashboards(ws)._get_fields(query)
+
+    assert [field.name for field in fields] == names  # pylint: disable-next=protected-access
+    ws.assert_not_called()
+
+
 def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_first_widget(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
