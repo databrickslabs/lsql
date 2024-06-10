@@ -103,7 +103,7 @@ class Dashboards:
 
     @staticmethod
     def _get_fields(query: str) -> list[Field]:
-        parsed_query = sqlglot.parse_one(query)
+        parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
         fields = []
         for projection in parsed_query.find_all(sqlglot.exp.Select):
             if projection.depth > 0:
