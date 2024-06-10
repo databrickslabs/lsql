@@ -23,12 +23,15 @@ from databricks.labs.lsql.lakeview import (
     Position,
     Query,
     Widget,
+    WidgetSpec,
 )
 
 T = TypeVar("T")
 
 
 class Dashboards:
+    maximum_dashboard_width = 6
+
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
 
@@ -73,11 +76,11 @@ class Dashboards:
         formatted_query = ";\n".join(statements)
         return formatted_query
 
-    @staticmethod
-    def create_dashboard(dashboard_folder: Path) -> Dashboard:
+    def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
+        position = Position(0, 0, 0, 0)  # First widget position
         datasets, layouts = [], []
-        for query_path in dashboard_folder.glob("*.sql"):
+        for query_path in sorted(dashboard_folder.glob("*.sql")):
             with query_path.open("r") as query_file:
                 raw_query = query_file.read()
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
@@ -90,13 +93,34 @@ class Dashboards:
             counter_field_encoding = CounterFieldEncoding(field_name="count", display_name="count")
             counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
             widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
-            position = Position(x=0, y=0, width=1, height=3)
+            position = self._get_position(counter_spec, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
         page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    def _get_position(self, spec: WidgetSpec, previous_position: Position) -> Position:
+        width, height = self._get_width_and_height(spec)
+        x = previous_position.x + previous_position.width
+        if x + width > self.maximum_dashboard_width:
+            x = 0
+            y = previous_position.y + previous_position.height
+        else:
+            y = previous_position.y
+        position = Position(x=x, y=y, width=width, height=height)
+        return position
+
+    @staticmethod
+    def _get_width_and_height(spec: WidgetSpec) -> tuple[int, int]:
+        # NOTE: The logic only works if all heights are the same
+        height = 3
+        if isinstance(spec, CounterSpec):
+            width = 1
+        else:
+            raise NotImplementedError(f"No width defined for spec: {spec}")
+        return width, height
 
     def deploy_dashboard(
         self, lakeview_dashboard: Dashboard, *, display_name: str | None = None, dashboard_id: str | None = None
