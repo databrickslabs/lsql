@@ -62,6 +62,19 @@ def test_dashboards_creates_one_counter_widget_per_query():
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
+@pytest.mark.parametrize(
+    "spec, expected",
+    [
+        (CounterSpec(CounterEncodingMap()), (1, 3))
+    ]
+)
+def test_dashboards_gets_width_and_height_spec(spec, expected):
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+    assert dashboards._get_width_and_height(spec) == expected  # pylint: disable-next=protected-access
+    ws.assert_not_called()
+
+
 def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
