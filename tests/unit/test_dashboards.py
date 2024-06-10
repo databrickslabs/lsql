@@ -102,7 +102,7 @@ def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_fi
     first_position, second_position = layout[0].position, layout[1].position
 
     assert first_position.x < second_position.x
-    assert second_position.y == second_position.y
+    assert first_position.y == second_position.y
     ws.assert_not_called()
 
 
