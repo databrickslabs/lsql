@@ -47,5 +47,8 @@ def test_dashboard_deploys_dashboard_with_two_counters(ws, dashboard_id):
     lakeview_dashboard = dashboards.create_dashboard(queries)
 
     lakeview_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(lakeview_dashboard.dashboard_id)
