@@ -109,10 +109,6 @@ class Dashboards:
             for named_select in projection.named_selects:
                 field = Field(name=named_select, expression=f"`{named_select}`")
                 fields.append(field)
-            alias_or_name = projection.alias_or_name
-            if len(alias_or_name) > 0:
-                field = Field(name=alias_or_name, expression=f"`{alias_or_name}`")
-                fields.append(field)
         return fields
 
     def _get_position(self, spec: WidgetSpec, previous_position: Position) -> Position:
