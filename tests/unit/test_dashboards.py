@@ -91,16 +91,13 @@ def test_dashboards_creates_one_counter_widget_per_query():
 
 def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_first_widget(tmp_path):
     ws = create_autospec(WorkspaceClient)
-    counter_query = Path(__file__).parent / "queries" / "counter.sql"
 
-    first_query = tmp_path / "first.sql"
-    second_query = tmp_path / "second.sql"
-    for query in first_query, second_query:
-        with counter_query.open(mode="r") as existing:
-            with query.open("w") as new:
-                new.write(existing.read())
+    for i in range(2):
+        with (tmp_path / f"counter_{i}.sql").open("w") as f:
+            f.write(f"SELECT {i} AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
     layout = lakeview_dashboard.pages[0].layout
     first_position, second_position = layout[0].position, layout[1].position
 
