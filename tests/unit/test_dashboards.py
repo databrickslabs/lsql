@@ -62,6 +62,66 @@ def test_dashboards_creates_one_counter_widget_per_query():
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
+def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_first_widget(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    for i in range(2):
+        with (tmp_path / f"counter_{i}.sql").open("w") as f:
+            f.write(f"SELECT {i} AS count")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    layout = lakeview_dashboard.pages[0].layout
+    first_position, second_position = layout[0].position, layout[1].position
+
+    assert first_position.x < second_position.x
+    assert first_position.y == second_position.y
+    ws.assert_not_called()
+
+
+def test_dashboards_creates_dashboard_with_many_widgets_not_on_the_first_row(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    for i in range(10):
+        with (tmp_path / f"counter_{i}.sql").open("w") as f:
+            f.write(f"SELECT {i} AS count")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    layout = lakeview_dashboard.pages[0].layout
+
+    assert layout[-1].position.y > 0
+    ws.assert_not_called()
+
+
+@pytest.mark.parametrize("query_names", [["a", "b", "c"], ["01", "02", "10"]])
+def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_path, query_names):
+    ws = create_autospec(WorkspaceClient)
+
+    for query_name in query_names:
+        with (tmp_path / f"{query_name}.sql").open("w") as f:
+            f.write("SELECT 1 AS count")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
+
+    assert widget_names == query_names
+    ws.assert_not_called()
+
+
+@pytest.mark.parametrize("query, width, height", [("SELECT 1 AS count", 1, 3)])
+def test_dashboards_creates_dashboards_where_widget_has_expected_width_and_height(tmp_path, query, width, height):
+    ws = create_autospec(WorkspaceClient)
+
+    with (tmp_path / "query.sql").open("w") as f:
+        f.write(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    position = lakeview_dashboard.pages[0].layout[0].position
+
+    assert position.width == width
+    assert position.height == height
+    ws.assert_not_called()
+
+
 def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
