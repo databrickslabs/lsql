@@ -6,43 +6,16 @@ from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import Dashboards
 from databricks.labs.lsql.lakeview import (
-    AreaSpec,
-    BarSpec,
-    ChartEncodingMapWithSingleXy,
-    ControlEncodingMap,
     CounterEncodingMap,
     CounterSpec,
     Dashboard,
     Dataset,
-    DatePickerSpec,
-    DateRangePickerSpec,
-    DetailsV1EncodingMap,
-    DetailsV1Spec,
-    DropdownSpec,
     Layout,
-    LineSpec,
-    MultiSelectSpec,
     NamedQuery,
     Page,
-    PieEncodingMap,
-    PieSpec,
-    PivotEncodingMap,
-    PivotSpec,
     Position,
-    QuantitativeScale,
     Query,
-    ScatterSpec,
-    SingleFieldAxisEncoding,
-    SymbolMapEncodingMap,
-    SymbolMapSpec,
-    TableEncodingMap,
-    TableV1EncodingMap,
-    TableV1Spec,
-    TableV2Spec,
-    TextEntrySpec,
     Widget,
-    WordCloudEncodingMap,
-    WordCloudSpec,
 )
 
 
@@ -141,36 +114,6 @@ def test_dashboards_gets_width_and_height_spec(spec, expected):
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
     assert dashboards._get_width_and_height(spec) == expected  # pylint: disable-next=protected-access
-    ws.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "spec",
-    [
-        AreaSpec(ChartEncodingMapWithSingleXy(SingleFieldAxisEncoding("x", QuantitativeScale()))),
-        BarSpec(ChartEncodingMapWithSingleXy(SingleFieldAxisEncoding("x", QuantitativeScale()))),
-        DatePickerSpec(ControlEncodingMap([])),
-        DateRangePickerSpec(ControlEncodingMap([])),
-        DetailsV1Spec(DetailsV1EncodingMap()),
-        DropdownSpec(ControlEncodingMap([])),
-        LineSpec(ChartEncodingMapWithSingleXy(SingleFieldAxisEncoding("x", QuantitativeScale()))),
-        MultiSelectSpec(ControlEncodingMap([])),
-        PieSpec(PieEncodingMap()),
-        PivotSpec(PivotEncodingMap()),
-        ScatterSpec(ChartEncodingMapWithSingleXy(SingleFieldAxisEncoding("x", QuantitativeScale()))),
-        SymbolMapSpec(SymbolMapEncodingMap()),
-        TableV1Spec(True, True, TableV1EncodingMap(), [], 1),
-        TableV2Spec(TableEncodingMap()),
-        TextEntrySpec(ControlEncodingMap([])),
-        WordCloudSpec(WordCloudEncodingMap()),
-    ],
-)
-def test_dashboards_raises_not_implemented_error(spec):
-    # Keeps track of to-be-implemented specs, remove when implemented
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    with pytest.raises(NotImplementedError):
-        dashboards._get_width_and_height(spec)  # pylint: disable-next=protected-access
     ws.assert_not_called()
 
 
