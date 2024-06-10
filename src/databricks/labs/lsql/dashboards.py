@@ -106,6 +106,8 @@ class Dashboards:
         parsed_query = sqlglot.parse_one(query)
         fields = []
         for projection in parsed_query.find_all(sqlglot.exp.Select):
+            if projection.depth > 0:
+                continue
             for named_select in projection.named_selects:
                 field = Field(name=named_select, expression=f"`{named_select}`")
                 fields.append(field)

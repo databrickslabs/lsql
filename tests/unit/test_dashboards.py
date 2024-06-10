@@ -73,6 +73,7 @@ def test_dashboards_creates_one_counter_widget_per_query():
         ("SELECT a.first, a.second, b.third FROM table AS a JOIN another_table AS b", ["first", "second", "third"]),
         ("SELECT first, 1 AS second, 'third' FROM table", ["first", "second", "third"]),
         ("SELECT f AS first, s as second, 100 * 20 AS third FROM table", ["first", "second", "third"]),
+        ("SELECT first FROM (SELECT first, second FROM table)", ["first",]),
     ]
 )
 def test_dashboards_gets_fields_with_expected_names(tmp_path, query, names):
