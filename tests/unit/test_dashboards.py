@@ -109,11 +109,18 @@ def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_
     ws.assert_not_called()
 
 
-@pytest.mark.parametrize("spec, expected", [(CounterSpec(CounterEncodingMap()), (1, 3))])
-def test_dashboards_gets_width_and_height_spec(spec, expected):
+@pytest.mark.parametrize("query, width, height", [("SELECT 1 AS count", 1, 3)])
+def test_dashboards_creates_dashboards_where_widget_has_expected_width_and_height(tmp_path, query, width, height):
     ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    assert dashboards._get_width_and_height(spec) == expected  # pylint: disable-next=protected-access
+
+    with (tmp_path / "query.sql").open("w") as f:
+        f.write(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    position = lakeview_dashboard.pages[0].layout[0].position
+
+    assert position.width == width
+    assert position.height == height
     ws.assert_not_called()
 
 
