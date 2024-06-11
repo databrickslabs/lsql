@@ -51,3 +51,14 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, dashboard_id, tmp_pat
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_counter_variation(ws, dashboard_id, tmp_path):
+    with (tmp_path / "counter.sql").open("w") as f:
+        f.write("SELECT 10 AS something_else_than_count")
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
