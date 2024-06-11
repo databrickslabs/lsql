@@ -66,14 +66,19 @@ def test_dashboards_creates_one_counter_widget_per_query():
 def test_dashboards_skips_invalid_query(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
+    # Test for the invalid query not to be the first query
+    for i in range(0, 3, 2):
+        with (tmp_path / f"{i}_counter.sql").open("w") as f:
+            f.write(f"SELECT {i} AS count")
+
     invalid_query = "SELECT COUNT(* AS missing_closing_parenthesis"
-    with (tmp_path / "invalid.sql").open("w") as f:
+    with (tmp_path / "1_invalid.sql").open("w") as f:
         f.write(invalid_query)
 
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
         lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
-    assert len(lakeview_dashboard.pages[0].layout) == 0
+    assert len(lakeview_dashboard.pages[0].layout) == 2
     assert invalid_query in caplog.text
 
 
