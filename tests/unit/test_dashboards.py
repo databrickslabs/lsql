@@ -56,6 +56,18 @@ def test_dashboards_creates_dashboard_with_first_page_name_after_folder():
     assert page.display_name == "queries"
 
 
+def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
+    with (tmp_path / "dashboard.yml").open("w") as f:
+        f.write("display_name: Custom")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    page = lakeview_dashboard.pages[0]
+    assert page.name == "Custom"
+    assert page.display_name == "Custom"
+
+
 def test_dashboards_creates_one_dataset_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
