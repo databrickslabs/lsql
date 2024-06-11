@@ -273,6 +273,20 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_width_and_
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    content = "# Description"
+    with (tmp_path / "description.md").open("w") as f:
+        f.write(content)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    widget = lakeview_dashboard.pages[0].layout[0].widget
+
+    assert widget.textbox_spec == content
+    ws.assert_not_called()
+
+
 def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
