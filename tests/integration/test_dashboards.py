@@ -3,12 +3,11 @@ import logging
 from pathlib import Path
 
 import pytest
-
-from databricks.labs.lsql.dashboards import Dashboards
-from databricks.labs.lsql.lakeview.model import Dashboard
 from databricks.sdk.core import DatabricksError
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 
+from databricks.labs.lsql.dashboards import Dashboards
+from databricks.labs.lsql.lakeview.model import Dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +74,10 @@ def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, make_dash
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
-    assert dashboards._with_better_names(lakeview_dashboard).as_dict() == dashboards._with_better_names(new_dashboard).as_dict()
+    assert (
+        dashboards._with_better_names(lakeview_dashboard).as_dict()
+        == dashboards._with_better_names(new_dashboard).as_dict()
+    )
 
 
 def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_path):
@@ -95,7 +97,7 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_p
 def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard(display_name="Counter")
     with (tmp_path / "dashboard.yml").open("w") as f:
-        f.write(f"display_name: Counter")
+        f.write("display_name: Counter")
     with (tmp_path / "counter.sql").open("w") as f:
         f.write("SELECT 102132 AS count")
 

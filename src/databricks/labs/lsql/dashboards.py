@@ -120,7 +120,9 @@ class Dashboards:
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
-        page = Page(name=dashboard_configuration.display_name, display_name=dashboard_configuration.display_name, layout=layouts)
+        page = Page(
+            name=dashboard_configuration.display_name, display_name=dashboard_configuration.display_name, layout=layouts
+        )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
@@ -143,7 +145,6 @@ class Dashboards:
         except KeyError as e:
             logger.warning(f"Error '{e}' when parsing: {dashboard_path}")
             return fallback_configuration
-
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
@@ -201,9 +202,7 @@ class Dashboards:
             raise NotImplementedError(f"No width defined for spec: {widget}")
         return width, height
 
-    def deploy_dashboard(
-        self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None
-    ) -> SDKDashboard:
+    def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
         if dashboard_id is not None:
             dashboard = self._ws.lakeview.update(
