@@ -112,8 +112,7 @@ class Dashboards:
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
-        with path.open("r") as f:
-            widget = Widget(name=path.stem, textbox_spec=f.read())
+        widget = Widget(name=path.stem, textbox_spec=path.read_text())
         return widget
 
     def _get_widget(self, dataset: Dataset) -> Widget:
