@@ -5,7 +5,7 @@ from unittest.mock import create_autospec
 import pytest
 from databricks.sdk import WorkspaceClient
 
-from databricks.labs.lsql.dashboards import Dashboards
+from databricks.labs.lsql.dashboards import DashboardConfiguration, Dashboards
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
     CounterSpec,
@@ -18,6 +18,11 @@ from databricks.labs.lsql.lakeview import (
     Query,
     Widget,
 )
+
+
+def test_dashboard_configuration_raises_key_error_if_display_name_is_missing():
+    with pytest.raises(KeyError):
+        DashboardConfiguration.from_dict({})
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
