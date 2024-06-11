@@ -224,6 +224,7 @@ def test_dashboards_creates_dashboard_with_widget_below_text_widget(tmp_path):
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     layout = lakeview_dashboard.pages[0].layout
 
+    assert len(layout) == 2
     assert layout[0].position.y < layout[1].position.y
     ws.assert_not_called()
 
