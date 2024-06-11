@@ -88,6 +88,7 @@ class Dashboards:
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
+        for dataset in datasets:
             try:
                 fields = self._get_fields(dataset.query)
             except sqlglot.ParseError as e:
