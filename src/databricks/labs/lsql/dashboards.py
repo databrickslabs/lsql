@@ -1,6 +1,7 @@
 import dataclasses
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
 
@@ -28,6 +29,11 @@ from databricks.labs.lsql.lakeview import (
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class DashboardConfiguration:
+    display_name: str
 
 
 class Dashboards:
@@ -79,6 +85,8 @@ class Dashboards:
 
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
+        dashboard_configuration = self._get_dashboard_configuration(dashboard_folder)
+
         position = Position(0, 0, 0, 0)  # First widget position
         datasets, layouts = [], []
         for query_path in sorted(dashboard_folder.glob("*.sql")):
@@ -106,9 +114,16 @@ class Dashboards:
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
-        page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
+        page = Page(name=dashboard_configuration.display_name, display_name=dashboard_configuration.display_name, layout=layouts)
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    @staticmethod
+    def _get_dashboard_configuration(dashboard_folder: Path) -> DashboardConfiguration:
+        dashboard_path = dashboard_folder / "dashboard.yml"
+        if not dashboard_path.exists():
+            dashboard_configuration = DashboardConfiguration(display_name=dashboard_path.name)
+            return dashboard_configuration
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
