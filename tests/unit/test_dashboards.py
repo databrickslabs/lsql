@@ -155,6 +155,20 @@ def test_dashboards_gets_fields_with_expected_names(tmp_path, query, names):
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
+    with (tmp_path / "query.sql").open("w") as f:
+        f.write("SELECT 1 AS amount")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    counter_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(counter_spec, CounterSpec)
+    assert counter_spec.encodings.value.field_name == "amount"
+    assert counter_spec.encodings.value.display_name == "amount"
+    ws.assert_not_called()
+
+
 def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_first_widget(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
