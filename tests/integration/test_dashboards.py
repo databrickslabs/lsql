@@ -30,10 +30,11 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, dashboard_id):
     assert ws.lakeview.get(dashboard.dashboard_id)
 
 
-def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, dashboard_id):
-    queries = Path(__file__).parent / "dashboards" / "one_counter"
+def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(tmp_path, ws, dashboard_id):
+    with (tmp_path / "counter.sql").open("w") as f:
+        f.write("SELECT 10 AS count")
     dashboards = Dashboards(ws)
-    dashboard = dashboards.create_dashboard(queries)
+    dashboard = dashboards.create_dashboard(tmp_path)
 
     sdk_dashboard = dashboards.deploy_dashboard(dashboard, dashboard_id=dashboard_id)
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)

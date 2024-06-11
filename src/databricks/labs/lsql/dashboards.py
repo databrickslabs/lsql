@@ -24,7 +24,6 @@ from databricks.labs.lsql.lakeview import (
     Position,
     Query,
     Widget,
-    WidgetSpec,
 )
 
 T = TypeVar("T")
@@ -88,25 +87,44 @@ class Dashboards:
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
-            try:
-                fields = self._get_fields(dataset.query)
-            except sqlglot.ParseError as e:
-                logger.warning(f"Error '{e}' when parsing: {dataset.query}")
+        dataset_index = 0
+        for path in sorted(dashboard_folder.iterdir()):
+            if path.suffix not in {".sql", ".md"}:
                 continue
-            query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
-            # As for as testing went, a NamedQuery should always have "main_query" as name
-            named_query = NamedQuery(name="main_query", query=query)
-            # Counters are expected to have one field
-            counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-            counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
-            widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
-            position = self._get_position(counter_spec, position)
+            if path.suffix == ".sql":
+                dataset = datasets[dataset_index]
+                assert dataset.name == path.stem
+                dataset_index += 1
+                try:
+                    widget = self._get_widget(dataset)
+                except sqlglot.ParseError as e:
+                    logger.warning(f"Error '{e}' when parsing: {dataset.query}")
+                    continue
+            else:
+                widget = self._get_text_widget(path)
+            position = self._get_position(widget, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
         page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    @staticmethod
+    def _get_text_widget(path: Path) -> Widget:
+        widget = Widget(name=path.stem, textbox_spec=path.read_text())
+        return widget
+
+    def _get_widget(self, dataset: Dataset) -> Widget:
+        fields = self._get_fields(dataset.query)
+        query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
+        # As far as testing went, a NamedQuery should always have "main_query" as name
+        named_query = NamedQuery(name="main_query", query=query)
+        # Counters are expected to have one field
+        counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
+        counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
+        widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
+        return widget
 
     @staticmethod
     def _get_fields(query: str) -> list[Field]:
@@ -120,8 +138,8 @@ class Dashboards:
                 fields.append(field)
         return fields
 
-    def _get_position(self, spec: WidgetSpec, previous_position: Position) -> Position:
-        width, height = self._get_width_and_height(spec)
+    def _get_position(self, widget: Widget, previous_position: Position) -> Position:
+        width, height = self._get_width_and_height(widget)
         x = previous_position.x + previous_position.width
         if x + width > self._MAXIMUM_DASHBOARD_WIDTH:
             x = 0
@@ -131,14 +149,21 @@ class Dashboards:
         position = Position(x=x, y=y, width=width, height=height)
         return position
 
-    @staticmethod
-    def _get_width_and_height(spec: WidgetSpec) -> tuple[int, int]:
-        # NOTE: The logic only works if all heights are the same
+    def _get_width_and_height(self, widget: Widget) -> tuple[int, int]:
+        """Get the width and height for a widget.
+
+        The tiling logic works if:
+        - width < self._MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
+        - width == self._MAXIMUM_DASHBOARD_WIDTH : any height
+        """
+        if widget.textbox_spec is not None:
+            return self._MAXIMUM_DASHBOARD_WIDTH, 2
+
         height = 3
-        if isinstance(spec, CounterSpec):
+        if isinstance(widget.spec, CounterSpec):
             width = 1
         else:
-            raise NotImplementedError(f"No width defined for spec: {spec}")
+            raise NotImplementedError(f"No width defined for spec: {widget}")
         return width, height
 
     def deploy_dashboard(
