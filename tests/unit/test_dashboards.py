@@ -82,6 +82,16 @@ def test_dashboards_skips_invalid_query(tmp_path, caplog):
     assert invalid_query in caplog.text
 
 
+def test_dashboards_does_not_create_widget_for_yml_file(tmp_path, caplog):
+    ws = create_autospec(WorkspaceClient)
+
+    with (tmp_path / "dashboard.yml").open("w") as f:
+        f.write("display_name: Git based dashboard")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    assert len(lakeview_dashboard.pages[0].layout) == 0
+
+
 @pytest.mark.parametrize(
     "query, names",
     [
