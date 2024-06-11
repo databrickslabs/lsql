@@ -35,6 +35,12 @@ logger = logging.getLogger(__name__)
 class DashboardConfiguration:
     display_name: str
 
+    @classmethod
+    def from_dict(cls, configuration: dict[str, str]) -> "DashboardConfiguration":
+        return cls(
+            display_name=configuration["display_name"],
+        )
+
 
 class Dashboards:
     _MAXIMUM_DASHBOARD_WIDTH = 6
@@ -124,6 +130,10 @@ class Dashboards:
         if not dashboard_path.exists():
             dashboard_configuration = DashboardConfiguration(display_name=dashboard_path.name)
             return dashboard_configuration
+
+        with dashboard_path.open("r") as f:
+            raw_configuration = yaml.safe_load(f)
+        return DashboardConfiguration.from_dict(raw_configuration)
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
