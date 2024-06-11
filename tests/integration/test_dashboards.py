@@ -40,6 +40,8 @@ def make_dashboard(ws, make_random):
     def create(display_name: str = "") -> SDKDashboard:
         if len(display_name) == 0:
             display_name = f"created_by_lsql_{make_random()}"
+        else:
+            display_name = f"{display_name} ({make_random()})"
         dashboard = ws.lakeview.create(display_name)
         return dashboard
 
@@ -82,6 +84,21 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_p
     for i in range(10):
         with (tmp_path / f"counter_{i}.sql").open("w") as f:
             f.write(f"SELECT {i} AS count")
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard(display_name="Counter")
+    with (tmp_path / "dashboard.yml").open("w") as f:
+        f.write(f"display_name: Counter")
+    with (tmp_path / "counter.sql").open("w") as f:
+        f.write("SELECT 102132 AS count")
+
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
