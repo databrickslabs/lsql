@@ -192,19 +192,17 @@ class Dashboards:
         return width, height
 
     def deploy_dashboard(
-        self, lakeview_dashboard: Dashboard, *, display_name: str | None = None, dashboard_id: str | None = None
+        self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None
     ) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
-        if (display_name is None and dashboard_id is None) or (display_name is not None and dashboard_id is not None):
-            raise ValueError("Give either display_name or dashboard_id.")
-        if display_name is not None:
-            dashboard = self._ws.lakeview.create(
-                display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
-            )
-        else:
-            assert dashboard_id is not None
+        if dashboard_id is not None:
             dashboard = self._ws.lakeview.update(
                 dashboard_id, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
+            )
+        else:
+            display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
+            dashboard = self._ws.lakeview.create(
+                display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
             )
         return dashboard
 
