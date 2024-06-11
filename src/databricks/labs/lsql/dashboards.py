@@ -91,18 +91,14 @@ class Dashboards:
         for path in sorted(dashboard_folder.iterdir()):
             if path.suffix not in {".sql", ".md"}:
                 continue
-            if path.suffix == ".sql":
-                dataset = datasets[dataset_index]
-                assert dataset.name == path.stem
-                dataset_index += 1
-                try:
-                    widget = self._get_widget(dataset)
-                except sqlglot.ParseError as e:
-                    logger.warning(f"Error '{e}' when parsing: {dataset.query}")
-                    continue
-            else:
-                widget = self._get_text_widget(path)
-            position = self._get_position(widget, position)
+            query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
+            # As far as testing went, a NamedQuery should always have "main_query" as name
+            named_query = NamedQuery(name="main_query", query=query)
+            # Counters are expected to have one field
+            counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
+            counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
+            widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
+            position = self._get_position(counter_spec, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
