@@ -154,11 +154,11 @@ class Dashboards:
         """Get the width and height for a widget.
 
         The tiling logic works if:
-        - width < self._maximum_dashboard_width : heights for widgets on the same row should be equal
-        - width == self._maximum_dashboard_width : any height
+        - width < self._MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
+        - width == self._MAXIMUM_DASHBOARD_WIDTH : any height
         """
         if widget.textbox_spec is not None:
-            return self._maximum_dashboard_width, 2
+            return self._MAXIMUM_DASHBOARD_WIDTH, 2
 
         height = 3
         if isinstance(widget.spec, CounterSpec):
