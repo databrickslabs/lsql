@@ -47,6 +47,15 @@ def test_dashboards_saves_yml_files_to_folder(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboard_with_first_page_name_after_folder():
+    ws = create_autospec(WorkspaceClient)
+    queries = Path(__file__).parent / "queries"
+    lakeview_dashboard = Dashboards(ws).create_dashboard(queries)
+    page = lakeview_dashboard.pages[0]
+    assert page.name == "queries"
+    assert page.display_name == "queries"
+
+
 def test_dashboards_creates_one_dataset_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"

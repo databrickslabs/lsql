@@ -128,7 +128,7 @@ class Dashboards:
     def _get_dashboard_configuration(dashboard_folder: Path) -> DashboardConfiguration:
         dashboard_path = dashboard_folder / "dashboard.yml"
         if not dashboard_path.exists():
-            dashboard_configuration = DashboardConfiguration(display_name=dashboard_path.name)
+            dashboard_configuration = DashboardConfiguration(display_name=dashboard_folder.name)
             return dashboard_configuration
 
         with dashboard_path.open("r") as f:
