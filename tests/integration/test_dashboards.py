@@ -96,6 +96,7 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_p
 
 def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard(display_name="Counter")
+
     with (tmp_path / "dashboard.yml").open("w") as f:
         f.write("display_name: Counter")
     with (tmp_path / "counter.sql").open("w") as f:
@@ -109,12 +110,14 @@ def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_p
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboard_deploys_dashboard_with_counter_variation(ws, dashboard_id, tmp_path):
+def test_dashboard_deploys_dashboard_with_counter_variation(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
     with (tmp_path / "counter.sql").open("w") as f:
         f.write("SELECT 10 AS something_else_than_count")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
