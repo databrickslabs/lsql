@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from unittest.mock import create_autospec
 
@@ -60,6 +61,98 @@ def test_dashboards_creates_one_counter_widget_per_query():
                 counter_widgets.append(layout.widget)
 
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
+
+
+def test_dashboards_skips_invalid_query(tmp_path, caplog):
+    ws = create_autospec(WorkspaceClient)
+
+    invalid_query = "SELECT COUNT(* AS missing_closing_parenthesis"
+    with (tmp_path / "invalid.sql").open("w") as f:
+        f.write(invalid_query)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    assert len(lakeview_dashboard.pages[0].layout) == 0
+    assert invalid_query in caplog.text
+
+
+@pytest.mark.parametrize(
+    "query, names",
+    [
+        ("SELECT 1", ["1"]),
+        ("SELECT 1 AS foo", ["foo"]),
+        ("SELECT 'a'", ["a"]),
+        ("SELECT 1, 'a', 100 * 20 AS calc", ["1", "a", "calc"]),
+        ("SELECT first, second, third FROM table", ["first", "second", "third"]),
+        ("SELECT a.first, a.second, b.third FROM table AS a JOIN another_table AS b", ["first", "second", "third"]),
+        ("SELECT first, 1 AS second, 'third' FROM table", ["first", "second", "third"]),
+        ("SELECT f AS first, s as second, 100 * 20 AS third FROM table", ["first", "second", "third"]),
+        ("SELECT first FROM (SELECT first, second FROM table)", ["first"]),
+        ("SELECT COUNT(DISTINCT `database`) AS count_total_databases FROM table", ["count_total_databases"]),
+        (
+            """
+WITH raw AS (
+  SELECT object_type, object_id, IF(failures == '[]', 1, 0) AS ready 
+  FROM $inventory.objects
+)
+SELECT CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%') AS readiness FROM raw
+            """,
+            ["readiness"],
+        ),
+        (
+            """
+SELECT storage, COUNT(*) count
+FROM (
+SELECT
+       CASE
+           WHEN STARTSWITH(location, "dbfs:/mnt") THEN "DBFS MOUNT"
+           WHEN STARTSWITH(location, "/dbfs/mnt") THEN "DBFS MOUNT"
+           WHEN STARTSWITH(location, "dbfs:/databricks-datasets") THEN "Databricks Demo Dataset"
+           WHEN STARTSWITH(location, "/dbfs/databricks-datasets") THEN "Databricks Demo Dataset"
+           WHEN STARTSWITH(location, "dbfs:/") THEN "DBFS ROOT"
+           WHEN STARTSWITH(location, "/dbfs/") THEN "DBFS ROOT"
+           WHEN STARTSWITH(location, "wasb") THEN "UNSUPPORTED"
+           WHEN STARTSWITH(location, "adl") THEN "UNSUPPORTED"
+           ELSE "EXTERNAL"
+       END AS storage
+FROM $inventory.tables)
+GROUP BY storage
+ORDER BY storage;
+            """,
+            ["storage", "count"],
+        ),
+        (
+            """
+WITH raw AS (
+  SELECT EXPLODE(FROM_JSON(failures, 'array<string>')) AS finding
+  FROM $inventory.objects WHERE failures <> '[]'
+)
+SELECT finding as `finding`, COUNT(*) AS count 
+FROM raw 
+GROUP BY finding
+ORDER BY count DESC, finding DESC
+            """,
+            ["finding", "count"],
+        ),
+        ("SELECT CONCAT(tables.`database`, '.', tables.name) AS name FROM table", ["name"]),
+        ('SELECT IF(object_type IN ("MANAGED", "EXTERNAL"), 1, 0) AS is_table FROM table', ["is_table"]),
+        ("SELECT DISTINCT policy_name FROM table", ["policy_name"]),
+        ("SELECT COLLECT_LIST(DISTINCT run_ids) AS run_ids FROM table", ["run_ids"]),
+        ("SELECT substring(component, length('databricks.labs.') + 1) AS component FROM table", ["component"]),
+        ("SELECT from_unixtime(timestamp) AS timestamp FROM table", ["timestamp"]),
+    ],
+)
+def test_dashboards_gets_fields_with_expected_names(tmp_path, query, names):
+    with (tmp_path / "query.sql").open("w") as f:
+        f.write(query)
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    fields = lakeview_dashboard.pages[0].layout[0].widget.queries[0].query.fields
+    assert [field.name for field in fields] == names
+    ws.assert_not_called()
 
 
 def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_first_widget(tmp_path):

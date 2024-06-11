@@ -1,5 +1,6 @@
 import dataclasses
 import json
+import logging
 from pathlib import Path
 from typing import TypeVar
 
@@ -27,6 +28,7 @@ from databricks.labs.lsql.lakeview import (
 )
 
 T = TypeVar("T")
+logger = logging.getLogger(__name__)
 
 
 class Dashboards:
@@ -86,7 +88,11 @@ class Dashboards:
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
-            fields = [Field(name="count", expression="`count`")]
+            try:
+                fields = self._get_fields(dataset.query)
+            except sqlglot.ParseError as e:
+                logger.warning(f"Error '{e}' when parsing: {dataset.query}")
+                continue
             query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
             # As for as testing went, a NamedQuery should always have "main_query" as name
             named_query = NamedQuery(name="main_query", query=query)
@@ -100,6 +106,18 @@ class Dashboards:
         page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    @staticmethod
+    def _get_fields(query: str) -> list[Field]:
+        parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+        fields = []
+        for projection in parsed_query.find_all(sqlglot.exp.Select):
+            if projection.depth > 0:
+                continue
+            for named_select in projection.named_selects:
+                field = Field(name=named_select, expression=f"`{named_select}`")
+                fields.append(field)
+        return fields
 
     def _get_position(self, spec: WidgetSpec, previous_position: Position) -> Position:
         width, height = self._get_width_and_height(spec)
