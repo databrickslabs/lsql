@@ -197,7 +197,12 @@ write.
 ## `dashboard.yml` file
 
 The `dashboard.yml` file is used to define a top-level metadata for the dashboard, such as the display name, warehouse,
-and the list of tile overrides for cases, that cannot be handled with the [high-level metadata](#metadata) in the SQL files.
+and the list of tile overrides for cases, that cannot be handled with the [high-level metadata](#metadata) in the SQL
+files. It has the following format:
+
+```yml
+display_name: <display name>
+```
 
 This file may contain extra information about the [widgets](#widget-types), but we aim at mostly [inferring it](#implicit-detection) from the SQL files.
 
