@@ -54,8 +54,8 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, dashboard_id, tmp_pat
 
 
 def test_dashboard_deploys_dashboard_with_counter_variation(ws, dashboard_id, tmp_path):
-    with (tmp_path / f"counter.sql").open("w") as f:
-        f.write(f"SELECT 10 AS something_else_than_count")
+    with (tmp_path / "counter.sql").open("w") as f:
+        f.write("SELECT 10 AS something_else_than_count")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
