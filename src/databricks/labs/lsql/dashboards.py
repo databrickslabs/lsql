@@ -30,7 +30,7 @@ T = TypeVar("T")
 
 
 class Dashboards:
-    _maximum_dashboard_width = 6
+    _MAXIMUM_DASHBOARD_WIDTH = 6
 
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
@@ -104,7 +104,7 @@ class Dashboards:
     def _get_position(self, spec: WidgetSpec, previous_position: Position) -> Position:
         width, height = self._get_width_and_height(spec)
         x = previous_position.x + previous_position.width
-        if x + width > self._maximum_dashboard_width:
+        if x + width > self._MAXIMUM_DASHBOARD_WIDTH:
             x = 0
             y = previous_position.y + previous_position.height
         else:
