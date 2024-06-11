@@ -87,9 +87,11 @@ class Dashboards:
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
-        dataset_index = 0
-        for path in sorted(dashboard_folder.iterdir()):
-            if path.suffix not in {".sql", ".md"}:
+        for dataset in datasets:
+            try:
+                fields = self._get_fields(dataset.query)
+            except sqlglot.ParseError as e:
+                logger.warning(f"Error '{e}' when parsing: {dataset.query}")
                 continue
             query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
             # As far as testing went, a NamedQuery should always have "main_query" as name
