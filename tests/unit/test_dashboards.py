@@ -66,7 +66,7 @@ def test_dashboards_creates_one_counter_widget_per_query():
 def test_dashboards_skips_invalid_query(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
-    # Test for the invalid query not to be the first or last query
+    # Test for the invalid query not to be the first query
     for i in range(0, 3, 2):
         with (tmp_path / f"{i}_counter.sql").open("w") as f:
             f.write(f"SELECT {i} AS count")
