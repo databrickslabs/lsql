@@ -216,10 +216,10 @@ def test_dashboards_creates_dashboard_with_many_widgets_not_on_the_first_row(tmp
 
 def test_dashboards_creates_dashboard_with_widget_below_text_widget(tmp_path):
     ws = create_autospec(WorkspaceClient)
-    with (tmp_path / f"000_counter.md").open("w") as f:
+    with (tmp_path / "000_counter.md").open("w") as f:
         f.write("# Description")
-    with (tmp_path / f"010_counter.sql").open("w") as f:
-        f.write(f"SELECT 100 AS count")
+    with (tmp_path / "010_counter.sql").open("w") as f:
+        f.write("SELECT 100 AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     layout = lakeview_dashboard.pages[0].layout
