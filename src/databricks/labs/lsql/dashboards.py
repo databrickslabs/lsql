@@ -94,7 +94,7 @@ class Dashboards:
                 logger.warning(f"Error '{e}' when parsing: {dataset.query}")
                 continue
             query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
-            # As for as testing went, a NamedQuery should always have "main_query" as name
+            # As far as testing went, a NamedQuery should always have "main_query" as name
             named_query = NamedQuery(name="main_query", query=query)
             # Counters are expected to have one field
             counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
