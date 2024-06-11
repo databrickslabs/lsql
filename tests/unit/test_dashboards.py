@@ -68,6 +68,21 @@ def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
     assert page.display_name == "Custom"
 
 
+@pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml"])
+def test_dashboards_handles_invalid_dashboard_yml(tmp_path, dashboard_content):
+    queries_path = tmp_path / "queries"
+    queries_path.mkdir()
+    with (queries_path / "dashboard.yml").open("w") as f:
+        f.write(dashboard_content)
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(queries_path)
+
+    page = lakeview_dashboard.pages[0]
+    assert page.name == "queries"
+    assert page.display_name == "queries"
+
+
 def test_dashboards_creates_one_dataset_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
