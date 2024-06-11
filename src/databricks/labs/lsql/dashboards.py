@@ -96,7 +96,8 @@ class Dashboards:
             query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
             # As for as testing went, a NamedQuery should always have "main_query" as name
             named_query = NamedQuery(name="main_query", query=query)
-            counter_field_encoding = CounterFieldEncoding(field_name="count", display_name="count")
+            # Counters are expected to have one field
+            counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
             counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
             widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
             position = self._get_position(counter_spec, position)
