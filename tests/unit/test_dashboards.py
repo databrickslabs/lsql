@@ -328,29 +328,12 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_p
     ws.assert_not_called()
 
 
-def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
+def test_dashboards_deploy_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [])
-    with pytest.raises(ValueError):
-        dashboards.deploy_dashboard(dashboard)
-    ws.assert_not_called()
 
-
-def test_dashboards_deploy_raises_value_error_with_both_display_name_and_dashboard_id():
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [])
-    with pytest.raises(ValueError):
-        dashboards.deploy_dashboard(dashboard, display_name="test", dashboard_id="test")
-    ws.assert_not_called()
-
-
-def test_dashboards_deploy_calls_create_with_display_name():
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [])
-    dashboards.deploy_dashboard(dashboard, display_name="test")
+    dashboard = Dashboard([], [Page("test", [])])
+    dashboards.deploy_dashboard(dashboard)
 
     ws.lakeview.create.assert_called_once()
     ws.lakeview.update.assert_not_called()
