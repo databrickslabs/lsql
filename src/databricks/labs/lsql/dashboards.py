@@ -53,29 +53,6 @@ class WidgetMetadata:
     width: int
     height: int
 
-    def as_dict(self) -> dict[str, str]:
-        return dataclasses.asdict(self)
-
-    @staticmethod
-    def _get_arguments_parser() -> ArgumentParser:
-        parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
-        parser.add_argument("-w", "--width", type=int)
-        parser.add_argument("-h", "--height", type=int)
-        return parser
-
-    def replace_from_arguments(self, arguments: list[str]) -> "WidgetMetadata":
-        parser = self._get_arguments_parser()
-        try:
-            args = parser.parse_args(arguments)
-        except (argparse.ArgumentError, SystemExit) as e:
-            logger.warning(f"Parsing {arguments}: {e}")
-            return dataclasses.replace(self)
-        return dataclasses.replace(
-            self,
-            width=args.width or self.width,
-            height=args.height or self.height,
-        )
-
 
 class Dashboards:
     _MAXIMUM_DASHBOARD_WIDTH = 6
@@ -151,7 +128,7 @@ class Dashboards:
                     continue
             else:
                 widget = self._get_text_widget(path)
-            widget_metadata = self._parse_widget_metadata(path, widget)
+            widget_metadata = self._read_widget_metadata(path, widget)
             position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
@@ -163,41 +140,6 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
-
-    @staticmethod
-    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
-        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
-
-        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
-        if not dashboard_metadata_path.exists():
-            return fallback_metadata
-
-        try:
-            raw = yaml.safe_load(dashboard_metadata_path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
-        try:
-            return DashboardMetadata.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
-
-    def _parse_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
-        width, height = self._get_width_and_height(widget)
-        fallback_metadata = WidgetMetadata(width, height)
-
-        try:
-            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return fallback_metadata
-
-        first_comment = parsed_query.comments[0]
-        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
