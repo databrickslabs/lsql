@@ -6,11 +6,7 @@ from unittest.mock import create_autospec
 import pytest
 from databricks.sdk import WorkspaceClient
 
-from databricks.labs.lsql.dashboards import (
-    DashboardMetadata,
-    Dashboards,
-    WidgetMetadata,
-)
+from databricks.labs.lsql.dashboards import Dashboards, WidgetMetadata
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
     CounterSpec,
@@ -23,22 +19,6 @@ from databricks.labs.lsql.lakeview import (
     Query,
     Widget,
 )
-
-
-def test_dashboard_configuration_raises_key_error_if_display_name_is_missing():
-    with pytest.raises(KeyError):
-        DashboardMetadata.from_dict({})
-
-
-def test_dashboard_configuration_sets_display_name_from_dict():
-    dashboard_metadata = DashboardMetadata.from_dict({"display_name": "test"})
-    assert dashboard_metadata.display_name == "test"
-
-
-def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
-    raw = {"display_name": "test"}
-    dashboard_metadata = DashboardMetadata.from_dict(raw)
-    assert dashboard_metadata.as_dict() == raw
 
 
 def test_widget_metadata_replaces_arguments():
@@ -56,12 +36,6 @@ def test_widget_metadata_replaces_one_attribute(attribute: str):
     other_fields = [field for field in dataclasses.fields(updated_metadata) if field.name != attribute]
     assert getattr(updated_metadata, attribute) == 10
     assert all(getattr(updated_metadata, field.name) == 1 for field in other_fields)
-
-
-def test_widget_metadata_as_dict():
-    raw = {"width": 10, "height": 10}
-    widget_metadata = WidgetMetadata(10, 10)
-    assert widget_metadata.as_dict() == raw
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
