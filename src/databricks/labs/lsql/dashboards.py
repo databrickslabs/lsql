@@ -2,8 +2,6 @@ import argparse
 import dataclasses
 import json
 import logging
-import shlex
-from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
@@ -35,46 +33,9 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DashboardMetadata:
-    display_name: str
-
-    @classmethod
-    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
-        return cls(
-            display_name=raw["display_name"],
-        )
-
-    def as_dict(self) -> dict[str, str]:
-        return dataclasses.asdict(self)
-
-
-@dataclass
 class WidgetMetadata:
     width: int
     height: int
-
-    def as_dict(self) -> dict[str, str]:
-        return dataclasses.asdict(self)
-
-    @staticmethod
-    def _get_arguments_parser() -> ArgumentParser:
-        parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
-        parser.add_argument("-w", "--width", type=int)
-        parser.add_argument("-h", "--height", type=int)
-        return parser
-
-    def replace_from_arguments(self, arguments: list[str]) -> "WidgetMetadata":
-        parser = self._get_arguments_parser()
-        try:
-            args = parser.parse_args(arguments)
-        except (argparse.ArgumentError, SystemExit) as e:
-            logger.warning(f"Parsing {arguments}: {e}")
-            return dataclasses.replace(self)
-        return dataclasses.replace(
-            self,
-            width=args.width or self.width,
-            height=args.height or self.height,
-        )
 
 
 class Dashboards:
@@ -151,7 +112,7 @@ class Dashboards:
                     continue
             else:
                 widget = self._get_text_widget(path)
-            widget_metadata = self._parse_widget_metadata(path, widget)
+            widget_metadata = self._read_widget_metadata(path, widget)
             position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
@@ -163,6 +124,11 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    def _read_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
+        width, height = self._get_width_and_height(widget)
+        fallback_metadata = WidgetMetadata(width, height)
+        return fallback_metadata
 
     @staticmethod
     def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
