@@ -16,18 +16,24 @@ from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
+    ColumnType,
     ControlFieldEncoding,
     CounterEncodingMap,
     CounterFieldEncoding,
     CounterSpec,
     Dashboard,
     Dataset,
+    DisplayType,
     Field,
     Layout,
     NamedQuery,
     Page,
+    PaginationSize,
     Position,
     Query,
+    TableV1ColumnEncoding,
+    TableV1EncodingMap,
+    TableV1Spec,
     Widget,
     WidgetSpec,
 )
@@ -291,10 +297,31 @@ class Dashboards:
         query = Query(dataset_name=widget_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
-        # Counters are expected to have one field
-        counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-        counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
-        widget = Widget(name=widget_metadata.id, queries=[named_query], spec=counter_spec)
+        if len(fields) == 0:  # Counters are expected to have one field
+            encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
+            spec = CounterSpec(CounterEncodingMap(value=encodings))
+        else:
+            column_encodings = []
+            for field in fields:
+                column_encoding = TableV1ColumnEncoding(
+                    boolean_values=["false", "true"],
+                    display_as=DisplayType.STRING,
+                    field_name=field.name,
+                    title=field.name,
+                    type=ColumnType.STRING,
+                )
+                column_encodings.append(column_encoding)
+            encodings = TableV1EncodingMap(column_encodings)
+            spec = TableV1Spec(
+                allow_html_by_default=False,
+                condensed=True,
+                encodings=encodings,
+                invisible_columns=[],
+                items_per_page=25,
+                pagination_size=PaginationSize.DEFAULT,
+                with_row_number=False,
+            )
+        widget = Widget(name=widget_metadata.id, queries=[named_query], spec=spec)
         return widget
 
     @staticmethod
@@ -319,6 +346,22 @@ class Dashboards:
             y = previous_position.y
         position = Position(x=x, y=y, width=widget_metadata.width, height=widget_metadata.height)
         return position
+
+    def _get_width_and_height(self, widget: Widget) -> tuple[int, int]:
+        """Get the width and height for a widget.
+
+        The tiling logic works if:
+        - width < self._MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
+        - width == self._MAXIMUM_DASHBOARD_WIDTH : any height
+        """
+        if widget.textbox_spec is not None:
+            return _MAXIMUM_DASHBOARD_WIDTH, 2
+
+        if isinstance(widget.spec, CounterSpec):
+            return 1, 3
+        elif isinstance(widget.spec, TableV1Spec):
+            return _MAXIMUM_DASHBOARD_WIDTH, 6
+        raise NotImplementedError(f"No default width and height defined for spec: {widget.spec}")
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
