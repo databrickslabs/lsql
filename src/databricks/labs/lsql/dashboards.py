@@ -16,24 +16,21 @@ from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
-    ColumnType,
     ControlFieldEncoding,
     CounterEncodingMap,
     CounterFieldEncoding,
     CounterSpec,
     Dashboard,
     Dataset,
-    DisplayType,
     Field,
     Layout,
     NamedQuery,
     Page,
-    PaginationSize,
     Position,
     Query,
-    TableV1ColumnEncoding,
-    TableV1EncodingMap,
-    TableV1Spec,
+    RenderFieldEncoding,
+    TableEncodingMap,
+    TableV2Spec,
     Widget,
     WidgetSpec,
 )
@@ -301,26 +298,9 @@ class Dashboards:
             encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
             spec = CounterSpec(CounterEncodingMap(value=encodings))
         else:
-            column_encodings = []
-            for field in fields:
-                column_encoding = TableV1ColumnEncoding(
-                    boolean_values=["false", "true"],
-                    display_as=DisplayType.STRING,
-                    field_name=field.name,
-                    title=field.name,
-                    type=ColumnType.STRING,
-                )
-                column_encodings.append(column_encoding)
-            encodings = TableV1EncodingMap(column_encodings)
-            spec = TableV1Spec(
-                allow_html_by_default=False,
-                condensed=True,
-                encodings=encodings,
-                invisible_columns=[],
-                items_per_page=25,
-                pagination_size=PaginationSize.DEFAULT,
-                with_row_number=False,
-            )
+            field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
+            encodings = TableEncodingMap(field_encodings)
+            spec = TableV2Spec(encodings=encodings)
         widget = Widget(name=widget_metadata.id, queries=[named_query], spec=spec)
         return widget
 
@@ -359,8 +339,8 @@ class Dashboards:
 
         if isinstance(widget.spec, CounterSpec):
             return 1, 3
-        elif isinstance(widget.spec, TableV1Spec):
-            return _MAXIMUM_DASHBOARD_WIDTH, 6
+        elif isinstance(widget.spec, TableV2Spec):
+            return self._MAXIMUM_DASHBOARD_WIDTH, 6
         raise NotImplementedError(f"No default width and height defined for spec: {widget.spec}")
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
