@@ -25,6 +25,11 @@ def test_dashboard_configuration_raises_key_error_if_display_name_is_missing():
         DashboardMetadata.from_dict({})
 
 
+def test_dashboard_configuration_sets_display_name_from_dict():
+    dashboard_metadata = DashboardMetadata.from_dict({"display_name": "test"})
+    assert dashboard_metadata.display_name == "test"
+
+
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
