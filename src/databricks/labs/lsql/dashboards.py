@@ -36,9 +36,9 @@ class DashboardMetadata:
     display_name: str
 
     @classmethod
-    def from_dict(cls, configuration: dict[str, str]) -> "DashboardMetadata":
+    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
         return cls(
-            display_name=configuration["display_name"],
+            display_name=raw["display_name"],
         )
 
     def as_dict(self) -> dict[str, str]:
@@ -93,8 +93,8 @@ class Dashboards:
         return formatted_query
 
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
-        """Create a dashboard from code, i.e. configuration and queries."""
-        dashboard_configuration = self._get_dashboard_configuration(dashboard_folder)
+        """Create a dashboard from code, i.e. metadata and queries."""
+        dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
 
         position = Position(0, 0, 0, 0)  # First widget position
         datasets, layouts = [], []
@@ -124,15 +124,15 @@ class Dashboards:
             layouts.append(layout)
 
         page = Page(
-            name=dashboard_configuration.display_name,
-            display_name=dashboard_configuration.display_name,
+            name=dashboard_metadata.display_name,
+            display_name=dashboard_metadata.display_name,
             layout=layouts,
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
     @staticmethod
-    def _get_dashboard_configuration(dashboard_folder: Path) -> DashboardMetadata:
+    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
         fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
 
         dashboard_metadata_path = dashboard_folder / "dashboard.yml"
