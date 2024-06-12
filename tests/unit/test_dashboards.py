@@ -357,10 +357,18 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_p
     ws.assert_not_called()
 
 
-def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path):
+@pytest.mark.parametrize(
+    "header",
+    [
+        "-- --width 6 --height 3",
+        "/* --width 6 --height 3 */",
+        "/*\n--width 6\n--height 3 */",
+    ],
+)
+def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
     ws = create_autospec(WorkspaceClient)
 
-    query = """-- --width 6 --height 3\nSELECT 82917019218921 AS big_number_needs_big_widget"""
+    query = f"{header}\nSELECT 82917019218921 AS big_number_needs_big_widget"
     with (tmp_path / "counter.sql").open("w") as f:
         f.write(query)
 
