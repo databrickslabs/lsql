@@ -53,6 +53,9 @@ class WidgetMetadata:
     width: int
     height: int
 
+    def as_dict(self) -> dict[str, str]:
+        return dataclasses.asdict(self)
+
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
         parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
