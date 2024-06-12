@@ -5,7 +5,7 @@ from unittest.mock import create_autospec
 import pytest
 from databricks.sdk import WorkspaceClient
 
-from databricks.labs.lsql.dashboards import Dashboards
+from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
     CounterSpec,
@@ -18,6 +18,22 @@ from databricks.labs.lsql.lakeview import (
     Query,
     Widget,
 )
+
+
+def test_dashboard_configuration_raises_key_error_if_display_name_is_missing():
+    with pytest.raises(KeyError):
+        DashboardMetadata.from_dict({})
+
+
+def test_dashboard_configuration_sets_display_name_from_dict():
+    dashboard_metadata = DashboardMetadata.from_dict({"display_name": "test"})
+    assert dashboard_metadata.display_name == "test"
+
+
+def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
+    raw = {"display_name": "test"}
+    dashboard_metadata = DashboardMetadata.from_dict(raw)
+    assert dashboard_metadata.as_dict() == raw
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
@@ -40,6 +56,42 @@ def test_dashboards_saves_yml_files_to_folder(tmp_path):
 
     assert len(list(tmp_path.glob("*.yml"))) == len(dashboard.pages)
     ws.assert_not_called()
+
+
+def test_dashboards_creates_dashboard_with_first_page_name_after_folder():
+    ws = create_autospec(WorkspaceClient)
+    queries = Path(__file__).parent / "queries"
+    lakeview_dashboard = Dashboards(ws).create_dashboard(queries)
+    page = lakeview_dashboard.pages[0]
+    assert page.name == "queries"
+    assert page.display_name == "queries"
+
+
+def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
+    with (tmp_path / "dashboard.yml").open("w") as f:
+        f.write("display_name: Custom")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    page = lakeview_dashboard.pages[0]
+    assert page.name == "Custom"
+    assert page.display_name == "Custom"
+
+
+@pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml"])
+def test_dashboards_handles_invalid_dashboard_yml(tmp_path, dashboard_content):
+    queries_path = tmp_path / "queries"
+    queries_path.mkdir()
+    with (queries_path / "dashboard.yml").open("w") as f:
+        f.write(dashboard_content)
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(queries_path)
+
+    page = lakeview_dashboard.pages[0]
+    assert page.name == "queries"
+    assert page.display_name == "queries"
 
 
 def test_dashboards_creates_one_dataset_per_query():
@@ -287,29 +339,12 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_p
     ws.assert_not_called()
 
 
-def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
+def test_dashboards_deploy_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [])
-    with pytest.raises(ValueError):
-        dashboards.deploy_dashboard(dashboard)
-    ws.assert_not_called()
 
-
-def test_dashboards_deploy_raises_value_error_with_both_display_name_and_dashboard_id():
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [])
-    with pytest.raises(ValueError):
-        dashboards.deploy_dashboard(dashboard, display_name="test", dashboard_id="test")
-    ws.assert_not_called()
-
-
-def test_dashboards_deploy_calls_create_with_display_name():
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [])
-    dashboards.deploy_dashboard(dashboard, display_name="test")
+    dashboard = Dashboard([], [Page("test", [])])
+    dashboards.deploy_dashboard(dashboard)
 
     ws.lakeview.create.assert_called_once()
     ws.lakeview.update.assert_not_called()

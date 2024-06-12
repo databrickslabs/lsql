@@ -1,6 +1,7 @@
 import dataclasses
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
 
@@ -28,6 +29,20 @@ from databricks.labs.lsql.lakeview import (
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class DashboardMetadata:
+    display_name: str
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
+        return cls(
+            display_name=raw["display_name"],
+        )
+
+    def as_dict(self) -> dict[str, str]:
+        return dataclasses.asdict(self)
 
 
 class Dashboards:
@@ -78,7 +93,9 @@ class Dashboards:
         return formatted_query
 
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
-        """Create a dashboard from code, i.e. configuration and queries."""
+        """Create a dashboard from code, i.e. metadata and queries."""
+        dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
+
         position = Position(0, 0, 0, 0)  # First widget position
         datasets, layouts = [], []
         for query_path in sorted(dashboard_folder.glob("*.sql")):
@@ -106,9 +123,32 @@ class Dashboards:
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
-        page = Page(name=dashboard_folder.name, display_name=dashboard_folder.name, layout=layouts)
+        page = Page(
+            name=dashboard_metadata.display_name,
+            display_name=dashboard_metadata.display_name,
+            layout=layouts,
+        )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    @staticmethod
+    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
+        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
+
+        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
+        if not dashboard_metadata_path.exists():
+            return fallback_metadata
+
+        try:
+            raw = yaml.safe_load(dashboard_metadata_path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
+        try:
+            return DashboardMetadata.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
@@ -166,20 +206,16 @@ class Dashboards:
             raise NotImplementedError(f"No width defined for spec: {widget}")
         return width, height
 
-    def deploy_dashboard(
-        self, lakeview_dashboard: Dashboard, *, display_name: str | None = None, dashboard_id: str | None = None
-    ) -> SDKDashboard:
+    def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
-        if (display_name is None and dashboard_id is None) or (display_name is not None and dashboard_id is not None):
-            raise ValueError("Give either display_name or dashboard_id.")
-        if display_name is not None:
-            dashboard = self._ws.lakeview.create(
-                display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
-            )
-        else:
-            assert dashboard_id is not None
+        if dashboard_id is not None:
             dashboard = self._ws.lakeview.update(
                 dashboard_id, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
+            )
+        else:
+            display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
+            dashboard = self._ws.lakeview.create(
+                display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
             )
         return dashboard
 
