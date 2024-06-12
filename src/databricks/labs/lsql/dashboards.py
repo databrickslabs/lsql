@@ -125,7 +125,7 @@ class Dashboards:
                     continue
             else:
                 widget = self._get_text_widget(path)
-            widget_metadata = self._read_widget_metadata(path, widget)
+            widget_metadata = self._parse_widget_metadata(path, widget)
             position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
@@ -137,6 +137,12 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    def _parse_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
+        _ = path
+        width, height = self._get_width_and_height(widget)
+        fallback_metadata = WidgetMetadata(width, height)
+        return fallback_metadata
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
