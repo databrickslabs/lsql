@@ -1,6 +1,9 @@
+import argparse
 import dataclasses
 import json
 import logging
+import shlex
+from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
@@ -43,6 +46,35 @@ class DashboardMetadata:
 
     def as_dict(self) -> dict[str, str]:
         return dataclasses.asdict(self)
+
+
+@dataclass
+class WidgetMetadata:
+    width: int
+    height: int
+
+    def as_dict(self) -> dict[str, str]:
+        return dataclasses.asdict(self)
+
+    @staticmethod
+    def _get_arguments_parser() -> ArgumentParser:
+        parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
+        parser.add_argument("-w", "--width", type=int)
+        parser.add_argument("-h", "--height", type=int)
+        return parser
+
+    def replace_from_arguments(self, arguments: list[str]) -> "WidgetMetadata":
+        parser = self._get_arguments_parser()
+        try:
+            args = parser.parse_args(arguments)
+        except (argparse.ArgumentError, SystemExit) as e:
+            logger.warning(f"Parsing {arguments}: {e}")
+            return dataclasses.replace(self)
+        return dataclasses.replace(
+            self,
+            width=args.width or self.width,
+            height=args.height or self.height,
+        )
 
 
 class Dashboards:
@@ -119,7 +151,8 @@ class Dashboards:
                     continue
             else:
                 widget = self._get_text_widget(path)
-            position = self._get_position(widget, position)
+            widget_metadata = self._parse_widget_metadata(path, widget)
+            position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
@@ -150,6 +183,22 @@ class Dashboards:
             logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
 
+    def _parse_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
+        width, height = self._get_width_and_height(widget)
+        fallback_metadata = WidgetMetadata(width, height)
+
+        try:
+            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+
+        if parsed_query.comments is None or len(parsed_query.comments) == 0:
+            return fallback_metadata
+
+        first_comment = parsed_query.comments[0]
+        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
+
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
         widget = Widget(name=path.stem, textbox_spec=path.read_text())
@@ -178,15 +227,14 @@ class Dashboards:
                 fields.append(field)
         return fields
 
-    def _get_position(self, widget: Widget, previous_position: Position) -> Position:
-        width, height = self._get_width_and_height(widget)
+    def _get_position(self, widget_metadata: WidgetMetadata, previous_position: Position) -> Position:
         x = previous_position.x + previous_position.width
-        if x + width > self._MAXIMUM_DASHBOARD_WIDTH:
+        if x + widget_metadata.width > self._MAXIMUM_DASHBOARD_WIDTH:
             x = 0
             y = previous_position.y + previous_position.height
         else:
             y = previous_position.y
-        position = Position(x=x, y=y, width=width, height=height)
+        position = Position(x=x, y=y, width=widget_metadata.width, height=widget_metadata.height)
         return position
 
     def _get_width_and_height(self, widget: Widget) -> tuple[int, int]:

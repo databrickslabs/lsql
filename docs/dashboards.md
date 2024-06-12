@@ -79,8 +79,10 @@ when the metadata cannot be inferred from the query itself.
 
 ### Headers of SQL files
 
-The first line is used to define widget and vizualization metadata used to render the relevant portion of the dashboard.
-Metadata could be defined in `--` and `/* ... */` comments, which are detected by our SQL parser.
+The header is used to define widget and vizualization metadata used to render the relevant portion of the dashboard.
+Metadata could be defined in a `--` or `/* ... */` comment, which are detected by our SQL parser. The parser only reads
+the **comment starting on the top**, which can be a single line using `--` or span multiple lines
+using `/* ... */`.
 
 | Format       | Readability | Verbosity |
 |--------------|-------------|-----------|
@@ -88,6 +90,15 @@ Metadata could be defined in `--` and `/* ... */` comments, which are detected b
 | JSON         | ?           | higher    |
 | `argparse`   | ?           | lowest    |
 | Query string | ? | ? |
+
+#### Widget arguments
+
+The following widget arguments are supported:
+
+| Flag           | Description                                 | Type | Optional |
+|----------------|---------------------------------------------|------|----------|
+| -w or --width  | The number of columns that the widget spans | int  | Yes      |
+| -h or --height | The number of rows that the widget spans    | int  | Yes      |
 
 [[back to top](#dashboards-as-code)]
 
