@@ -132,19 +132,19 @@ class Dashboards:
     def _get_dashboard_configuration(dashboard_folder: Path) -> DashboardMetadata:
         fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
 
-        dashboard_path = dashboard_folder / "dashboard.yml"
-        if not dashboard_path.exists():
+        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
+        if not dashboard_metadata_path.exists():
             return fallback_metadata
 
         try:
-            raw = yaml.safe_load(dashboard_path.read_text())
+            raw = yaml.safe_load(dashboard_metadata_path.read_text())
         except yaml.YAMLError as e:
-            logger.warning(f"Error '{e}' when parsing: {dashboard_path}")
+            logger.warning(f"Error '{e}' when parsing: {dashboard_metadata_path}")
             return fallback_metadata
         try:
             return DashboardMetadata.from_dict(raw)
         except KeyError as e:
-            logger.warning(f"Error '{e}' when parsing: {dashboard_path}")
+            logger.warning(f"Error '{e}' when parsing: {dashboard_metadata_path}")
             return fallback_metadata
 
     @staticmethod
