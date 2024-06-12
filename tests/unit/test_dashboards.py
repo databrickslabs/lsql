@@ -30,6 +30,12 @@ def test_dashboard_configuration_sets_display_name_from_dict():
     assert dashboard_metadata.display_name == "test"
 
 
+def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
+    raw = {"display_name": "test"}
+    dashboard_metadata = DashboardMetadata.from_dict(raw)
+    assert dashboard_metadata.as_dict() == raw
+
+
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"

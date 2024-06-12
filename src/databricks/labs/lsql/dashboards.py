@@ -41,6 +41,9 @@ class DashboardMetadata:
             display_name=configuration["display_name"],
         )
 
+    def as_dict(self) -> dict[str, str]:
+        return dataclasses.asdict(self)
+
 
 class Dashboards:
     _MAXIMUM_DASHBOARD_WIDTH = 6
