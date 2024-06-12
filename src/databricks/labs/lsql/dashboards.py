@@ -115,7 +115,7 @@ class Dashboards:
                 try:
                     widget = self._get_widget(dataset)
                 except sqlglot.ParseError as e:
-                    logger.warning(f"Error '{e}' when parsing: {dataset.query}")
+                    logger.warning(f"Parsing {dataset.query}: {e}")
                     continue
             else:
                 widget = self._get_text_widget(path)
