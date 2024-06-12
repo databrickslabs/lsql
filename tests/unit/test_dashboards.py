@@ -343,7 +343,13 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
     ws.assert_not_called()
 
 
-@pytest.mark.parametrize("query, width, height", [("SELECT 1 AS count", 1, 3)])
+@pytest.mark.parametrize(
+    "query, width, height",
+    [
+        ("SELECT 1 AS count", 1, 3),
+        ("SELECT 1 AS first, 2 AS second", 6, 6),
+    ]
+)
 def test_dashboards_creates_dashboards_where_widget_has_expected_width_and_height(tmp_path, query, width, height):
     ws = create_autospec(WorkspaceClient)
 
