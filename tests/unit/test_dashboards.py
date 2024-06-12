@@ -376,7 +376,7 @@ def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     [
         ("SELECT 1 AS count", 1, 3),
         ("SELECT 1 AS first, 2 AS second", 6, 6),
-    ]
+    ],
 )
 def test_dashboards_creates_dashboards_where_widget_has_expected_width_and_height(tmp_path, query, width, height):
     ws = create_autospec(WorkspaceClient)
