@@ -142,7 +142,7 @@ class Dashboards:
         try:
             raw = yaml.safe_load(dashboard_metadata_path.read_text())
         except yaml.YAMLError as e:
-            logger.warning(f"Error '{e}' when parsing: {dashboard_metadata_path}")
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
         try:
             return DashboardMetadata.from_dict(raw)
