@@ -172,7 +172,7 @@ class Dashboards:
             logger.warning(f"Parsing {path}: {e}")
             return fallback_metadata
 
-        if len(parsed_query.comments) == 0:
+        if parsed_query.comments is None or len(parsed_query.comments) == 0:
             return fallback_metadata
 
         first_comment = parsed_query.comments[0]
