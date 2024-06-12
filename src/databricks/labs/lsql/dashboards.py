@@ -349,7 +349,7 @@ class Dashboards:
 
         if isinstance(widget.spec, CounterSpec):
             return 1, 3
-        elif isinstance(widget.spec, TableV2Spec):
+        if isinstance(widget.spec, TableV2Spec):
             return self._MAXIMUM_DASHBOARD_WIDTH, 6
         raise NotImplementedError(f"No default width and height defined for spec: {widget.spec}")
 
