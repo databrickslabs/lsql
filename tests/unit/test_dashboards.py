@@ -6,7 +6,11 @@ from unittest.mock import create_autospec
 import pytest
 from databricks.sdk import WorkspaceClient
 
-from databricks.labs.lsql.dashboards import Dashboards, WidgetMetadata
+from databricks.labs.lsql.dashboards import (
+    DashboardMetadata,
+    Dashboards,
+    WidgetMetadata,
+)
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
     CounterSpec,
@@ -19,6 +23,22 @@ from databricks.labs.lsql.lakeview import (
     Query,
     Widget,
 )
+
+
+def test_dashboard_configuration_raises_key_error_if_display_name_is_missing():
+    with pytest.raises(KeyError):
+        DashboardMetadata.from_dict({})
+
+
+def test_dashboard_configuration_sets_display_name_from_dict():
+    dashboard_metadata = DashboardMetadata.from_dict({"display_name": "test"})
+    assert dashboard_metadata.display_name == "test"
+
+
+def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
+    raw = {"display_name": "test"}
+    dashboard_metadata = DashboardMetadata.from_dict(raw)
+    assert dashboard_metadata.as_dict() == raw
 
 
 def test_widget_metadata_replaces_arguments():
@@ -36,6 +56,12 @@ def test_widget_metadata_replaces_one_attribute(attribute: str):
     other_fields = [field for field in dataclasses.fields(updated_metadata) if field.name != attribute]
     assert getattr(updated_metadata, attribute) == 10
     assert all(getattr(updated_metadata, field.name) == 1 for field in other_fields)
+
+
+def test_widget_metadata_as_dict():
+    raw = {"order": 10, "width": 10, "height": 10}
+    widget_metadata = WidgetMetadata(10, 10, 10)
+    assert widget_metadata.as_dict() == raw
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
@@ -360,22 +386,15 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_p
     ws.assert_not_called()
 
 
-def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
-    query = """-- --width 6 --height 3\nSELECT 82917019218921 AS big_number_needs_big_widget"""
-    with (tmp_path / f"counter.sql").open("w") as f:
-        f.write(query)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 6
-    assert position.height == 3
-    ws.assert_not_called()
-
-
-def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
+@pytest.mark.parametrize(
+    "header",
+    [
+        "-- --width 6 --height 3",
+        "/* --width 6 --height 3 */",
+        "/*\n--width 6\n--height 3 */",
+    ],
+)
+def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
     ws = create_autospec(WorkspaceClient)
 
     query = f"{header}\nSELECT 82917019218921 AS big_number_needs_big_widget"
@@ -391,39 +410,6 @@ def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dash
 
 
 def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
-    ws = create_autospec(WorkspaceClient)
-
-    # Typo is on purpose
-    query = f"-- --widh 6 --height 3 \nSELECT 82917019218921 AS big_number_needs_big_widget"
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
-        lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-
-    position = lakeview_dashboard.pages[0].layout[0].position
-    assert position.width == 1
-    assert position.height == 3
-    assert "--widh" in caplog.text
-    ws.assert_not_called()
-
-
-def test_dashboard_ignores_comment_on_other_lines(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
-    query = f"-- --height 5 \nSELECT 82917019218921 AS big_number_needs_big_widget -- --width 6"
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 1
-    assert position.height == 5
-    ws.assert_not_called()
-
-
-def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
     ws = create_autospec(WorkspaceClient)
 
     # Typo is on purpose
@@ -472,23 +458,9 @@ def test_dashboard_ignores_comment_on_other_lines(tmp_path, query):
     [
         "SELECT 1\n-- --width 6 --height 6",
         "SELECT 1\n/*\n--width 6\n--height 6*/",
-    ]
+    ],
 )
 def test_dashboard_ignores_non_header_comment(tmp_path, query):
-    ws = create_autospec(WorkspaceClient)
-
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 1
-    assert position.height == 3
-    ws.assert_not_called()
-
-
-def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
     ws = create_autospec(WorkspaceClient)
 
     with (tmp_path / "counter.sql").open("w") as f:
