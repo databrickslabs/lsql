@@ -453,9 +453,23 @@ def test_dashboard_ignores_comment_on_other_lines(tmp_path, query):
     [
         "SELECT 1\n-- --width 6 --height 6",
         "SELECT 1\n/*\n--width 6\n--height 6*/",
-    ],
+    ]
 )
 def test_dashboard_ignores_non_header_comment(tmp_path, query):
+    ws = create_autospec(WorkspaceClient)
+
+    with (tmp_path / "counter.sql").open("w") as f:
+        f.write(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    position = lakeview_dashboard.pages[0].layout[0].position
+
+    assert position.width == 1
+    assert position.height == 3
+    ws.assert_not_called()
+
+
+def test_dashboards_deploy_raises_value_error_with_missing_display_name_and_dashboard_id():
     ws = create_autospec(WorkspaceClient)
 
     with (tmp_path / "counter.sql").open("w") as f:
