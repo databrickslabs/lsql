@@ -295,7 +295,7 @@ class Dashboards:
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
         spec: WidgetSpec
-        if len(fields) == 0:  # Counters are expected to have one field
+        if len(fields) == 1:  # Counters are expected to have one field
             counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
             spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
         else:
