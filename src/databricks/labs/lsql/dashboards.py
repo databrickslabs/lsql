@@ -32,11 +32,11 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DashboardConfiguration:
+class DashboardMetadata:
     display_name: str
 
     @classmethod
-    def from_dict(cls, configuration: dict[str, str]) -> "DashboardConfiguration":
+    def from_dict(cls, configuration: dict[str, str]) -> "DashboardMetadata":
         return cls(
             display_name=configuration["display_name"],
         )
@@ -127,24 +127,24 @@ class Dashboards:
         return lakeview_dashboard
 
     @staticmethod
-    def _get_dashboard_configuration(dashboard_folder: Path) -> DashboardConfiguration:
-        fallback_configuration = DashboardConfiguration(display_name=dashboard_folder.name)
+    def _get_dashboard_configuration(dashboard_folder: Path) -> DashboardMetadata:
+        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
 
         dashboard_path = dashboard_folder / "dashboard.yml"
         if not dashboard_path.exists():
-            return fallback_configuration
+            return fallback_metadata
 
         with dashboard_path.open("r") as f:
             try:
                 raw_configuration = yaml.safe_load(f)
             except yaml.YAMLError as e:
                 logger.warning(f"Error '{e}' when parsing: {dashboard_path}")
-                return fallback_configuration
+                return fallback_metadata
         try:
-            return DashboardConfiguration.from_dict(raw_configuration)
+            return DashboardMetadata.from_dict(raw_configuration)
         except KeyError as e:
             logger.warning(f"Error '{e}' when parsing: {dashboard_path}")
-            return fallback_configuration
+            return fallback_metadata
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
