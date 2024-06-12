@@ -339,6 +339,21 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_p
     ws.assert_not_called()
 
 
+def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    query = """-- --width 6 --height 3\nSELECT 82917019218921 AS big_number_needs_big_widget"""
+    with (tmp_path / f"counter.sql").open("w") as f:
+        f.write(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    position = lakeview_dashboard.pages[0].layout[0].position
+
+    assert position.width == 6
+    assert position.height == 3
+    ws.assert_not_called()
+
+
 def test_dashboards_deploy_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
