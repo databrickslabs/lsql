@@ -155,3 +155,15 @@ def test_dashboards_deploys_dashboard_with_order_overwrite(ws, make_dashboard, t
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_table(ws, make_dashboard):
+    sdk_dashboard = make_dashboard()
+
+    dashboard_folder = Path(__file__).parent / "dashboards" / "one_table"
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(dashboard_folder)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
