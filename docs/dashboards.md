@@ -80,8 +80,8 @@ when the metadata cannot be inferred from the query itself.
 ### Headers of SQL files
 
 The header is used to define widget and vizualization metadata used to render the relevant portion of the dashboard.
-Metadata could be defined in a `--` or `/* ... */` comment, which are detected by our SQL parser. The parser only reads
-the **comment starting on the top**, which can be a single line using `--` or span multiple lines
+Metadata could be defined in `--` and `/* ... */` comments, which are detected by our SQL parser. The parser only reads
+the **comment starting on the top** only, which can be a single line using `--` or span multiple lines
 using `/* ... */`.
 
 | Format       | Readability | Verbosity |
