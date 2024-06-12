@@ -121,7 +121,9 @@ class Dashboards:
             layouts.append(layout)
 
         page = Page(
-            name=dashboard_configuration.display_name, display_name=dashboard_configuration.display_name, layout=layouts
+            name=dashboard_configuration.display_name,
+            display_name=dashboard_configuration.display_name,
+            layout=layouts,
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
