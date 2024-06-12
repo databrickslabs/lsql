@@ -164,6 +164,25 @@ class Dashboards:
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
+    @staticmethod
+    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
+        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
+
+        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
+        if not dashboard_metadata_path.exists():
+            return fallback_metadata
+
+        try:
+            raw = yaml.safe_load(dashboard_metadata_path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
+        try:
+            return DashboardMetadata.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
+
     def _parse_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
         _ = path
         width, height = self._get_width_and_height(widget)
