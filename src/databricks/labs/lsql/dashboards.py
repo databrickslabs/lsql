@@ -184,7 +184,6 @@ class Dashboards:
             return fallback_metadata
 
     def _parse_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
-        _ = path
         width, height = self._get_width_and_height(widget)
         fallback_metadata = WidgetMetadata(width, height)
 
