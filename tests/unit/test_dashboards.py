@@ -59,6 +59,7 @@ def test_widget_metadata_as_dict():
     widget_metadata = WidgetMetadata(10, 10)
     assert widget_metadata.as_dict() == raw
 
+
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
