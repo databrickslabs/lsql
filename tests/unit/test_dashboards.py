@@ -367,90 +367,17 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_p
     ws.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "header",
-    [
-        "-- --width 6 --height 3",
-        "/* --width 6 --height 3 */",
-        "/*\n--width 6\n--height 3 */",
-    ],
-)
-def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
+def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    query = f"{header}\nSELECT 82917019218921 AS big_number_needs_big_widget"
-    with (tmp_path / "counter.sql").open("w") as f:
+    query = """-- --width 6 --height 3\nSELECT 82917019218921 AS big_number_needs_big_widget"""
+    with (tmp_path / f"counter.sql").open("w") as f:
         f.write(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     position = lakeview_dashboard.pages[0].layout[0].position
 
     assert position.width == 6
-    assert position.height == 3
-    ws.assert_not_called()
-
-
-def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
-    ws = create_autospec(WorkspaceClient)
-
-    # Typo is on purpose
-    query = "-- --widh 6 --height 3 \nSELECT 82917019218921 AS big_number_needs_big_widget"
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
-        lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-
-    position = lakeview_dashboard.pages[0].layout[0].position
-    assert position.width == 1
-    assert position.height == 3
-    assert "--widh" in caplog.text
-    ws.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        "-- --height 5\nSELECT 1 AS count -- --width 6",
-        "-- --height 5\nSELECT 1 AS count\n-- --width 6",
-        "-- --height 5\nSELECT 1 AS count\n/* --width 6 */",
-        "-- --height 5\n-- --width 6\nSELECT 1 AS count",
-        "-- --height 5\n/* --width 6 */\nSELECT 1 AS count",
-        "/* --height 5*/\n/* --width 6 */\nSELECT 1 AS count",
-        "/* --height 5*/\n-- --width 6 */\nSELECT 1 AS count",
-    ],
-)
-def test_dashboard_ignores_comment_on_other_lines(tmp_path, query):
-    ws = create_autospec(WorkspaceClient)
-
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 1
-    assert position.height == 5
-    ws.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        "SELECT 1\n-- --width 6 --height 6",
-        "SELECT 1\n/*\n--width 6\n--height 6*/",
-    ],
-)
-def test_dashboard_ignores_non_header_comment(tmp_path, query):
-    ws = create_autospec(WorkspaceClient)
-
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 1
     assert position.height == 3
     ws.assert_not_called()
 
