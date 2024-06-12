@@ -398,10 +398,21 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws.assert_not_called()
 
 
-def test_dashboard_ignores_comment_on_other_lines(tmp_path):
+@pytest.mark.parametrize(
+    "query",
+    [
+        f"-- --height 5\nSELECT 1 AS count -- --width 6",
+        f"-- --height 5\nSELECT 1 AS count\n-- --width 6",
+        f"-- --height 5\nSELECT 1 AS count\n/* --width 6 */",
+        f"-- --height 5\n-- --width 6\nSELECT 1 AS count",
+        f"-- --height 5\n/* --width 6 */\nSELECT 1 AS count",
+        f"/* --height 5*/\n/* --width 6 */\nSELECT 1 AS count",
+        f"/* --height 5*/\n-- --width 6 */\nSELECT 1 AS count",
+    ]
+)
+def test_dashboard_ignores_comment_on_other_lines(tmp_path, query):
     ws = create_autospec(WorkspaceClient)
 
-    query = f"-- --height 5 \nSELECT 82917019218921 AS big_number_needs_big_widget -- --width 6"
     with (tmp_path / "counter.sql").open("w") as f:
         f.write(query)
 
