@@ -136,14 +136,13 @@ class Dashboards:
         if not dashboard_path.exists():
             return fallback_metadata
 
-        with dashboard_path.open("r") as f:
-            try:
-                raw_configuration = yaml.safe_load(f)
-            except yaml.YAMLError as e:
-                logger.warning(f"Error '{e}' when parsing: {dashboard_path}")
-                return fallback_metadata
         try:
-            return DashboardMetadata.from_dict(raw_configuration)
+            raw = yaml.safe_load(dashboard_path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Error '{e}' when parsing: {dashboard_path}")
+            return fallback_metadata
+        try:
+            return DashboardMetadata.from_dict(raw)
         except KeyError as e:
             logger.warning(f"Error '{e}' when parsing: {dashboard_path}")
             return fallback_metadata
