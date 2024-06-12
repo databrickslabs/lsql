@@ -144,7 +144,7 @@ class Dashboards:
         try:
             return DashboardMetadata.from_dict(raw)
         except KeyError as e:
-            logger.warning(f"Error '{e}' when parsing: {dashboard_metadata_path}")
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
 
     @staticmethod
