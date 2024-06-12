@@ -216,8 +216,8 @@ class Dashboards:
         if parsed_query.comments is None or len(parsed_query.comments) == 0:
             return fallback_metadata
 
-        comment = parsed_query.comments[0]
-        return fallback_metadata.replace_from_arguments(shlex.split(comment))
+        first_comment = parsed_query.comments[0]
+        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
