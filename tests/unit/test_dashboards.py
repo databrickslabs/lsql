@@ -22,15 +22,15 @@ from databricks.labs.lsql.lakeview import (
 
 
 def test_widget_metadata_replaces_arguments():
-    widget_metadata = WidgetMetadata(1, 1)
+    widget_metadata = WidgetMetadata(1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["width", "height"])
+@pytest.mark.parametrize("attribute", ["order", "width", "height"])
 def test_widget_metadata_replaces_one_attribute(attribute: str):
-    widget_metadata = WidgetMetadata(1, 1)
+    widget_metadata = WidgetMetadata(1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments([f"--{attribute}", "10"])
 
     other_fields = [field for field in dataclasses.fields(updated_metadata) if field.name != attribute]
