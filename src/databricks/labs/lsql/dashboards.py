@@ -36,12 +36,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class WidgetMetadata:
+    order: int
     width: int
     height: int
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
         parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
+        parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
         return parser
@@ -55,6 +57,7 @@ class WidgetMetadata:
             return dataclasses.replace(self)
         return dataclasses.replace(
             self,
+            order=args.order or self.order,
             width=args.width or self.width,
             height=args.height or self.height,
         )
@@ -108,10 +111,7 @@ class Dashboards:
         return formatted_query
 
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
-        """Create a dashboard from code, i.e. metadata and queries."""
-        dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
-
-        position = Position(0, 0, 0, 0)  # First widget position
+        """Create a dashboard from code, i.e. configuration and queries."""
         datasets, layouts = [], []
         for query_path in sorted(dashboard_folder.glob("*.sql")):
             with query_path.open("r") as query_file:
@@ -119,8 +119,8 @@ class Dashboards:
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
             datasets.append(dataset)
 
-        dataset_index = 0
-        for path in sorted(dashboard_folder.iterdir()):
+        dataset_index, widgets = 0, []
+        for order, path in enumerate(sorted(dashboard_folder.iterdir())):
             if path.suffix not in {".sql", ".md"}:
                 continue
             if path.suffix == ".sql":
@@ -134,7 +134,11 @@ class Dashboards:
                     continue
             else:
                 widget = self._get_text_widget(path)
-            widget_metadata = self._parse_widget_metadata(path, widget)
+            widget_metadata = self._parse_widget_metadata(path, widget, order)
+            widgets.append((widget, widget_metadata))
+
+        position = Position(0, 0, 0, 0)  # First widget position
+        for widget, widget_metadata in sorted(widgets, key=lambda w: (w[1].order, w[0].name)):
             position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
@@ -147,9 +151,13 @@ class Dashboards:
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
-    def _parse_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
+    def _parse_widget_metadata(self, path: Path, widget: Widget, order: int) -> WidgetMetadata:
         width, height = self._get_width_and_height(widget)
-        fallback_metadata = WidgetMetadata(width, height)
+        fallback_metadata = WidgetMetadata(
+            order=order,
+            width=width,
+            height=height,
+        )
 
         try:
             parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
