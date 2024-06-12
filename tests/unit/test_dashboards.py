@@ -343,7 +343,7 @@ def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
     query = """-- --width 6 --height 3\nSELECT 82917019218921 AS big_number_needs_big_widget"""
-    with (tmp_path / f"counter.sql").open("w") as f:
+    with (tmp_path / "counter.sql").open("w") as f:
         f.write(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
