@@ -384,7 +384,7 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
     # Typo is on purpose
-    query = f"-- --widh 6 --height 3 \nSELECT 82917019218921 AS big_number_needs_big_widget"
+    query = "-- --widh 6 --height 3 \nSELECT 82917019218921 AS big_number_needs_big_widget"
     with (tmp_path / "counter.sql").open("w") as f:
         f.write(query)
 
@@ -401,14 +401,14 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
 @pytest.mark.parametrize(
     "query",
     [
-        f"-- --height 5\nSELECT 1 AS count -- --width 6",
-        f"-- --height 5\nSELECT 1 AS count\n-- --width 6",
-        f"-- --height 5\nSELECT 1 AS count\n/* --width 6 */",
-        f"-- --height 5\n-- --width 6\nSELECT 1 AS count",
-        f"-- --height 5\n/* --width 6 */\nSELECT 1 AS count",
-        f"/* --height 5*/\n/* --width 6 */\nSELECT 1 AS count",
-        f"/* --height 5*/\n-- --width 6 */\nSELECT 1 AS count",
-    ]
+        "-- --height 5\nSELECT 1 AS count -- --width 6",
+        "-- --height 5\nSELECT 1 AS count\n-- --width 6",
+        "-- --height 5\nSELECT 1 AS count\n/* --width 6 */",
+        "-- --height 5\n-- --width 6\nSELECT 1 AS count",
+        "-- --height 5\n/* --width 6 */\nSELECT 1 AS count",
+        "/* --height 5*/\n/* --width 6 */\nSELECT 1 AS count",
+        "/* --height 5*/\n-- --width 6 */\nSELECT 1 AS count",
+    ],
 )
 def test_dashboard_ignores_comment_on_other_lines(tmp_path, query):
     ws = create_autospec(WorkspaceClient)
@@ -429,7 +429,7 @@ def test_dashboard_ignores_comment_on_other_lines(tmp_path, query):
     [
         "SELECT 1\n-- --width 6 --height 6",
         "SELECT 1\n/*\n--width 6\n--height 6*/",
-    ]
+    ],
 )
 def test_dashboard_ignores_non_header_comment(tmp_path, query):
     ws = create_autospec(WorkspaceClient)
