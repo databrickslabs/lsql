@@ -121,3 +121,15 @@ def test_dashboard_deploys_dashboard_with_counter_variation(ws, make_dashboard, 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_big_widget(ws, dashboard_id, tmp_path):
+    query = """-- --width 6 --height 3\nSELECT 82917019218921 AS big_number_needs_big_widget"""
+    with (tmp_path / f"counter.sql").open("w") as f:
+        f.write(query)
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
