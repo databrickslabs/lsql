@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -5,7 +6,7 @@ from unittest.mock import create_autospec
 import pytest
 from databricks.sdk import WorkspaceClient
 
-from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards
+from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards, WidgetMetadata
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
     CounterSpec,
@@ -34,6 +35,23 @@ def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
     raw = {"display_name": "test"}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
     assert dashboard_metadata.as_dict() == raw
+
+
+def test_widget_metadata_replaces_arguments():
+    widget_metadata = WidgetMetadata(1, 1)
+    updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
+    assert updated_metadata.width == 10
+    assert updated_metadata.height == 10
+
+
+@pytest.mark.parametrize("attribute", ["width", "height"])
+def test_widget_metadata_replaces_one_attribute(attribute: str):
+    widget_metadata = WidgetMetadata(1, 1)
+    updated_metadata = widget_metadata.replace_from_arguments([f"--{attribute}", "10"])
+
+    other_fields = [field for field in dataclasses.fields(updated_metadata) if field.name != attribute]
+    assert getattr(updated_metadata, attribute) == 10
+    assert all(getattr(updated_metadata, field.name) == 1 for field in other_fields)
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
