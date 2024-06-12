@@ -6,7 +6,11 @@ from unittest.mock import create_autospec
 import pytest
 from databricks.sdk import WorkspaceClient
 
-from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards, WidgetMetadata
+from databricks.labs.lsql.dashboards import (
+    DashboardMetadata,
+    Dashboards,
+    WidgetMetadata,
+)
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
     CounterSpec,
