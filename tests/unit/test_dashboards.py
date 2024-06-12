@@ -21,6 +21,7 @@ from databricks.labs.lsql.lakeview import (
     Page,
     Position,
     Query,
+    TableV2Spec,
     Widget,
 )
 
@@ -261,6 +262,20 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
     assert isinstance(counter_spec, CounterSpec)
     assert counter_spec.encodings.value.field_name == "amount"
     assert counter_spec.encodings.value.display_name == "amount"
+    ws.assert_not_called()
+
+
+def test_dashboards_creates_dashboard_with_expected_table_field_encodings(tmp_path):
+    with (tmp_path / "query.sql").open("w") as f:
+        f.write("SELECT 1 AS first, 2 AS second")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    table_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(table_spec, TableV2Spec)
+    assert table_spec.encodings.columns[0].field_name == "first"
+    assert table_spec.encodings.columns[1].field_name == "second"
     ws.assert_not_called()
 
 
