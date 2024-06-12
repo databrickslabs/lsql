@@ -380,6 +380,24 @@ def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
     ws.assert_not_called()
 
 
+def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
+    ws = create_autospec(WorkspaceClient)
+
+    # Typo is on purpose
+    query = f"-- --widh 6 --height 3 \nSELECT 82917019218921 AS big_number_needs_big_widget"
+    with (tmp_path / "counter.sql").open("w") as f:
+        f.write(query)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    position = lakeview_dashboard.pages[0].layout[0].position
+    assert position.width == 1
+    assert position.height == 3
+    assert "--widh" in caplog.text
+    ws.assert_not_called()
+
+
 def test_dashboards_deploy_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
