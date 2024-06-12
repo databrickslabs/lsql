@@ -2,6 +2,8 @@ import argparse
 import dataclasses
 import json
 import logging
+import shlex
+from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
@@ -36,6 +38,22 @@ logger = logging.getLogger(__name__)
 class WidgetMetadata:
     width: int
     height: int
+
+    @staticmethod
+    def _get_arguments_parser() -> ArgumentParser:
+        parser = ArgumentParser("WidgetMetadata", add_help=False)
+        parser.add_argument("-w", "--width", type=int)
+        parser.add_argument("-h", "--height", type=int)
+        return parser
+
+    def replace_from_arguments(self, arguments: list[str]) -> "WidgetMetadata":
+        parser = self._get_arguments_parser()
+        args = parser.parse_args(arguments)
+        return dataclasses.replace(
+            self,
+            width=args.width or self.width,
+            height=args.height or self.height,
+        )
 
 
 class Dashboards:
@@ -128,7 +146,18 @@ class Dashboards:
     def _parse_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
         width, height = self._get_width_and_height(widget)
         fallback_metadata = WidgetMetadata(width, height)
-        return fallback_metadata
+
+        try:
+            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+
+        if len(parsed_query.comments) == 0:
+            return fallback_metadata
+
+        comment = parsed_query.comments[0]
+        return fallback_metadata.replace_from_arguments(shlex.split(comment))
 
     @staticmethod
     def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
