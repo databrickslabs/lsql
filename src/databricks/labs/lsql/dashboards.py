@@ -45,6 +45,12 @@ class DashboardMetadata:
         return dataclasses.asdict(self)
 
 
+@dataclass
+class WidgetMetadata:
+    width: int
+    height: int
+
+
 class Dashboards:
     _MAXIMUM_DASHBOARD_WIDTH = 6
 
@@ -119,7 +125,8 @@ class Dashboards:
                     continue
             else:
                 widget = self._get_text_widget(path)
-            position = self._get_position(widget, position)
+            widget_metadata = self._read_widget_metadata(path, widget)
+            position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
 
@@ -130,25 +137,6 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
-
-    @staticmethod
-    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
-        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
-
-        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
-        if not dashboard_metadata_path.exists():
-            return fallback_metadata
-
-        try:
-            raw = yaml.safe_load(dashboard_metadata_path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
-        try:
-            return DashboardMetadata.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
@@ -178,15 +166,14 @@ class Dashboards:
                 fields.append(field)
         return fields
 
-    def _get_position(self, widget: Widget, previous_position: Position) -> Position:
-        width, height = self._get_width_and_height(widget)
+    def _get_position(self, widget_metadata: WidgetMetadata, previous_position: Position) -> Position:
         x = previous_position.x + previous_position.width
-        if x + width > self._MAXIMUM_DASHBOARD_WIDTH:
+        if x + widget_metadata.width > self._MAXIMUM_DASHBOARD_WIDTH:
             x = 0
             y = previous_position.y + previous_position.height
         else:
             y = previous_position.y
-        position = Position(x=x, y=y, width=width, height=height)
+        position = Position(x=x, y=y, width=widget_metadata.width, height=widget_metadata.height)
         return position
 
     def _get_width_and_height(self, widget: Widget) -> tuple[int, int]:
