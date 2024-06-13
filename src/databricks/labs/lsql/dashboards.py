@@ -99,14 +99,14 @@ class WidgetMetadata:
         """Get the width and height for a widget.
 
         The tiling logic works if:
-        - width < self._MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
-        - width == self._MAXIMUM_DASHBOARD_WIDTH : any height
+        - width < _MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
+        - width == _MAXIMUM_DASHBOARD_WIDTH : any height
         """
         if self.spec_type is None:
             return 0, 0
         if self.spec_type == CounterSpec:
             return 1, 3
-        return Dashboards._MAXIMUM_DASHBOARD_WIDTH, 2
+        return _MAXIMUM_DASHBOARD_WIDTH, 2
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self.path.as_posix()}
@@ -333,7 +333,8 @@ class Dashboards:
                 fields.append(field)
         return fields
 
-    def _get_position(self, previous_position: Position, widget_metadata: WidgetMetadata) -> Position:
+    @staticmethod
+    def _get_position(previous_position: Position, widget_metadata: WidgetMetadata) -> Position:
         x = previous_position.x + previous_position.width
         if x + widget_metadata.width > _MAXIMUM_DASHBOARD_WIDTH:
             x = 0
