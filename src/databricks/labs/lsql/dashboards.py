@@ -156,6 +156,18 @@ class WidgetMetadata:
         return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
 
 
+class CounterTile:
+    pass
+
+
+class TableTile:
+    pass
+
+
+class MarkdownTile:
+    pass
+
+
 class Dashboards:
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
