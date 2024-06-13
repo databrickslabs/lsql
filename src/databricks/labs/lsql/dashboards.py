@@ -6,7 +6,7 @@ import shlex
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeVar
+from typing import TypeVar, Optional
 
 import sqlglot
 import yaml
@@ -33,41 +33,13 @@ from databricks.labs.lsql.lakeview import (
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
-#TODO: check if can be integrated with widget metadata
-@dataclass
-class WidgetSpec:
-    query_file: str
-    order_key: int
-
-    @classmethod
-    def from_dict(cls, raw: dict[str, str | int]) -> "WidgetSpec":
-        return cls(
-            query_file=raw["query_file"],
-            order_key=raw["order_key"],
-        )
-
-    def as_dict(self) -> dict[str, str | int]:
-        return dataclasses.asdict(self)
-
-@dataclass
-class DashboardMetadata:
-    display_name: str
-    widgets: list[WidgetSpec] = dataclasses.field(default_factory=list)
-
-    @classmethod
-    def from_dict(cls, raw: dict[str, str | WidgetSpec]) -> "DashboardMetadata":
-        return cls(
-            display_name=raw["display_name"],
-            widgets=[widget for widget in raw.get("widgets", [])],
-        )
-
-    def as_dict(self) -> dict[str, str]:
-        return dataclasses.asdict(self)
 
 @dataclass
 class WidgetMetadata:
     width: int
     height: int
+    widget_name: Optional[str]
+    order: Optional[int]
 
     def as_dict(self) -> dict[str, str]:
         return dataclasses.asdict(self)
@@ -92,6 +64,20 @@ class WidgetMetadata:
             height=args.height or self.height,
         )
 
+@dataclass
+class DashboardMetadata:
+    display_name: str
+    widgets: list[WidgetMetadata] = dataclasses.field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, str | WidgetMetadata]) -> "DashboardMetadata":
+        return cls(
+            display_name=raw["display_name"],
+            widgets=[widget for widget in raw.get("widgets", [])],
+        )
+
+    def as_dict(self) -> dict[str, str]:
+        return dataclasses.asdict(self)
 
 class Dashboards:
     _MAXIMUM_DASHBOARD_WIDTH = 6
@@ -201,7 +187,7 @@ class Dashboards:
 
     def _parse_widget_metadata(self, path: Path, widget: Widget) -> WidgetMetadata:
         width, height = self._get_width_and_height(widget)
-        fallback_metadata = WidgetMetadata(width, height)
+        fallback_metadata = WidgetMetadata(width, height, None, None)
 
         try:
             parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)

@@ -143,12 +143,15 @@ def test_dashboard_deploys_dashboard_with_right_widget_order(ws, make_dashboard,
     with (tmp_path / "dashboard.yml").open("w") as f:
         f.write("display_name: Order Key\n"
                 "widgets:\n"
-                "- query_sql: counters1.sql\n  order_key: 2\n"
-                "- query_sql: counters2.sql\n  order_key: 1")
+                "- widget_name: counter1\n  order: 1\n"
+                "- widget_name: counter2\n  order: 0\n"
+                "- widget_name: counter3\n  order: 2")
     with (tmp_path / "counter1.sql").open("w") as f:
-        f.write("SELECT 5 AS count")
+        f.write("SELECT 1 AS count")
     with (tmp_path / "counter2.sql").open("w") as f:
-        f.write("SELECT 4 AS count")
+        f.write("SELECT 0 AS count")
+    with (tmp_path / "counter3.sql").open("w") as f:
+        f.write("SELECT 2 AS count")
 
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
