@@ -82,12 +82,11 @@ class WidgetMetadata:
     id: str = ""
 
     def __post_init__(self):
+        width, height = self.size
+        self.width = self.width or width
+        self.height = self.height or height
         if len(self.id) == 0:
             self.id = self.path.stem
-        if self.spec_type is not None:
-            width, height = self._get_width_and_height(self.spec_type)
-            self.width = self.width or width
-            self.height = self.height or height
 
     @property
     def spec_type(self) -> type[WidgetSpec]:
@@ -96,17 +95,17 @@ class WidgetMetadata:
         # TODO: When supporting more specs, infer spec from query
         return CounterSpec
 
-    @staticmethod
-    def _get_width_and_height(widget_spec: type[WidgetSpec] | None) -> tuple[int, int]:
+    @property
+    def size(self) -> tuple[int, int]:
         """Get the width and height for a widget.
 
         The tiling logic works if:
         - width < self._MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
         - width == self._MAXIMUM_DASHBOARD_WIDTH : any height
         """
-        if widget_spec is None:
+        if self.spec_type is None:
             return 0, 0
-        if widget_spec == CounterSpec:
+        if self.spec_type == CounterSpec:
             return 1, 3
         return Dashboards._MAXIMUM_DASHBOARD_WIDTH, 2
 
