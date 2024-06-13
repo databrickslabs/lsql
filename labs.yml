@@ -9,7 +9,13 @@ entrypoint: src/databricks/labs/lsql/cli.py
 min_python: 3.10
 commands:
   - name: create-dashboard
-    description: Create a dashboard from code, see [docs](./docs/dashboards.md).
+    description: Create a(n unpublished) dashboard from code, see [docs](./docs/dashboards.md).
     flags:
       - name: dashboard-folder
         description: The folder with dashboard files.
+
+  - name: publish-dashboard
+    description: Publish a dashboard
+    flags:
+      - name: dashboard-id
+        description: The dashboard id of the to-be-published dashboard.

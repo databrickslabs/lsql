@@ -20,4 +20,12 @@ def create_dashboard(w: WorkspaceClient, dashboard_folder: Path | str):
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard)
     dashboard_url = f"{w.config.host}/sql/dashboardsv3/{sdk_dashboard.dashboard_id}"
     logger.info(f"Created dashboard: {dashboard_url}.")
+    print(sdk_dashboard.dashboard_id)
 
+
+
+@lsql.command
+def publish_dashboard(w: WorkspaceClient, dashboard_id: str):
+    """Publish a dashboard."""
+    logger.info("Creating dashboard ...")
+    w.lakeview.publish(dashboard_id)
