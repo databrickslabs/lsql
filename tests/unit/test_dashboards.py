@@ -42,15 +42,15 @@ def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
 
 
 def test_widget_metadata_replaces_arguments():
-    widget_metadata = WidgetMetadata(1, 1)
+    widget_metadata = WidgetMetadata(1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["width", "height"])
+@pytest.mark.parametrize("attribute", ["order", "width", "height"])
 def test_widget_metadata_replaces_one_attribute(attribute: str):
-    widget_metadata = WidgetMetadata(1, 1)
+    widget_metadata = WidgetMetadata(1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments([f"--{attribute}", "10"])
 
     other_fields = [field for field in dataclasses.fields(updated_metadata) if field.name != attribute]
@@ -59,8 +59,8 @@ def test_widget_metadata_replaces_one_attribute(attribute: str):
 
 
 def test_widget_metadata_as_dict():
-    raw = {"width": 10, "height": 10}
-    widget_metadata = WidgetMetadata(10, 10)
+    raw = {"order": 10, "width": 10, "height": 10}
+    widget_metadata = WidgetMetadata(10, 10, 10)
     assert widget_metadata.as_dict() == raw
 
 
@@ -321,6 +321,25 @@ def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
 
     assert widget_names == query_names
+    ws.assert_not_called()
+
+
+def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    for query_name in "abcdf":
+        with (tmp_path / f"{query_name}.sql").open("w") as f:
+            f.write("SELECT 1 AS count")
+
+    # Move the 'e' inbetween 'b' and 'c' query. Note that the order 1 puts 'e' on the same position as 'b', but with an
+    # order tiebreaker the query name decides the final order.
+    with (tmp_path / "e.sql").open("w") as f:
+        f.write("-- --order 1\nSELECT 1 AS count")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
+
+    assert "".join(widget_names) == "abecdf"
     ws.assert_not_called()
 
 

@@ -135,3 +135,23 @@ def test_dashboard_deploys_dashboard_with_big_widget(ws, make_dashboard, tmp_pat
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_order_overwrite(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    for query_name in range(6):
+        with (tmp_path / f"{query_name}.sql").open("w") as f:
+            f.write(f"SELECT {query_name} AS count")
+
+    # Move the '4' inbetween '1' and '2' query. Note that the order 1 puts '4' on the same position as '1', but with an
+    # order tiebreaker the query name decides the final order.
+    with (tmp_path / "4.sql").open("w") as f:
+        f.write("-- --order 1\nSELECT 4 AS count")
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
