@@ -64,7 +64,7 @@ def test_widget_metadata_replaces_attribute(attribute: str):
 
 
 def test_widget_metadata_as_dict():
-    raw = {"path": "test.sql", "id": "test", "order": 10, "width": 10, "height": 10}
+    raw = {"path": "test.sql", "id": "test", "order": "10", "width": "10", "height": "10"}
     widget_metadata = WidgetMetadata(Path("test.sql"), 10, 10, 10)
     assert widget_metadata.as_dict() == raw
 
