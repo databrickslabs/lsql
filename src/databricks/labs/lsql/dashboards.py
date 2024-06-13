@@ -65,7 +65,7 @@ class DashboardMetadata:
 @dataclass
 class WidgetMetadata:
     path: Path
-    order: int = 9e10
+    order: int = 0
     width: int = 0
     height: int = 0
     id: str | None = None
@@ -186,33 +186,31 @@ class Dashboards:
             display_name=dashboard_metadata.display_name,
             layout=layouts,
         )
-        lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
+        lakeview_dashboard = Dashboard(datasets=list(datasets.values()), pages=[page])
         return lakeview_dashboard
 
     @staticmethod
-    def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
-        datasets = []
+    def _get_datasets(dashboard_folder: Path) -> dict[str, Dataset]:
+        datasets = {}
         for query_path in sorted(dashboard_folder.glob("*.sql")):
             with query_path.open("r") as query_file:
                 raw_query = query_file.read()
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
-            datasets.append(dataset)
+            datasets[dataset.name] = dataset
         return datasets
 
-    def _get_widgets(self, files: Iterable[Path], datasets: list[Dataset]) -> list[tuple[Widget, WidgetMetadata]]:
-        widget_metadatas = []
-        for path in files:
-            widget_metadata = self._parse_widget_metadata(path)
-            widget_metadatas.append(widget_metadata)
+    def _get_widgets(self, files: Iterable[Path], datasets: dict[str, Dataset]) -> list[tuple[Widget, WidgetMetadata]]:
+        widget_metadatas = [self._parse_widget_metadata(path) for path in files]
+        widget_metadatas_with_order = []
+        for order, widget_metadata in enumerate(sorted(widget_metadatas, key=lambda wm: wm.id)):
+            widget_metadatas_with_order.append(dataclasses.replace(widget_metadata, order=widget_metadata.order or order))
 
-        dataset_index, widgets = 0, []
-        for widget_metadata in sorted(widget_metadatas, key=lambda wm: wm.id):
+        widgets = []
+        for widget_metadata in sorted(widget_metadatas_with_order, key=lambda wm: wm.order):
             if widget_metadata.path.suffix not in {".sql", ".md"}:
                 continue
             if widget_metadata.path.suffix == ".sql":
-                dataset = datasets[dataset_index]
-                assert dataset.name == widget_metadata.id
-                dataset_index += 1
+                dataset = datasets[widget_metadata.path.stem]
                 try:
                     widget = self._get_widget(dataset)
                 except sqlglot.ParseError as e:

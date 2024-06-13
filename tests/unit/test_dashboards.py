@@ -342,7 +342,7 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
 def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    for query_name in "bcdf":
+    for query_name in "bcdef":
         with (tmp_path / f"{query_name}.sql").open("w") as f:
             f.write("SELECT 1 AS count")
 
@@ -352,7 +352,7 @@ def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
 
-    assert "".join(widget_names) == "abcdef"
+    assert "".join(widget_names) == "zbcdef"
     ws.assert_not_called()
 
 
