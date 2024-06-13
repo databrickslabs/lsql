@@ -177,7 +177,7 @@ class Dashboards:
 
     def _get_layouts(self, widgets: list[tuple[Widget, WidgetMetadata]]) -> list[Layout]:
         layouts, position = [], Position(0, 0, 0, 0)  # First widget position
-        for widget, widget_metadata in sorted(widgets, key=lambda w: (w[1].order, w[0].name)):
+        for widget, widget_metadata in sorted(widgets, key=lambda w: (w[1].order, w[1].id)):
             position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
