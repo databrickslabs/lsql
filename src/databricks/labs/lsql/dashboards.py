@@ -166,7 +166,7 @@ class Tile:
 
 
 class CounterTile(Tile):
-
+    @property
     def spec(self) -> WidgetSpec:
         # Counters are expected to have one field
         counter_encodings = CounterFieldEncoding(field_name=self._fields[0].name, display_name=self._fields[0].name)
@@ -175,7 +175,7 @@ class CounterTile(Tile):
 
 
 class TableTile(Tile):
-
+    @property
     def spec(self) -> WidgetSpec:
         field_encodings = [RenderFieldEncoding(field_name=field.name) for field in self._fields]
         table_encodings = TableEncodingMap(field_encodings)
@@ -330,15 +330,12 @@ class Dashboards:
         query = Query(dataset_name=widget_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
-        spec: WidgetSpec
+        tile: Tile
         if len(fields) == 1:  # Counters are expected to have one field
-            counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-            spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
+            tile = CounterTile(fields)
         else:
-            field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
-            table_encodings = TableEncodingMap(field_encodings)
-            spec = TableV2Spec(encodings=table_encodings)
-        widget = Widget(name=widget_metadata.id, queries=[named_query], spec=spec)
+            tile = TableTile(fields)
+        widget = Widget(name=widget_metadata.id, queries=[named_query], spec=tile.spec)
         return widget
 
     @staticmethod
