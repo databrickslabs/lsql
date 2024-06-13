@@ -212,24 +212,24 @@ class Dashboards:
         dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
         widgets_metadata = self._get_widgets_metadata(dashboard_folder)
         datasets = self._get_datasets(dashboard_folder)
-        widgets = self._get_widgets(datasets, widgets_metadata)
+        widgets = self._get_widgets(widgets_metadata)
         layouts = self._get_layouts(widgets, widgets_metadata)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
             layout=layouts,
         )
-        lakeview_dashboard = Dashboard(datasets=list(datasets.values()), pages=[page])
+        lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
     @staticmethod
-    def _get_datasets(dashboard_folder: Path) -> dict[str, Dataset]:
-        datasets = {}
+    def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
+        datasets = []
         for query_path in sorted(dashboard_folder.glob("*.sql")):
             with query_path.open("r") as query_file:
                 raw_query = query_file.read()
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
-            datasets[dataset.name] = dataset
+            datasets.append(dataset)
         return datasets
 
     @staticmethod
@@ -256,12 +256,11 @@ class Dashboards:
         widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)))
         return widgets_metadata_sorted
 
-    def _get_widgets(self, datasets: dict[str, Dataset], widgets_metadata: list[WidgetMetadata]) -> list[Widget]:
+    def _get_widgets(self, widgets_metadata: list[WidgetMetadata]) -> list[Widget]:
         widgets = []
         for widget_metadata in widgets_metadata:
-            dataset = datasets.get(widget_metadata.path.stem)
             try:
-                widget = self._get_widget(dataset, widget_metadata)
+                widget = self._get_widget(widget_metadata)
             except sqlglot.ParseError as e:
                 logger.warning(f"Parsing {widget_metadata.path}: {e}")
                 continue
@@ -295,11 +294,10 @@ class Dashboards:
             logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
 
-    def _get_widget(self, dataset: Dataset | None, widget_metadata: WidgetMetadata) -> Widget:
+    def _get_widget(self, widget_metadata: WidgetMetadata) -> Widget:
         if widget_metadata.spec_type == MarkdownSpec:
             return self._get_text_widget(widget_metadata)
-        assert dataset is not None
-        return self._get_counter_widget(dataset, widget_metadata)
+        return self._get_counter_widget(widget_metadata)
 
     @staticmethod
     def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
@@ -310,9 +308,9 @@ class Dashboards:
         )
         return widget
 
-    def _get_counter_widget(self, dataset: Dataset, widget_metadata: WidgetMetadata) -> Widget:
-        fields = self._get_fields(dataset.query)
-        query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
+    def _get_counter_widget(self, widget_metadata: WidgetMetadata) -> Widget:
+        fields = self._get_fields(widget_metadata.path.read_text())
+        query = Query(dataset_name=widget_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
         # Counters are expected to have one field
