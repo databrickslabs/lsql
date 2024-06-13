@@ -82,7 +82,7 @@ class WidgetMetadata:
     def spec_type(self) -> type[WidgetSpec]:
         if self.path.suffix == ".md":
             return MarkdownSpec
-        # TODO: Determine spec by reading query when supporting more specs
+        # TODO: When supporting more specs, infer spec from query
         return CounterSpec
 
     @staticmethod
