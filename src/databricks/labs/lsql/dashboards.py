@@ -85,6 +85,18 @@ class WidgetMetadata:
         )
 
 
+class CounterTile:
+    pass
+
+
+class TableTile:
+    pass
+
+
+class MarkdownTile:
+    pass
+
+
 class Dashboards:
     _MAXIMUM_DASHBOARD_WIDTH = 6
 
