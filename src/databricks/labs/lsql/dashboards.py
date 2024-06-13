@@ -23,16 +23,29 @@ from databricks.labs.lsql.lakeview import (
     Dashboard,
     Dataset,
     Field,
+    Json,
     Layout,
     NamedQuery,
     Page,
     Position,
     Query,
     Widget,
+    WidgetSpec,
 )
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class MarkdownSpec(WidgetSpec):
+    """A dummy spec for markdown files."""
+    def as_dict(self) -> Json:
+        body: Json = {
+            "version": 1,
+            "widgetType": "markdown",
+        }
+        return body
 
 
 @dataclass
@@ -52,24 +65,42 @@ class DashboardMetadata:
 @dataclass
 class WidgetMetadata:
     path: Path
-    order: int
-    width: int
-    height: int
+    order: int = 9e10
+    width: int = 0
+    height: int = 0
     id: str | None = None
+    spec_type: type[WidgetSpec] | None = None
 
     def __post_init__(self):
         if self.id is None:
             self.id = self.path.stem
+        if self.spec_type is not None:
+            width, height = self._get_width_and_height(self.spec_type)
+            self.width = self.width or width
+            self.height = self.height or height
+
+    @staticmethod
+    def _get_width_and_height(widget_spec: type[WidgetSpec] | None) -> tuple[int, int]:
+        """Get the width and height for a widget.
+
+        The tiling logic works if:
+        - width < self._MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
+        - width == self._MAXIMUM_DASHBOARD_WIDTH : any height
+        """
+        if widget_spec is None:
+            return 0, 0
+        if widget_spec == CounterSpec:
+            return 3, 1
+        return Dashboards._MAXIMUM_DASHBOARD_WIDTH, 2
 
     def as_dict(self) -> dict[str, str]:
-        body = {
-            "path": self.path.as_posix(),
-            "order": str(self.order),
-            "width": str(self.width),
-            "height": str(self.height),
-        }
-        if self.id is not None:
-            body["id"] = self.id
+        body = {"path": self.path.as_posix()}
+        for field in dataclasses.fields(self):
+            if field.name in body:
+                continue
+            value = getattr(self, field.name)
+            if value is not None:
+                body[field.name] = str(value)
         return body
 
     @staticmethod
@@ -169,13 +200,18 @@ class Dashboards:
         return datasets
 
     def _get_widgets(self, files: Iterable[Path], datasets: list[Dataset]) -> list[tuple[Widget, WidgetMetadata]]:
+        widget_metadatas = []
+        for path in files:
+            widget_metadata = self._parse_widget_metadata(path)
+            widget_metadatas.append(widget_metadata)
+
         dataset_index, widgets = 0, []
-        for order, path in enumerate(sorted(files)):
-            if path.suffix not in {".sql", ".md"}:
+        for widget_metadata in sorted(widget_metadatas, key=lambda wm: wm.id):
+            if widget_metadata.path.suffix not in {".sql", ".md"}:
                 continue
-            if path.suffix == ".sql":
+            if widget_metadata.path.suffix == ".sql":
                 dataset = datasets[dataset_index]
-                assert dataset.name == path.stem
+                assert dataset.name == widget_metadata.id
                 dataset_index += 1
                 try:
                     widget = self._get_widget(dataset)
@@ -183,9 +219,10 @@ class Dashboards:
                     logger.warning(f"Parsing {dataset.query}: {e}")
                     continue
             else:
-                widget = self._get_text_widget(path)
-            widget_metadata = self._parse_widget_metadata(path, widget, order)
-            widgets.append((widget, widget_metadata))
+                widget = self._get_text_widget(widget_metadata.path)
+            assert widget.spec is not None
+            widget_with_metadata = (widget, dataclasses.replace(widget_metadata, spec_type=type(widget.spec)))
+            widgets.append(widget_with_metadata)
         return widgets
 
     def _get_layouts(self, widgets: list[tuple[Widget, WidgetMetadata]]) -> list[Layout]:
@@ -215,15 +252,9 @@ class Dashboards:
             logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
 
-    def _parse_widget_metadata(self, path: Path, widget: Widget, order: int) -> WidgetMetadata:
-        width, height = self._get_width_and_height(widget)
-        fallback_metadata = WidgetMetadata(
-            path=path,
-            order=order,
-            width=width,
-            height=height,
-            id=path.stem,
-        )
+    @staticmethod
+    def _parse_widget_metadata(path: Path) -> WidgetMetadata:
+        fallback_metadata = WidgetMetadata(path=path, id=path.stem)
 
         try:
             parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
@@ -239,7 +270,7 @@ class Dashboards:
 
     @staticmethod
     def _get_text_widget(path: Path) -> Widget:
-        widget = Widget(name=path.stem, textbox_spec=path.read_text())
+        widget = Widget(name=path.stem, textbox_spec=path.read_text(), spec=MarkdownSpec())
         return widget
 
     def _get_widget(self, dataset: Dataset) -> Widget:
@@ -274,23 +305,6 @@ class Dashboards:
             y = previous_position.y
         position = Position(x=x, y=y, width=widget_metadata.width, height=widget_metadata.height)
         return position
-
-    def _get_width_and_height(self, widget: Widget) -> tuple[int, int]:
-        """Get the width and height for a widget.
-
-        The tiling logic works if:
-        - width < self._MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
-        - width == self._MAXIMUM_DASHBOARD_WIDTH : any height
-        """
-        if widget.textbox_spec is not None:
-            return self._MAXIMUM_DASHBOARD_WIDTH, 2
-
-        height = 3
-        if isinstance(widget.spec, CounterSpec):
-            width = 1
-        else:
-            raise NotImplementedError(f"No width defined for spec: {widget}")
-        return width, height
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
