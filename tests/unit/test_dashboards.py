@@ -352,7 +352,7 @@ def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
 
-    assert "".join(widget_names) == "zbcdef"
+    assert "".join(widget_names) == "abcdef"
     ws.assert_not_called()
 
 
