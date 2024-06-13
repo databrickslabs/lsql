@@ -147,6 +147,22 @@ class WidgetMetadata:
             id=args.id or self.id,
         )
 
+    @classmethod
+    def from_path(cls, path: Path) -> "WidgetMetadata":
+        fallback_metadata = cls(path=path, id=path.stem)
+
+        try:
+            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+
+        if parsed_query.comments is None or len(parsed_query.comments) == 0:
+            return fallback_metadata
+
+        first_comment = parsed_query.comments[0]
+        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
+
 
 class Dashboards:
     def __init__(self, ws: WorkspaceClient):
@@ -218,7 +234,8 @@ class Dashboards:
             datasets[dataset.name] = dataset
         return datasets
 
-    def _get_widgets_metadata(self, dashboard_folder: Path) -> list[WidgetMetadata]:
+    @staticmethod
+    def _get_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
         """Read and parse the widget metadata from each (optional) header.
 
         The order is by default the alphanumarically sorted files, however, the order may be overwritten in the file
@@ -231,7 +248,7 @@ class Dashboards:
         for path in sorted(dashboard_folder.iterdir()):
             if path.suffix not in {".sql", ".md"}:
                 continue
-            widget_metadata = self._parse_widget_metadata(path)
+            widget_metadata = WidgetMetadata.from_path(path)
             widgets_metadata.append(widget_metadata)
         widgets_metadata_with_order = []
         for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
@@ -279,22 +296,6 @@ class Dashboards:
         except KeyError as e:
             logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
-
-    @staticmethod
-    def _parse_widget_metadata(path: Path) -> WidgetMetadata:
-        fallback_metadata = WidgetMetadata(path=path, id=path.stem)
-
-        try:
-            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return fallback_metadata
-
-        first_comment = parsed_query.comments[0]
-        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
 
     def _get_widget(self, widget_metadata: WidgetMetadata, dataset: Dataset | None) -> Widget:
         if widget_metadata.spec_type == MarkdownSpec:
