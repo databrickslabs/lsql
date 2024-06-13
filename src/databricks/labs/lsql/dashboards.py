@@ -186,8 +186,8 @@ class Dashboards:
         dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
         widgets_metadata = self._get_widgets_metadata(dashboard_folder)
         datasets = self._get_datasets(dashboard_folder)
-        widgets = self._get_widgets(widgets_metadata, datasets)
-        layouts = self._get_layouts(widgets_metadata, widgets)
+        widgets = self._get_widgets(datasets, widgets_metadata)
+        layouts = self._get_layouts(widgets, widgets_metadata)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -229,7 +229,7 @@ class Dashboards:
         widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)))
         return widgets_metadata_sorted
 
-    def _get_widgets(self, widgets_metadata: list[WidgetMetadata], datasets: dict[str, Dataset]) -> list[Widget]:
+    def _get_widgets(self, datasets: dict[str, Dataset], widgets_metadata: list[WidgetMetadata]) -> list[Widget]:
         widgets = []
         for widget_metadata in widgets_metadata:
             dataset = datasets.get(widget_metadata.path.stem)
@@ -241,9 +241,9 @@ class Dashboards:
             widgets.append(widget)
         return widgets
 
-    def _get_layouts(self, widgets_metadata: list[WidgetMetadata], widgets: list[Widget]) -> list[Layout]:
+    def _get_layouts(self, widgets: list[Widget], widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
         layouts, position = [], Position(0, 0, 0, 0)  # First widget position
-        for widget_metadata, widget in zip(widgets_metadata, widgets):
+        for widget, widget_metadata in zip(widgets, widgets_metadata):
             position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
