@@ -448,6 +448,22 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws.assert_not_called()
 
 
+def test_dashboard_handles_query_with_star(tmp_path, caplog):
+    ws = create_autospec(WorkspaceClient)
+
+    query = "SELECT * FROM table"
+    with (tmp_path / "star.sql").open("w") as f:
+        f.write(query)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    widget = lakeview_dashboard.pages[0].layout[0].widget
+    assert isinstance(widget.spec, TableV2Spec)
+    assert query in caplog.text
+    ws.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "query",
     [

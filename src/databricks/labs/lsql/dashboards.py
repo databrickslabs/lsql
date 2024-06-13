@@ -284,7 +284,10 @@ class Dashboards:
                 continue
             for named_select in projection.named_selects:
                 field = Field(name=named_select, expression=f"`{named_select}`")
-                fields.append(field)
+                if named_select == "*":
+                    logger.warning(f"Select with `*` is ignored, please define column explicitly: {query}")
+                else:
+                    fields.append(field)
         return fields
 
     def _get_position(self, widget_metadata: WidgetMetadata, previous_position: Position) -> Position:
