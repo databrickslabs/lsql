@@ -51,6 +51,7 @@ class DashboardMetadata:
 
 @dataclass
 class WidgetMetadata:
+    id: str
     order: int
     width: int
     height: int
@@ -61,6 +62,7 @@ class WidgetMetadata:
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
         parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
+        parser.add_argument("--id", type=str)
         parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
@@ -75,6 +77,7 @@ class WidgetMetadata:
             return dataclasses.replace(self)
         return dataclasses.replace(
             self,
+            id=args.id or self.id,
             order=args.order or self.order,
             width=args.width or self.width,
             height=args.height or self.height,
@@ -202,6 +205,7 @@ class Dashboards:
     def _parse_widget_metadata(self, path: Path, widget: Widget, order: int) -> WidgetMetadata:
         width, height = self._get_width_and_height(widget)
         fallback_metadata = WidgetMetadata(
+            id=path.stem,
             order=order,
             width=width,
             height=height,

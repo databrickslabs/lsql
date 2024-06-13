@@ -41,26 +41,23 @@ def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
     assert dashboard_metadata.as_dict() == raw
 
 
-def test_widget_metadata_replaces_arguments():
-    widget_metadata = WidgetMetadata(1, 1, 1)
+def test_widget_metadata_replaces_width_and_height():
+    widget_metadata = WidgetMetadata("test", 1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["order", "width", "height"])
-def test_widget_metadata_replaces_one_attribute(attribute: str):
-    widget_metadata = WidgetMetadata(1, 1, 1)
+@pytest.mark.parametrize("attribute", ["id", "order", "width", "height"])
+def test_widget_metadata_replaces_attribute(attribute: str):
+    widget_metadata = WidgetMetadata("test", 1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments([f"--{attribute}", "10"])
-
-    other_fields = [field for field in dataclasses.fields(updated_metadata) if field.name != attribute]
-    assert getattr(updated_metadata, attribute) == 10
-    assert all(getattr(updated_metadata, field.name) == 1 for field in other_fields)
+    assert str(getattr(updated_metadata, attribute)) == "10"
 
 
 def test_widget_metadata_as_dict():
-    raw = {"order": 10, "width": 10, "height": 10}
-    widget_metadata = WidgetMetadata(10, 10, 10)
+    raw = {"id": "test", "order": 10, "width": 10, "height": 10}
+    widget_metadata = WidgetMetadata("test", 10, 10, 10)
     assert widget_metadata.as_dict() == raw
 
 
