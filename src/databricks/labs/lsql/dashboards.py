@@ -72,9 +72,16 @@ class WidgetMetadata:
         if self.id is None:
             self.id = self.path.stem
 
-
-class QueryHandler(BaseHandler):
-    """Handle query files."""
+    def as_dict(self) -> dict[str, str]:
+        body = {
+            "path": self.path.as_posix(),
+            "order": self.order,
+            "width": self.width,
+            "height": self.height,
+        }
+        if self.id is not None:
+            body["id"] = self.id
+        return body
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
