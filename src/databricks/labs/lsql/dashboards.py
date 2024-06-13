@@ -52,10 +52,15 @@ class DashboardMetadata:
 
 
 class WidgetMetadata:
-    id: str
+    path: Path
     order: int
     width: int
     height: int
+    id: str | None = None
+
+    def __post_init__(self):
+        if self.id is None:
+            self.id = self.path.stem
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self.path.as_posix()}
@@ -86,10 +91,10 @@ class WidgetMetadata:
             return dataclasses.replace(self)
         return dataclasses.replace(
             self,
-            id=args.id or self.id,
             order=args.order or self.order,
             width=args.width or self.width,
             height=args.height or self.height,
+            id=args.id or self.id,
         )
 
 
@@ -228,10 +233,11 @@ class Dashboards:
     def _parse_widget_metadata(self, path: Path, widget: Widget, order: int) -> WidgetMetadata:
         width, height = self._get_width_and_height(widget)
         fallback_metadata = WidgetMetadata(
-            id=path.stem,
+            path=path,
             order=order,
             width=width,
             height=height,
+            id=path.stem,
         )
 
         try:
