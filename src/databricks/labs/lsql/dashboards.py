@@ -1,3 +1,4 @@
+import abc
 import argparse
 import dataclasses
 import json
@@ -85,16 +86,39 @@ class WidgetMetadata:
         )
 
 
-class CounterTile:
-    pass
+class Tile:
+    """A dashboard tile."""
+
+    def __init__(self, fields: list[Field]) -> None:
+        self._fields = fields
+
+    @property
+    def size(self) -> tuple[int, int]:
+        """The width and height."""
+        return 1, 3
+
+    @property
+    @abc.abstractmethod
+    def spec(self) -> WidgetSpec:
+        """The widget spec"""
 
 
-class TableTile:
-    pass
+class CounterTile(Tile):
+
+    def spec(self) -> WidgetSpec:
+        # Counters are expected to have one field
+        counter_encodings = CounterFieldEncoding(field_name=self._fields[0].name, display_name=self._fields[0].name)
+        spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
+        return spec
 
 
-class MarkdownTile:
-    pass
+class TableTile(Tile):
+
+    def spec(self) -> WidgetSpec:
+        field_encodings = [RenderFieldEncoding(field_name=field.name) for field in self._fields]
+        table_encodings = TableEncodingMap(field_encodings)
+        spec = TableV2Spec(encodings=table_encodings)
+        return spec
 
 
 class Dashboards:
