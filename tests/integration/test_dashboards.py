@@ -138,7 +138,7 @@ def test_dashboard_deploys_dashboard_with_big_widget(ws, make_dashboard, tmp_pat
 
 
 def test_dashboard_deploys_dashboard_with_right_widget_order(ws, make_dashboard, tmp_path):
-    sdk_dashboard = make_dashboard(display_name="Counter")
+    sdk_dashboard = make_dashboard(display_name="Order Key")
 
     with (tmp_path / "dashboard.yml").open("w") as f:
         f.write("display_name: Order Key\n"
