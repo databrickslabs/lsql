@@ -135,7 +135,7 @@ class WidgetMetadata:
 
     @classmethod
     def from_path(cls, path: Path) -> "WidgetMetadata":
-        fallback_metadata = cls(path=path, id=path.stem)
+        fallback_metadata = cls(path=path)
 
         try:
             parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
