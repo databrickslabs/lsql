@@ -69,11 +69,11 @@ class WidgetMetadata:
     order: int = 0
     width: int = 0
     height: int = 0
-    id: str | None = None
+    id: str = ""
     spec_type: type[WidgetSpec] | None = None
 
     def __post_init__(self):
-        if self.id is None:
+        if len(self.id) == 0:
             self.id = self.path.stem
         if self.spec_type is not None:
             width, height = self._get_width_and_height(self.spec_type)
