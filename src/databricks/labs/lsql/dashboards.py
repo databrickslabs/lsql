@@ -72,7 +72,7 @@ class WidgetMetadata:
     id: str = ""
 
     def __post_init__(self):
-        width, height = self.size
+        width, height = self._size
         self.width = self.width or width
         self.height = self.height or height
         self.id = self.id or self.path.stem
@@ -85,7 +85,7 @@ class WidgetMetadata:
         return CounterSpec
 
     @property
-    def size(self) -> tuple[int, int]:
+    def _size(self) -> tuple[int, int]:
         """Get the width and height for a widget.
 
         The tiling logic works if:
