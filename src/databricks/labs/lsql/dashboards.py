@@ -256,9 +256,7 @@ class Dashboards:
     def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
         datasets = []
         for query_path in sorted(dashboard_folder.glob("*.sql")):
-            with query_path.open("r") as query_file:
-                raw_query = query_file.read()
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
+            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query_path.read_text())
             datasets.append(dataset)
         return datasets
 
