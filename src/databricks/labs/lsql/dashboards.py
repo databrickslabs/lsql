@@ -63,13 +63,14 @@ class WidgetMetadata:
             self.id = self.path.stem
 
     def as_dict(self) -> dict[str, str]:
-        body = {"path": self.path.as_posix()}
-        for attribute in "order", "width", "height", "id":
-            if attribute in body:
-                continue
-            value = getattr(self, attribute)
-            if value is not None:
-                body[attribute] = str(value)
+        body = {
+            "path": self.path.as_posix(),
+            "order": self.order,
+            "width": self.width,
+            "height": self.height,
+        }
+        if self.id is not None:
+            body["id"] = self.id
         return body
 
     @staticmethod
