@@ -33,20 +33,36 @@ from databricks.labs.lsql.lakeview import (
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
+#TODO: check if can be integrated with widget metadata
+@dataclass
+class WidgetSpec:
+    query_file: str
+    order_key: int
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, str | int]) -> "WidgetSpec":
+        return cls(
+            query_file=raw["query_file"],
+            order_key=raw["order_key"],
+        )
+
+    def as_dict(self) -> dict[str, str | int]:
+        return dataclasses.asdict(self)
 
 @dataclass
 class DashboardMetadata:
     display_name: str
+    widgets: list[WidgetSpec] = dataclasses.field(default_factory=list)
 
     @classmethod
-    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
+    def from_dict(cls, raw: dict[str, str | WidgetSpec]) -> "DashboardMetadata":
         return cls(
             display_name=raw["display_name"],
+            widgets=[widget for widget in raw.get("widgets", [])],
         )
 
     def as_dict(self) -> dict[str, str]:
         return dataclasses.asdict(self)
-
 
 @dataclass
 class WidgetMetadata:
