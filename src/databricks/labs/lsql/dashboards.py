@@ -184,8 +184,8 @@ class Dashboards:
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
-        datasets = self._get_datasets(dashboard_folder)
         widgets_metadata = self._get_widgets_metadata(dashboard_folder)
+        datasets = self._get_datasets(dashboard_folder)
         widgets = self._get_widgets(widgets_metadata, datasets)
         layouts = self._get_layouts(widgets_metadata, widgets)
         page = Page(
