@@ -289,7 +289,7 @@ class Dashboards:
         return self._get_counter_widget(dataset)
 
     @staticmethod
-    def _get_text_widget(widget_metadata) -> Widget:
+    def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
         widget = Widget(
             name=widget_metadata.path.stem,
             textbox_spec=widget_metadata.path.read_text(),
