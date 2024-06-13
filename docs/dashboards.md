@@ -55,8 +55,10 @@ write. Here's the example of a folder that defines a dashboard:
 SQL files are used to define the queries that will be used to populate the dashboard:
 
 ```sql
--- viz type=counter, name=Workspace UC readiness, counter_label=UC readiness, value_column=readiness
--- widget row=1, col=0, size_x=1, size_y=3
+/*
+--width 2 --height 6
+--order 0
+*/
 WITH raw AS (
   SELECT object_type, object_id, IF(failures == '[]', 1, 0) AS ready 
   FROM $inventory.objects
