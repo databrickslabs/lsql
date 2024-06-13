@@ -180,8 +180,9 @@ class Dashboards:
         dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
         widgets_metadata = self._get_widgets_metadata(dashboard_folder)
         datasets = self._get_datasets(dashboard_folder)
-        widgets = self._get_widgets(widgets_metadata)
-        layouts = self._get_layouts(widgets, widgets_metadata)
+        widgets_metadata = self._get_widgets_metadata(dashboard_folder)
+        widgets = self._get_widgets(widgets_metadata, datasets)
+        layouts = self._get_layouts(widgets)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -200,16 +201,34 @@ class Dashboards:
             datasets[dataset.name] = dataset
         return datasets
 
-    def _get_widgets(self, files: Iterable[Path], datasets: dict[str, Dataset]) -> list[tuple[Widget, WidgetMetadata]]:
-        widget_metadatas = [self._parse_widget_metadata(path) for path in files]
-        widget_metadatas_with_order = []
-        for order, widget_metadata in enumerate(sorted(widget_metadatas, key=lambda wm: wm.id)):
-            widget_metadatas_with_order.append(
+    def _get_widgets_metadata(self, dashboard_folder: Path) -> list[WidgetMetadata]:
+        """Read and parse the widget metadata from each (optional) header.
+
+        The order is by default the alphanumarically sorted files, however, the order may be overwritten in the file
+        header with the `order` key. Hence, the multiple loops to get:
+        i) the optional order from the file header;
+        ii) set the order when not specified;
+        iii) sort the widgets using the order field.
+        """
+        widgets_metadata = []
+        for path in sorted(dashboard_folder.iterdir()):
+            if path.suffix not in {".sql", ".md"}:
+                continue
+            widget_metadata = self._parse_widget_metadata(path)
+            widgets_metadata.append(widget_metadata)
+        widgets_metadata_with_order = []
+        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
+            widgets_metadata_with_order.append(
                 dataclasses.replace(widget_metadata, order=widget_metadata.order or order)
             )
+        widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: wm.order))
+        return widgets_metadata_sorted
 
+    def _get_widgets(
+        self, widgets_metadata: list[WidgetMetadata], datasets: dict[str, Dataset]
+    ) -> list[tuple[Widget, WidgetMetadata]]:
         widgets = []
-        for widget_metadata in sorted(widget_metadatas_with_order, key=lambda wm: wm.order):
+        for widget_metadata in widgets_metadata:
             if widget_metadata.path.suffix not in {".sql", ".md"}:
                 continue
             if widget_metadata.path.suffix == ".sql":
