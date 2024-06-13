@@ -75,8 +75,7 @@ class WidgetMetadata:
         width, height = self.size
         self.width = self.width or width
         self.height = self.height or height
-        if len(self.id) == 0:
-            self.id = self.path.stem
+        self.id = self.id or self.path.stem
 
     @property
     def spec_type(self) -> type[WidgetSpec]:
