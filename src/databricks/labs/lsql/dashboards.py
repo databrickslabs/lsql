@@ -90,7 +90,7 @@ class WidgetMetadata:
         if widget_spec is None:
             return 0, 0
         if widget_spec == CounterSpec:
-            return 3, 1
+            return 1, 3
         return Dashboards._MAXIMUM_DASHBOARD_WIDTH, 2
 
     def as_dict(self) -> dict[str, str]:
