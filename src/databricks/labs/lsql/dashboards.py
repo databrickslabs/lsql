@@ -286,18 +286,18 @@ class Dashboards:
         if widget_metadata.spec_type == MarkdownSpec:
             return self._get_text_widget(widget_metadata)
         assert dataset is not None
-        return self._get_counter_widget(dataset)
+        return self._get_counter_widget(widget_metadata, dataset)
 
     @staticmethod
     def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
         widget = Widget(
-            name=widget_metadata.path.stem,
+            name=widget_metadata.id,
             textbox_spec=widget_metadata.path.read_text(),
             spec=widget_metadata.spec_type(),
         )
         return widget
 
-    def _get_counter_widget(self, dataset: Dataset) -> Widget:
+    def _get_counter_widget(self, widget_metadata: WidgetMetadata, dataset: Dataset) -> Widget:
         fields = self._get_fields(dataset.query)
         query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
@@ -305,7 +305,7 @@ class Dashboards:
         # Counters are expected to have one field
         counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
         counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
-        widget = Widget(name=dataset.name, queries=[named_query], spec=counter_spec)
+        widget = Widget(name=widget_metadata.id, queries=[named_query], spec=counter_spec)
         return widget
 
     @staticmethod
