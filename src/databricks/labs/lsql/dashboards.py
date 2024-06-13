@@ -25,6 +25,7 @@ from databricks.labs.lsql.lakeview import (
     Dashboard,
     Dataset,
     Field,
+    Json,
     Layout,
     NamedQuery,
     Page,
@@ -41,6 +42,17 @@ from databricks.labs.lsql.lakeview import (
 _MAXIMUM_DASHBOARD_WIDTH = 6
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class MarkdownSpec(WidgetSpec):
+    """A dummy spec for markdown files."""
+    def as_dict(self) -> Json:
+        body: Json = {
+            "version": 1,
+            "widgetType": "markdown",
+        }
+        return body
 
 
 @dataclass
@@ -63,24 +75,42 @@ class DashboardMetadata:
 
 class WidgetMetadata:
     path: Path
-    order: int
-    width: int
-    height: int
+    order: int = 9e10
+    width: int = 0
+    height: int = 0
     id: str | None = None
+    spec_type: type[WidgetSpec] | None = None
 
     def __post_init__(self):
         if self.id is None:
             self.id = self.path.stem
+        if self.spec_type is not None:
+            width, height = self._get_width_and_height(self.spec_type)
+            self.width = self.width or width
+            self.height = self.height or height
+
+    @staticmethod
+    def _get_width_and_height(widget_spec: type[WidgetSpec] | None) -> tuple[int, int]:
+        """Get the width and height for a widget.
+
+        The tiling logic works if:
+        - width < self._MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
+        - width == self._MAXIMUM_DASHBOARD_WIDTH : any height
+        """
+        if widget_spec is None:
+            return 0, 0
+        if widget_spec == CounterSpec:
+            return 3, 1
+        return Dashboards._MAXIMUM_DASHBOARD_WIDTH, 2
 
     def as_dict(self) -> dict[str, str]:
-        body = {
-            "path": self.path.as_posix(),
-            "order": str(self.order),
-            "width": str(self.width),
-            "height": str(self.height),
-        }
-        if self.id is not None:
-            body["id"] = self.id
+        body = {"path": self.path.as_posix()}
+        for field in dataclasses.fields(self):
+            if field.name in body:
+                continue
+            value = getattr(self, field.name)
+            if value is not None:
+                body[field.name] = str(value)
         return body
 
     @staticmethod
@@ -197,33 +227,31 @@ class Dashboards:
                 widgets_metadata.append(widget_metadata)
         return widgets_metadata
 
-    @staticmethod
-    def _get_tiles(
-        widgets_metadata: list[WidgetMetadata],
-        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
-    ) -> list[Tile]:
-        """Create tiles from the widgets metadata.
+    def _get_widgets(self, files: Iterable[Path], datasets: list[Dataset]) -> list[tuple[Widget, WidgetMetadata]]:
+        widget_metadatas = []
+        for path in files:
+            widget_metadata = self._parse_widget_metadata(path)
+            widget_metadatas.append(widget_metadata)
 
-        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
-        with the `order` key. Hence, the multiple loops to get:
-        i) set the order when not specified;
-        ii) sort the widgets using the order field.
-        """
-        widgets_metadata_with_order = []
-        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
-            replica = copy.deepcopy(widget_metadata)
-            replica.order = widget_metadata.order if widget_metadata.order is not None else order
-            widgets_metadata_with_order.append(replica)
-
-        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
-            tile = Tile.from_widget_metadata(widget_metadata)
-            if isinstance(tile, QueryTile):
-                tile.query_transformer = query_transformer
-            placed_tile = tile.place_after(position)
-            tiles.append(placed_tile)
-            position = placed_tile.position
-        return tiles
+        dataset_index, widgets = 0, []
+        for widget_metadata in sorted(widget_metadatas, key=lambda wm: wm.id):
+            if widget_metadata.path.suffix not in {".sql", ".md"}:
+                continue
+            if widget_metadata.path.suffix == ".sql":
+                dataset = datasets[dataset_index]
+                assert dataset.name == widget_metadata.id
+                dataset_index += 1
+                try:
+                    widget = self._get_widget(dataset)
+                except sqlglot.ParseError as e:
+                    logger.warning(f"Parsing {dataset.query}: {e}")
+                    continue
+            else:
+                widget = self._get_text_widget(widget_metadata.path)
+            assert widget.spec is not None
+            widget_with_metadata = (widget, dataclasses.replace(widget_metadata, spec_type=type(widget.spec)))
+            widgets.append(widget_with_metadata)
+        return widgets
 
     def _get_layouts(self, widgets: list[Widget], widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
         layouts, position = [], Position(0, 0, 0, 0)  # First widget position
@@ -252,15 +280,9 @@ class Dashboards:
             logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
 
-    def _parse_widget_metadata(self, path: Path, widget: Widget, order: int) -> WidgetMetadata:
-        width, height = self._get_width_and_height(widget)
-        fallback_metadata = WidgetMetadata(
-            path=path,
-            order=order,
-            width=width,
-            height=height,
-            id=path.stem,
-        )
+    @staticmethod
+    def _parse_widget_metadata(path: Path) -> WidgetMetadata:
+        fallback_metadata = WidgetMetadata(path=path, id=path.stem)
 
         try:
             parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
@@ -275,8 +297,8 @@ class Dashboards:
         return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
 
     @staticmethod
-    def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
-        widget = Widget(name=widget_metadata.id, textbox_spec=widget_metadata.path.read_text())
+    def _get_text_widget(path: Path) -> Widget:
+        widget = Widget(name=path.stem, textbox_spec=path.read_text(), spec=MarkdownSpec())
         return widget
 
     def _get_counter_widget(self, widget_metadata: WidgetMetadata) -> Widget:
