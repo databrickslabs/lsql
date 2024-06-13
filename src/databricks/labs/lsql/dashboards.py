@@ -213,21 +213,11 @@ class Dashboards:
             position = placed_tile.position
         return tiles
 
-    @staticmethod
-    def _get_datasets(tiles: list[Tile]) -> list[Dataset]:
-        datasets = []
-        for tile in tiles:
-            if isinstance(tile, QueryTile):
-                dataset = tile.get_dataset()
-                datasets.append(dataset)
-        return datasets
-
-    @staticmethod
-    def _get_layouts(tiles: list[Tile]) -> list[Layout]:
-        """Create layouts from the tiles."""
-        layouts = []
-        for tile in tiles:
-            layout = Layout(widget=tile.widget, position=tile.position)
+    def _get_layouts(self, widgets: list[Widget], widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
+        layouts, position = [], Position(0, 0, 0, 0)  # First widget position
+        for widget, widget_metadata in sorted(widgets, key=lambda w: (w[1].order, w[1].id)):
+            position = self._get_position(widget_metadata, position)
+            layout = Layout(widget=widget, position=position)
             layouts.append(layout)
         return layouts
 
