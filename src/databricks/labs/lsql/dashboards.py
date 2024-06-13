@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MarkdownSpec(WidgetSpec):
     """A dummy spec for markdown files."""
+
     def as_dict(self) -> Json:
         body: Json = {
             "version": 1,
@@ -203,7 +204,9 @@ class Dashboards:
         widget_metadatas = [self._parse_widget_metadata(path) for path in files]
         widget_metadatas_with_order = []
         for order, widget_metadata in enumerate(sorted(widget_metadatas, key=lambda wm: wm.id)):
-            widget_metadatas_with_order.append(dataclasses.replace(widget_metadata, order=widget_metadata.order or order))
+            widget_metadatas_with_order.append(
+                dataclasses.replace(widget_metadata, order=widget_metadata.order or order)
+            )
 
         widgets = []
         for widget_metadata in sorted(widget_metadatas_with_order, key=lambda wm: wm.order):
