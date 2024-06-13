@@ -229,8 +229,6 @@ class Dashboards:
     ) -> list[tuple[Widget, WidgetMetadata]]:
         widgets = []
         for widget_metadata in widgets_metadata:
-            if widget_metadata.path.suffix not in {".sql", ".md"}:
-                continue
             if widget_metadata.path.suffix == ".sql":
                 dataset = datasets[widget_metadata.path.stem]
                 try:
