@@ -226,7 +226,7 @@ class Dashboards:
     def _get_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
         """Read and parse the widget metadata from each (optional) header.
 
-        The order is by default the alphanumarically sorted files, however, the order may be overwritten in the file
+        The order is by default the alphanumerically sorted files, however, the order may be overwritten in the file
         header with the `order` key. Hence, the multiple loops to get:
         i) the optional order from the file header;
         ii) set the order when not specified;
