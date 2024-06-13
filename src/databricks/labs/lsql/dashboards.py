@@ -52,46 +52,10 @@ class DashboardMetadata:
 
 
 class WidgetMetadata:
-    def __init__(
-        self,
-        path: Path,
-        order: int = 0,
-        width: int = 0,
-        height: int = 0,
-        _id: str = "",
-    ):
-        self.path = path
-        self.order = order
-        self.width = width
-        self.height = height
-        self.id = _id
-
-        size = self._size
-        self.width = self.width or size[0]
-        self.height = self.height or size[1]
-        self.id = self.id or path.stem
-
-    def is_markdown(self) -> bool:
-        return self.path.suffix == ".md"
-
-    @property
-    def spec_type(self) -> type[WidgetSpec]:
-        # TODO: When supporting more specs, infer spec from query
-        return CounterSpec
-
-    @property
-    def _size(self) -> tuple[int, int]:
-        """Get the width and height for a widget.
-
-        The tiling logic works if:
-        - width < _MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
-        - width == _MAXIMUM_DASHBOARD_WIDTH : any height
-        """
-        if self.is_markdown():
-            return _MAXIMUM_DASHBOARD_WIDTH, 2
-        if self.spec_type == CounterSpec:
-            return 1, 3
-        return 0, 0
+    id: str
+    order: int
+    width: int
+    height: int
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self.path.as_posix()}
@@ -119,29 +83,14 @@ class WidgetMetadata:
             args = parser.parse_args(arguments)
         except (argparse.ArgumentError, SystemExit) as e:
             logger.warning(f"Parsing {arguments}: {e}")
-            return replica
-
-        replica.order = args.order or self.order
-        replica.width = args.width or self.width
-        replica.height = args.height or self.height
-        replica.id = args.id or self.id
-        return replica
-
-    @classmethod
-    def from_path(cls, path: Path) -> "WidgetMetadata":
-        fallback_metadata = cls(path=path)
-
-        try:
-            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return fallback_metadata
-
-        first_comment = parsed_query.comments[0]
-        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
+            return dataclasses.replace(self)
+        return dataclasses.replace(
+            self,
+            id=args.id or self.id,
+            order=args.order or self.order,
+            width=args.width or self.width,
+            height=args.height or self.height,
+        )
 
 
 class Dashboards:
@@ -276,10 +225,26 @@ class Dashboards:
             logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
 
-    def _get_widget(self, widget_metadata: WidgetMetadata) -> Widget:
-        if widget_metadata.is_markdown():
-            return self._get_text_widget(widget_metadata)
-        return self._get_counter_widget(widget_metadata)
+    def _parse_widget_metadata(self, path: Path, widget: Widget, order: int) -> WidgetMetadata:
+        width, height = self._get_width_and_height(widget)
+        fallback_metadata = WidgetMetadata(
+            id=path.stem,
+            order=order,
+            width=width,
+            height=height,
+        )
+
+        try:
+            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+
+        if parsed_query.comments is None or len(parsed_query.comments) == 0:
+            return fallback_metadata
+
+        first_comment = parsed_query.comments[0]
+        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
 
     @staticmethod
     def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
