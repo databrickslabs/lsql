@@ -70,7 +70,6 @@ class WidgetMetadata:
     width: int = 0
     height: int = 0
     id: str = ""
-    spec_type: type[WidgetSpec] | None = None
 
     def __post_init__(self):
         if len(self.id) == 0:
@@ -79,6 +78,13 @@ class WidgetMetadata:
             width, height = self._get_width_and_height(self.spec_type)
             self.width = self.width or width
             self.height = self.height or height
+
+    @property
+    def spec_type(self) -> type[WidgetSpec]:
+        if self.path.suffix == ".md":
+            return MarkdownSpec
+        # TODO: Determine spec by reading query when supporting more specs
+        return CounterSpec
 
     @staticmethod
     def _get_width_and_height(widget_spec: type[WidgetSpec] | None) -> tuple[int, int]:
@@ -229,18 +235,17 @@ class Dashboards:
     ) -> list[tuple[Widget, WidgetMetadata]]:
         widgets = []
         for widget_metadata in widgets_metadata:
-            if widget_metadata.path.suffix == ".sql":
+            widget_spec_type = widget_metadata.spec_type
+            if widget_spec_type == MarkdownSpec:
+                widget = self._get_text_widget(widget_metadata.path)
+            else:
                 dataset = datasets[widget_metadata.path.stem]
                 try:
                     widget = self._get_widget(dataset)
                 except sqlglot.ParseError as e:
-                    logger.warning(f"Parsing {dataset.query}: {e}")
+                    logger.warning(f"Parsing {widget_metadata.path}: {e}")
                     continue
-            else:
-                widget = self._get_text_widget(widget_metadata.path)
-            assert widget.spec is not None
-            widget_with_metadata = (widget, dataclasses.replace(widget_metadata, spec_type=type(widget.spec)))
-            widgets.append(widget_with_metadata)
+            widgets.append((widget, widget_metadata))
         return widgets
 
     def _get_layouts(self, widgets: list[Widget], widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
