@@ -261,7 +261,7 @@ class Dashboards:
         for widget_metadata in widgets_metadata:
             dataset = datasets.get(widget_metadata.path.stem)
             try:
-                widget = self._get_widget(widget_metadata, dataset)
+                widget = self._get_widget(dataset, widget_metadata)
             except sqlglot.ParseError as e:
                 logger.warning(f"Parsing {widget_metadata.path}: {e}")
                 continue
@@ -295,11 +295,11 @@ class Dashboards:
             logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
             return fallback_metadata
 
-    def _get_widget(self, widget_metadata: WidgetMetadata, dataset: Dataset | None) -> Widget:
+    def _get_widget(self, dataset: Dataset | None, widget_metadata: WidgetMetadata) -> Widget:
         if widget_metadata.spec_type == MarkdownSpec:
             return self._get_text_widget(widget_metadata)
         assert dataset is not None
-        return self._get_counter_widget(widget_metadata, dataset)
+        return self._get_counter_widget(dataset, widget_metadata)
 
     @staticmethod
     def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
@@ -310,7 +310,7 @@ class Dashboards:
         )
         return widget
 
-    def _get_counter_widget(self, widget_metadata: WidgetMetadata, dataset: Dataset) -> Widget:
+    def _get_counter_widget(self, dataset: Dataset, widget_metadata: WidgetMetadata) -> Widget:
         fields = self._get_fields(dataset.query)
         query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
