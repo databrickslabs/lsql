@@ -188,7 +188,7 @@ class Dashboards:
         datasets = self._get_datasets(dashboard_folder)
         widgets_metadata = self._get_widgets_metadata(dashboard_folder)
         widgets = self._get_widgets(widgets_metadata, datasets)
-        layouts = self._get_layouts(widgets)
+        layouts = self._get_layouts(widgets_metadata, widgets)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -227,12 +227,10 @@ class Dashboards:
             widgets_metadata_with_order.append(
                 dataclasses.replace(widget_metadata, order=widget_metadata.order or order)
             )
-        widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: wm.order))
+        widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)))
         return widgets_metadata_sorted
 
-    def _get_widgets(
-        self, widgets_metadata: list[WidgetMetadata], datasets: dict[str, Dataset]
-    ) -> list[tuple[Widget, WidgetMetadata]]:
+    def _get_widgets(self, widgets_metadata: list[WidgetMetadata], datasets: dict[str, Dataset]) -> list[Widget]:
         widgets = []
         for widget_metadata in widgets_metadata:
             dataset = datasets.get(widget_metadata.path.stem)
@@ -241,12 +239,12 @@ class Dashboards:
             except sqlglot.ParseError as e:
                 logger.warning(f"Parsing {widget_metadata.path}: {e}")
                 continue
-            widgets.append((widget, widget_metadata))
+            widgets.append(widget)
         return widgets
 
-    def _get_layouts(self, widgets: list[Widget], widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
+    def _get_layouts(self, widgets_metadata: list[WidgetMetadata], widgets: list[Widget]) -> list[Layout]:
         layouts, position = [], Position(0, 0, 0, 0)  # First widget position
-        for widget, widget_metadata in sorted(widgets, key=lambda w: (w[1].order, w[1].id)):
+        for widget_metadata, widget in zip(widgets_metadata, widgets):
             position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
