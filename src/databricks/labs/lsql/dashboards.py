@@ -256,7 +256,7 @@ class Dashboards:
     def _get_layouts(self, widgets: list[Widget], widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
         layouts, position = [], Position(0, 0, 0, 0)  # First widget position
         for widget, widget_metadata in zip(widgets, widgets_metadata):
-            position = self._get_position(widget_metadata, position)
+            position = self._get_position(position, widget_metadata)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
         return layouts
@@ -334,8 +334,7 @@ class Dashboards:
                 fields.append(field)
         return fields
 
-    @staticmethod
-    def _get_position(previous_position: Position, widget_metadata: WidgetMetadata) -> Position:
+    def _get_position(self, previous_position: Position, widget_metadata: WidgetMetadata) -> Position:
         x = previous_position.x + previous_position.width
         if x + widget_metadata.width > _MAXIMUM_DASHBOARD_WIDTH:
             x = 0
