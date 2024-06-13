@@ -135,3 +135,24 @@ def test_dashboard_deploys_dashboard_with_big_widget(ws, make_dashboard, tmp_pat
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_right_widget_order(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard(display_name="Counter")
+
+    with (tmp_path / "dashboard.yml").open("w") as f:
+        f.write("display_name: Order Key\n"
+                "widgets:\n"
+                "- query_sql: counters1.sql\n  order_key: 2\n"
+                "- query_sql: counters2.sql\n  order_key: 1")
+    with (tmp_path / "counter1.sql").open("w") as f:
+        f.write("SELECT 5 AS count")
+    with (tmp_path / "counter2.sql").open("w") as f:
+        f.write("SELECT 4 AS count")
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
