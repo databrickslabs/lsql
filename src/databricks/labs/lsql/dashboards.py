@@ -61,55 +61,11 @@ class DashboardMetadata:
         """Export dashboard metadata from a YAML file."""
         fallback_metadata = cls(display_name=path.parent.name)
 
-        if not path.exists():
-            return fallback_metadata
-
-        try:
-            raw = yaml.safe_load(path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-        try:
-            return cls.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-
-class BaseHandler:
-    """Base file handler.
-
-    Handlers are based on a Python implementation for FrontMatter.
-
-    Sources:
-        https://frontmatter.codes/docs/markdown
-        https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
-    """
-
-    def __init__(self, path: Path) -> None:
-        self._path = path
-
-    @property
-    def _content(self) -> str:
-        return self._path.read_text()
-
-    def parse_header(self) -> dict[str, str]:
-        """Parse the header of the file."""
-        header, _ = self.split()
-        return self._parse_header(header)
-
-    def _parse_header(self, header: str) -> dict[str, str]:
-        _ = self, header
-        return {}
-
-    def split(self) -> tuple[str, str]:
-        """Split the file header from the content.
-
-        Returns :
-            str : The file header possibly containing arguments.
-            str : The file contents.
-        """
-        return "", self._content
+class WidgetMetadata:
+    id: str
+    order: int
+    width: int
+    height: int
 
 
 class QueryHandler(BaseHandler):
@@ -132,288 +88,15 @@ class QueryHandler(BaseHandler):
         try:
             return vars(parser.parse_args(shlex.split(header)))
         except (argparse.ArgumentError, SystemExit) as e:
-            logger.warning(f"Parsing {self._path}: {e}")
-            return {}
-
-    def split(self) -> tuple[str, str]:
-        """Split the query file header from the contents.
-
-        The optional header is the first comment at the top of the file.
-        """
-        try:
-            parsed_query = sqlglot.parse_one(self._content, dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {self._path}: {e}")
-            return "", self._content
-
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return "", self._content
-
-        first_comment = parsed_query.comments[0]
-        return first_comment.strip(), self._content
-
-
-class MarkdownHandler(BaseHandler):
-    """Handle Markdown files."""
-
-    _FRONT_MATTER_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
-
-    def _parse_header(self, header: str) -> dict[str, str]:
-        """Markdown configuration header is a YAML."""
-        _ = self
-        return yaml.safe_load(header) or {}
-
-    def split(self) -> tuple[str, str]:
-        """Split the markdown file header from the contents.
-
-        The header is enclosed by a horizontal line marked with three dashes '---'.
-        """
-        splits = self._FRONT_MATTER_BOUNDARY.split(self._content, 2)
-        if len(splits) == 3:
-            _, header, content = splits
-            return header.strip(), content.lstrip()
-        if len(splits) == 2:
-            logger.warning(f"Parsing {self._path}: Missing closing header boundary.")
-        return "", self._content
-
-
-class WidgetMetadata:
-    def __init__(
-        self,
-        path: Path,
-        order: int | None = None,
-        width: int = 0,
-        height: int = 0,
-        _id: str = "",
-        title: str = "",
-        description: str = "",
-    ):
-        self._path = path
-        self.order = order
-        self.width = width
-        self.height = height
-        self.id = _id or path.stem
-        self.title = title
-        self.description = description
-
-    def is_markdown(self) -> bool:
-        return self._path.suffix == ".md"
-
-    def is_query(self) -> bool:
-        return self._path.suffix == ".sql"
-
-    @property
-    def handler(self) -> BaseHandler:
-        handler = BaseHandler
-        if self.is_markdown():
-            handler = MarkdownHandler
-        elif self.is_query():
-            handler = QueryHandler
-        return handler(self._path)
-
-    @classmethod
-    def from_dict(cls, *, path: str | Path, **optionals) -> "WidgetMetadata":
-        path = Path(path)
-        if "id" in optionals:
-            optionals["_id"] = optionals["id"]
-            del optionals["id"]
-        return cls(path, **optionals)
-
-    def as_dict(self) -> dict[str, str]:
-        exclude_attributes = {
-            "handler",  # Handler is inferred from file extension
-            "path",  # Path is set explicitly below
-        }
-        body = {"path": self._path.as_posix()}
-        for attribute in dir(self):
-            if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
-                continue
-            value = getattr(self, attribute)
-            if value is not None:
-                body[attribute] = str(value)
-        return body
-
-    @classmethod
-    def from_path(cls, path: Path) -> "WidgetMetadata":
-        widget_metadata = cls(path=path)
-        header = widget_metadata.handler.parse_header()
-        header.pop("path", None)
-        return cls.from_dict(path=path, **header)
-
-    def __repr__(self):
-        return f"WidgetMetdata<{self._path}>"
-
-
-class Tile:
-    """A dashboard tile."""
-
-    def __init__(self, widget_metadata: WidgetMetadata) -> None:
-        self._widget_metadata = widget_metadata
-
-        default_width, default_height = self._default_size()
-        width = self._widget_metadata.width or default_width
-        height = self._widget_metadata.height or default_height
-        self.position = Position(0, 0, width, height)
-
-    def _default_size(self) -> tuple[int, int]:
-        return 0, 0
-
-    def place_after(self, position: Position) -> "Tile":
-        """Place the tile after another tile:
-
-        The tiling logic works if:
-        - `position.width < _MAXIMUM_DASHBOARD_WIDTH` : tiles in a single row should have the same size
-        - `position.width == _MAXIMUM_DASHBOARD_WIDTH` : any height
-        """
-        x = position.x + position.width
-        if x + self.position.width > _MAXIMUM_DASHBOARD_WIDTH:
-            x = 0
-            y = position.y + position.height
-        else:
-            y = position.y
-        new_position = dataclasses.replace(self.position, x=x, y=y)
-
-        replica = copy.deepcopy(self)
-        replica.position = new_position
-        return replica
-
-    @property
-    def widget(self) -> Widget:
-        _, text = self._widget_metadata.handler.split()
-        widget = Widget(name=self._widget_metadata.id, textbox_spec=text)
-        return widget
-
-    @classmethod
-    def from_widget_metadata(cls, widget_metadata: WidgetMetadata) -> "Tile":
-        """Create a tile given the widget metadata."""
-        if widget_metadata.is_markdown():
-            return MarkdownTile(widget_metadata)
-        query_tile = QueryTile(widget_metadata)
-        spec_type = query_tile.infer_spec_type()
-        if spec_type is None:
-            return MarkdownTile(widget_metadata)
-        if spec_type == CounterSpec:
-            return CounterTile(widget_metadata)
-        return TableTile(widget_metadata)
-
-
-class MarkdownTile(Tile):
-    def _default_size(self) -> tuple[int, int]:
-        return _MAXIMUM_DASHBOARD_WIDTH, 3
-
-
-def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sqlglot.Expression:
-    """Replace the database in a query."""
-    if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
-        node.args["db"].set("this", database)
-    return node
-
-
-class QueryTile(Tile):
-    _DIALECT = sqlglot.dialects.Databricks
-
-    def __init__(
-        self,
-        widget_metadata: WidgetMetadata,
-        *,
-        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
-    ) -> None:
-        super().__init__(widget_metadata)
-        self.query_transformer = query_transformer
-
-    def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        _, query = self._widget_metadata.handler.split()
-        try:
-            return sqlglot.parse_one(query, dialect=self._DIALECT)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {query}: {e}")
-            return None
-
-    def _get_query(self) -> str:
-        _, query = self._widget_metadata.handler.split()
-        if self.query_transformer is None:
-            return query
-        syntax_tree = self._get_abstract_syntax_tree()
-        if syntax_tree is None:
-            return query
-        query_transformed = syntax_tree.transform(self.query_transformer).sql(dialect=self._DIALECT)
-        return query_transformed
-
-    def get_dataset(self) -> Dataset:
-        """Get the dataset belonging to the query."""
-        query = self._get_query()
-        dataset = Dataset(name=self._widget_metadata.id, display_name=self._widget_metadata.id, query=query)
-        return dataset
-
-    def _find_fields(self) -> list[Field]:
-        """Find the fields in a query.
-
-        The fields are the projections in the query's top level SELECT.
-        """
-        abstract_syntax_tree = self._get_abstract_syntax_tree()
-        if abstract_syntax_tree is None:
-            return []
-
-        fields = []
-        for projection in abstract_syntax_tree.find_all(sqlglot.exp.Select):
-            if projection.depth > 0:
-                continue
-            for named_select in projection.named_selects:
-                field = Field(name=named_select, expression=f"`{named_select}`")
-                fields.append(field)
-        return fields
-
-    @property
-    def widget(self) -> Widget:
-        fields = self._find_fields()
-        named_query = self._get_named_query(fields)
-        frame = WidgetFrameSpec(
-            title=self._widget_metadata.title,
-            show_title=self._widget_metadata is not None,
-            description=self._widget_metadata.description,
-            show_description=self._widget_metadata.description is not None,
+            logger.warning(f"Parsing {arguments}: {e}")
+            return dataclasses.replace(self)
+        return dataclasses.replace(
+            self,
+            id=args.id or self.id,
+            order=args.order or self.order,
+            width=args.width or self.width,
+            height=args.height or self.height,
         )
-        spec = self._get_spec(fields, frame=frame)
-        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
-        return widget
-
-    def _get_named_query(self, fields: list[Field]) -> NamedQuery:
-        query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
-        # As far as testing went, a NamedQuery should always have "main_query" as name
-        named_query = NamedQuery(name="main_query", query=query)
-        return named_query
-
-    @staticmethod
-    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
-        field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
-        table_encodings = TableEncodingMap(field_encodings)
-        spec = TableV2Spec(encodings=table_encodings, frame=frame)
-        return spec
-
-    def infer_spec_type(self) -> type[WidgetSpec] | None:
-        """Infer the spec type from the query."""
-        fields = self._find_fields()
-        if len(fields) == 0:
-            return None
-        if len(fields) == 1:
-            return CounterSpec
-        return TableV2Spec
-
-
-class TableTile(QueryTile):
-    def _default_size(self) -> tuple[int, int]:
-        return 6, 6
-
-
-class CounterTile(QueryTile):
-    def _default_size(self) -> tuple[int, int]:
-        return 1, 3
-
-    @staticmethod
-    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
-        counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-        spec = CounterSpec(CounterEncodingMap(value=counter_encodings), frame=frame)
-        return spec
 
 
 class Dashboards:
@@ -547,6 +230,85 @@ class Dashboards:
             layout = Layout(widget=tile.widget, position=tile.position)
             layouts.append(layout)
         return layouts
+
+    @staticmethod
+    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
+        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
+
+        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
+        if not dashboard_metadata_path.exists():
+            return fallback_metadata
+
+        try:
+            raw = yaml.safe_load(dashboard_metadata_path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
+        try:
+            return DashboardMetadata.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
+
+    def _parse_widget_metadata(self, path: Path, widget: Widget, order: int) -> WidgetMetadata:
+        width, height = self._get_width_and_height(widget)
+        fallback_metadata = WidgetMetadata(
+            id=path.stem,
+            order=order,
+            width=width,
+            height=height,
+        )
+
+        try:
+            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+
+        if parsed_query.comments is None or len(parsed_query.comments) == 0:
+            return fallback_metadata
+
+        first_comment = parsed_query.comments[0]
+        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
+
+    @staticmethod
+    def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
+        widget = Widget(name=widget_metadata.id, textbox_spec=widget_metadata.path.read_text())
+        return widget
+
+    def _get_counter_widget(self, widget_metadata: WidgetMetadata) -> Widget:
+        fields = self._get_fields(widget_metadata.path.read_text())
+        query = Query(dataset_name=widget_metadata.id, fields=fields, disaggregated=True)
+        # As far as testing went, a NamedQuery should always have "main_query" as name
+        named_query = NamedQuery(name="main_query", query=query)
+        # Counters are expected to have one field
+        counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
+        counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
+        widget = Widget(name=widget_metadata.id, queries=[named_query], spec=counter_spec)
+        return widget
+
+    @staticmethod
+    def _get_fields(query: str) -> list[Field]:
+        parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+        fields = []
+        for projection in parsed_query.find_all(sqlglot.exp.Select):
+            if projection.depth > 0:
+                continue
+            for named_select in projection.named_selects:
+                field = Field(name=named_select, expression=f"`{named_select}`")
+                fields.append(field)
+        return fields
+
+    @staticmethod
+    def _get_position(previous_position: Position, widget_metadata: WidgetMetadata) -> Position:
+        x = previous_position.x + previous_position.width
+        if x + widget_metadata.width > _MAXIMUM_DASHBOARD_WIDTH:
+            x = 0
+            y = previous_position.y + previous_position.height
+        else:
+            y = previous_position.y
+        position = Position(x=x, y=y, width=widget_metadata.width, height=widget_metadata.height)
+        return position
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
