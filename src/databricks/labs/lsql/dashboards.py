@@ -64,9 +64,9 @@ class WidgetMetadata:
     def as_dict(self) -> dict[str, str]:
         body = {
             "path": self.path.as_posix(),
-            "order": self.order,
-            "width": self.width,
-            "height": self.height,
+            "order": str(self.order),
+            "width": str(self.width),
+            "height": str(self.height),
         }
         if self.id is not None:
             body["id"] = self.id
