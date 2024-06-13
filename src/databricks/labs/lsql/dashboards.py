@@ -62,7 +62,15 @@ class WidgetMetadata:
             self.id = self.path.stem
 
     def as_dict(self) -> dict[str, str]:
-        return dataclasses.asdict(self)
+        body = {
+            "path": self.path.as_posix(),
+            "order": self.order,
+            "width": self.width,
+            "height": self.height,
+        }
+        if self.id is not None:
+            body["id"] = self.id
+        return body
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
