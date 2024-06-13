@@ -187,29 +187,14 @@ class Dashboards:
         formatted_query = ";\n".join(statements)
         return formatted_query
 
-    def create_dashboard(
-        self,
-        dashboard_folder: Path,
-        *,
-        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
-    ) -> Dashboard:
-        """Create a dashboard from code, i.e. configuration and queries.
-
-        Parameters :
-            dashboard_folder : Path
-                The path to the folder with dashboard files.
-            query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default | None)
-                A sqlglot transformer applied on the queries (SQL files) before creating the dashboard. If None, no
-                transformation will be applied.
-
-        Source :
-            https://sqlglot.com/sqlglot/transforms.html
-        """
-        dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
-        widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
-        tiles = self._get_tiles(widgets_metadata, query_transformer=query_transformer)
-        datasets = self._get_datasets(tiles)
-        layouts = self._get_layouts(tiles)
+    def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
+        """Create a dashboard from code, i.e. configuration and queries."""
+        dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
+        widgets_metadata = self._get_widgets_metadata(dashboard_folder)
+        datasets = self._get_datasets(dashboard_folder)
+        widgets_metadata = self._get_widgets_metadata(dashboard_folder)
+        widgets = self._get_widgets(widgets_metadata, datasets)
+        layouts = self._get_layouts(widgets)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -228,16 +213,34 @@ class Dashboards:
             datasets[dataset.name] = dataset
         return datasets
 
-    def _get_widgets(self, files: Iterable[Path], datasets: dict[str, Dataset]) -> list[tuple[Widget, WidgetMetadata]]:
-        widget_metadatas = [self._parse_widget_metadata(path) for path in files]
-        widget_metadatas_with_order = []
-        for order, widget_metadata in enumerate(sorted(widget_metadatas, key=lambda wm: wm.id)):
-            widget_metadatas_with_order.append(
+    def _get_widgets_metadata(self, dashboard_folder: Path) -> list[WidgetMetadata]:
+        """Read and parse the widget metadata from each (optional) header.
+
+        The order is by default the alphanumarically sorted files, however, the order may be overwritten in the file
+        header with the `order` key. Hence, the multiple loops to get:
+        i) the optional order from the file header;
+        ii) set the order when not specified;
+        iii) sort the widgets using the order field.
+        """
+        widgets_metadata = []
+        for path in sorted(dashboard_folder.iterdir()):
+            if path.suffix not in {".sql", ".md"}:
+                continue
+            widget_metadata = self._parse_widget_metadata(path)
+            widgets_metadata.append(widget_metadata)
+        widgets_metadata_with_order = []
+        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
+            widgets_metadata_with_order.append(
                 dataclasses.replace(widget_metadata, order=widget_metadata.order or order)
             )
+        widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: wm.order))
+        return widgets_metadata_sorted
 
+    def _get_widgets(
+        self, widgets_metadata: list[WidgetMetadata], datasets: dict[str, Dataset]
+    ) -> list[tuple[Widget, WidgetMetadata]]:
         widgets = []
-        for widget_metadata in sorted(widget_metadatas_with_order, key=lambda wm: wm.order):
+        for widget_metadata in widgets_metadata:
             if widget_metadata.path.suffix not in {".sql", ".md"}:
                 continue
             if widget_metadata.path.suffix == ".sql":
