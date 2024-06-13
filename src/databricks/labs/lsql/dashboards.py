@@ -200,8 +200,8 @@ class Dashboards:
 
     def _get_layouts(self, widgets: list[Widget], widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
         layouts, position = [], Position(0, 0, 0, 0)  # First widget position
-        for widget, widget_metadata in zip(widgets, widgets_metadata):
-            position = self._get_position(position, widget_metadata)
+        for widget, widget_metadata in sorted(widgets, key=lambda w: (w[1].order, w[1].id)):
+            position = self._get_position(widget_metadata, position)
             layout = Layout(widget=widget, position=position)
             layouts.append(layout)
         return layouts
