@@ -247,16 +247,12 @@ class Dashboards:
     ) -> list[tuple[Widget, WidgetMetadata]]:
         widgets = []
         for widget_metadata in widgets_metadata:
-            widget_spec_type = widget_metadata.spec_type
-            if widget_spec_type == MarkdownSpec:
-                widget = self._get_text_widget(widget_metadata.path)
-            else:
-                dataset = datasets[widget_metadata.path.stem]
-                try:
-                    widget = self._get_widget(dataset)
-                except sqlglot.ParseError as e:
-                    logger.warning(f"Parsing {widget_metadata.path}: {e}")
-                    continue
+            dataset = datasets.get(widget_metadata.path.stem)
+            try:
+                widget = self._get_widget(widget_metadata, dataset)
+            except sqlglot.ParseError as e:
+                logger.warning(f"Parsing {widget_metadata.path}: {e}")
+                continue
             widgets.append((widget, widget_metadata))
         return widgets
 
@@ -303,14 +299,24 @@ class Dashboards:
         first_comment = parsed_query.comments[0]
         return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
 
+    def _get_widget(self, widget_metadata: WidgetMetadata, dataset: Dataset | None) -> Widget:
+        if widget_metadata.spec_type == MarkdownSpec:
+            return self._get_text_widget(widget_metadata)
+        assert dataset is not None
+        return self._get_counter_widget(dataset)
+
     @staticmethod
-    def _get_text_widget(path: Path) -> Widget:
-        widget = Widget(name=path.stem, textbox_spec=path.read_text(), spec=MarkdownSpec())
+    def _get_text_widget(widget_metadata) -> Widget:
+        widget = Widget(
+            name=widget_metadata.path.stem,
+            textbox_spec=widget_metadata.path.read_text(),
+            spec=widget_metadata.spec_type(),
+        )
         return widget
 
-    def _get_counter_widget(self, widget_metadata: WidgetMetadata) -> Widget:
-        fields = self._get_fields(widget_metadata.path.read_text())
-        query = Query(dataset_name=widget_metadata.id, fields=fields, disaggregated=True)
+    def _get_counter_widget(self, dataset: Dataset) -> Widget:
+        fields = self._get_fields(dataset.query)
+        query = Query(dataset_name=dataset.name, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
         # Counters are expected to have one field
