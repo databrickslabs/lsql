@@ -45,7 +45,7 @@ def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
 def test_dashboard_metadata_from_raw(tmp_path):
     raw = {"display_name": "test"}
 
-    path = (tmp_path / "dashboard.yml")
+    path = tmp_path / "dashboard.yml"
     with path.open("w") as f:
         yaml.safe_dump(raw, f)
 
@@ -58,7 +58,7 @@ def test_dashboard_metadata_from_raw(tmp_path):
 
 @pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml", ""])
 def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
-    path = (tmp_path / "dashboard.yml")
+    path = tmp_path / "dashboard.yml"
     if len(dashboard_content) > 0:
         path.write_text(dashboard_content)
 
