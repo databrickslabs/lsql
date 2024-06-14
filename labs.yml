@@ -1,10 +1,6 @@
 ---
 name: lsql
 description: Lightweight SQL execution wrapper only on top of Databricks SDK
-install:
-  script: src/databricks/labs/lsql/__init__.py
-uninstall:
-  script: src/databricks/labs/lsql/__init__.py
 entrypoint: src/databricks/labs/lsql/cli.py
 min_python: 3.10
 commands:
