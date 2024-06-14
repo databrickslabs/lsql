@@ -200,7 +200,11 @@ class MarkdownTile(Tile):
 
 class QueryTile(Tile):
     @staticmethod
-    def get_fields(query: str) -> list[Field]:
+    def find_fields(query: str) -> list[Field]:
+        """Find the fields in a query.
+
+        The fields are the projections in the query's top level SELECT.
+        """
         try:
             parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
@@ -217,7 +221,7 @@ class QueryTile(Tile):
 
     @property
     def widget(self) -> Widget:
-        fields = self.get_fields(self._content)
+        fields = self.find_fields(self._content)
         named_query = self._get_named_query(fields)
         spec = self._get_spec(fields)
         widget = Widget(name=self._name, queries=[named_query], spec=spec)
@@ -265,7 +269,7 @@ class Tiler:
 
     @staticmethod
     def _infer_spec_type(query: str) -> type[WidgetSpec] | None:
-        fields = QueryTile.get_fields(query)
+        fields = QueryTile.find_fields(query)
         if len(fields) == 0:
             return None
         if len(fields) == 1:
