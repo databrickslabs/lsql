@@ -29,3 +29,7 @@ def publish_dashboard(w: WorkspaceClient, dashboard_id: str):
     """Publish a dashboard."""
     logger.info("Creating dashboard ...")
     w.lakeview.publish(dashboard_id)
+
+
+if __name__ == "__main__":
+    lsql()
