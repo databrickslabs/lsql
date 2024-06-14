@@ -9,9 +9,3 @@ commands:
     flags:
       - name: folder
         description: The folder with dashboard files. By default, the current working directory.
-
-  - name: publish-dashboard
-    description: Publish a dashboard
-    flags:
-      - name: dashboard-id
-        description: The dashboard id of the to-be-published dashboard.
