@@ -11,7 +11,7 @@ lsql = App(__file__)
 
 
 @lsql.command
-def create_dashboard(w: WorkspaceClient, folder: Path = Path(".")):
+def create_dashboard(w: WorkspaceClient, folder: Path = Path.cwd()):
     """Create a dashboard from queries"""
     logger.info("Creating dashboard ...")
     dashboards = Dashboards(w)
