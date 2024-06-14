@@ -1,4 +1,3 @@
-import abc
 import argparse
 import copy
 import dataclasses
@@ -239,9 +238,17 @@ class QueryTile(Tile):
         return named_query
 
     @staticmethod
-    @abc.abstractmethod
     def _get_spec(fields: list[Field]) -> WidgetSpec:
-        pass
+        field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
+        table_encodings = TableEncodingMap(field_encodings)
+        spec = TableV2Spec(encodings=table_encodings)
+        return spec
+
+
+class TableTile(QueryTile):
+    @property
+    def _default_size(self) -> tuple[int, int]:
+        return 6, 6
 
 
 class CounterTile(QueryTile):
@@ -253,19 +260,6 @@ class CounterTile(QueryTile):
     def _get_spec(fields: list[Field]) -> CounterSpec:
         counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
         spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
-        return spec
-
-
-class TableTile(QueryTile):
-    @property
-    def _default_size(self) -> tuple[int, int]:
-        return 6, 6
-
-    @staticmethod
-    def _get_spec(fields: list[Field]) -> TableV2Spec:
-        field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
-        table_encodings = TableEncodingMap(field_encodings)
-        spec = TableV2Spec(encodings=table_encodings)
         return spec
 
 
