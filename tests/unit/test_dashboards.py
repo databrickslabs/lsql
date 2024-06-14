@@ -16,7 +16,7 @@ from databricks.labs.lsql.dashboards import (
     QueryTile,
     Tile,
     WidgetMetadata,
-    replace_database_in_query,
+    Tile,
 )
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
@@ -111,8 +111,7 @@ def test_widget_metadata_as_dict():
 
 
 def test_tile_places_tile_to_the_right():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
-    tile = Tile(widget_metadata)
+    tile = Tile("test", "test")
 
     position = Position(0, 4, 3, 4)
     placed_tile = tile.place_after(position)
@@ -122,8 +121,7 @@ def test_tile_places_tile_to_the_right():
 
 
 def test_tile_places_tile_below():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
-    tile = Tile(widget_metadata)
+    tile = Tile("test", "test")
 
     position = Position(5, 4, 3, 4)
     placed_tile = tile.place_after(position)
