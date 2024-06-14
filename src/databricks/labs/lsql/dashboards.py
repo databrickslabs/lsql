@@ -279,7 +279,8 @@ class Tiler:
             return CounterSpec
         return TableV2Spec
 
-    def tile(self, widget_metadata: WidgetMetadata) -> Tile | None:
+    def _get_tile(self, widget_metadata: WidgetMetadata) -> Tile | None:
+        """Create a tile given the widget metadata."""
         width, height = widget_metadata.size
         position = Position(0, 0, width, height)
 
@@ -293,6 +294,28 @@ class Tiler:
         if spec_type == CounterSpec:
             return CounterTile(widget_metadata.id, content, position=position)
         return TableTile(widget_metadata.id, content, position=position)
+
+    def tile(self, widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
+        """Tile the widgets given their metadata.
+
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the multiple loops to get:
+        i) set the order when not specified;
+        ii) sort the widgets using the order field.
+        """
+        widgets_metadata_with_order = []
+        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
+            replica = copy.deepcopy(widget_metadata)
+            replica.order = widget_metadata.order or order
+            widgets_metadata_with_order.append(replica)
+        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
+            tile = self._get_tile(widget_metadata)
+            if tile is not None:
+                placed_tile = tile.place_after(position)
+                tiles.append(placed_tile)
+                position = placed_tile.position
+        return tiles
 
 
 class Dashboards:
@@ -345,8 +368,7 @@ class Dashboards:
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
         datasets = self._get_datasets(dashboard_folder)
-        tiles = self._get_tiles(widgets_metadata)
-        layouts = self._get_layouts(tiles)
+        layouts = self._get_layouts(widgets_metadata)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -357,27 +379,13 @@ class Dashboards:
 
     @staticmethod
     def _parse_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
-        """Read and parse the widget metadata from each (optional) header.
-
-        The order is by default the alphanumerically sorted files, however, the order may be overwritten in the file
-        header with the `order` key. Hence, the multiple loops to get:
-        i) the optional order from the file header;
-        ii) set the order when not specified;
-        iii) sort the widgets using the order field.
-        """
+        """Parse the widget metadata from each (optional) header."""
         widgets_metadata = []
-        for path in sorted(dashboard_folder.iterdir()):
-            if path.suffix not in {".sql", ".md"}:
-                continue
-            widget_metadata = WidgetMetadata.from_path(path)
-            widgets_metadata.append(widget_metadata)
-        widgets_metadata_with_order = []
-        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
-            replica = copy.deepcopy(widget_metadata)
-            replica.order = widget_metadata.order or order
-            widgets_metadata_with_order.append(replica)
-        widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)))
-        return widgets_metadata_sorted
+        for path in dashboard_folder.iterdir():
+            if path.suffix in {".sql", ".md"}:
+                widget_metadata = WidgetMetadata.from_path(path)
+                widgets_metadata.append(widget_metadata)
+        return widgets_metadata
 
     @staticmethod
     def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
@@ -388,24 +396,11 @@ class Dashboards:
         return datasets
 
     @staticmethod
-    def _get_tiles(widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
-        tiler, tiles = Tiler(), []
-        for widget_metadata in widgets_metadata:
-            tile = tiler.tile(widget_metadata)
-            if tile is not None:
-                tiles.append(tile)
-        return tiles
-
-    @staticmethod
-    def _get_layouts(tiles: list[Tile]) -> list[Layout]:
-        layouts, previous_position = [], Position(0, 0, 0, 0)  # First widget position
-        for tile in tiles:
-            if tile.widget is None:
-                continue
-            placed_tile = tile.place_after(previous_position)
-            layout = Layout(widget=placed_tile.widget, position=placed_tile.position)
+    def _get_layouts(widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
+        tiler, layouts = Tiler(), []
+        for tile in tiler.tile(widgets_metadata):
+            layout = Layout(widget=tile.widget, position=tile.position)
             layouts.append(layout)
-            previous_position = placed_tile.position
         return layouts
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
