@@ -283,12 +283,23 @@ class Dashboards:
         return lakeview_dashboard
 
     @staticmethod
-    def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
-        datasets = []
-        for query_path in sorted(dashboard_folder.glob("*.sql")):
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query_path.read_text())
-            datasets.append(dataset)
-        return datasets
+    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
+        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
+
+        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
+        if not dashboard_metadata_path.exists():
+            return fallback_metadata
+
+        try:
+            raw = yaml.safe_load(dashboard_metadata_path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
+        try:
+            return DashboardMetadata.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
 
     @staticmethod
     def _parse_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
@@ -315,6 +326,14 @@ class Dashboards:
         return widgets_metadata_sorted
 
     @staticmethod
+    def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
+        datasets = []
+        for query_path in sorted(dashboard_folder.glob("*.sql")):
+            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query_path.read_text())
+            datasets.append(dataset)
+        return datasets
+
+    @staticmethod
     def _get_tiles(widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
         return [Tile(widgets_metadata) for widgets_metadata in widgets_metadata]
 
@@ -330,25 +349,6 @@ class Dashboards:
             layouts.append(layout)
             previous_position = tile.position
         return layouts
-
-    @staticmethod
-    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
-        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
-
-        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
-        if not dashboard_metadata_path.exists():
-            return fallback_metadata
-
-        try:
-            raw = yaml.safe_load(dashboard_metadata_path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
-        try:
-            return DashboardMetadata.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
