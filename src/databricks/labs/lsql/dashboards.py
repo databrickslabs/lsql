@@ -25,7 +25,6 @@ from databricks.labs.lsql.lakeview import (
     Dashboard,
     Dataset,
     Field,
-    Json,
     Layout,
     NamedQuery,
     Page,
@@ -42,18 +41,6 @@ from databricks.labs.lsql.lakeview import (
 _MAXIMUM_DASHBOARD_WIDTH = 6
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class MarkdownSpec(WidgetSpec):
-    """A dummy spec for markdown files."""
-
-    def as_dict(self) -> Json:
-        body: Json = {
-            "version": 1,
-            "widgetType": "markdown",
-        }
-        return body
 
 
 @dataclass
@@ -99,8 +86,6 @@ class WidgetMetadata:
 
     @property
     def spec_type(self) -> type[WidgetSpec]:
-        if self.is_markdown():
-            return MarkdownSpec
         # TODO: When supporting more specs, infer spec from query
         return CounterSpec
 
@@ -112,11 +97,11 @@ class WidgetMetadata:
         - width < _MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
         - width == _MAXIMUM_DASHBOARD_WIDTH : any height
         """
-        if self.spec_type is None:
-            return 0, 0
+        if self.is_markdown():
+            return _MAXIMUM_DASHBOARD_WIDTH, 2
         if self.spec_type == CounterSpec:
             return 1, 3
-        return _MAXIMUM_DASHBOARD_WIDTH, 2
+        return 0, 0
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self.path.as_posix()}
@@ -310,11 +295,7 @@ class Dashboards:
 
     @staticmethod
     def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
-        widget = Widget(
-            name=widget_metadata.id,
-            textbox_spec=widget_metadata.path.read_text(),
-            spec=widget_metadata.spec_type(),
-        )
+        widget = Widget(name=widget_metadata.id, textbox_spec=widget_metadata.path.read_text())
         return widget
 
     def _get_counter_widget(self, widget_metadata: WidgetMetadata) -> Widget:
