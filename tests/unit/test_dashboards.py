@@ -25,17 +25,17 @@ from databricks.labs.lsql.lakeview import (
 )
 
 
-def test_dashboard_configuration_raises_key_error_if_display_name_is_missing():
+def test_dashboard_metadata_raises_key_error_if_display_name_is_missing():
     with pytest.raises(KeyError):
         DashboardMetadata.from_dict({})
 
 
-def test_dashboard_configuration_sets_display_name_from_dict():
+def test_dashboard_metadata_sets_display_name_from_dict():
     dashboard_metadata = DashboardMetadata.from_dict({"display_name": "test"})
     assert dashboard_metadata.display_name == "test"
 
 
-def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
+def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
     raw = {"display_name": "test"}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
     assert dashboard_metadata.as_dict() == raw
