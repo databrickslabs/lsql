@@ -175,7 +175,7 @@ class Tile:
     def _default_size(self) -> tuple[int, int]:
         return 0, 0
 
-    def place_after(self, position: Position) -> None:
+    def place_after(self, position: Position) -> "Tile":
         """Place the tile after another tile:
 
         The tiling logic works if:
@@ -188,7 +188,11 @@ class Tile:
             y = position.y + position.height
         else:
             y = position.y
-        self.position = dataclasses.replace(self.position, x=x, y=y)
+        new_position = dataclasses.replace(self.position, x=x, y=y)
+
+        replica = copy.deepcopy(self)
+        replica.position = new_position
+        return replica
 
     @property
     def widget(self) -> Widget:
@@ -398,10 +402,10 @@ class Dashboards:
         for tile in tiles:
             if tile.widget is None:
                 continue
-            tile.place_after(previous_position)
-            layout = Layout(widget=tile.widget, position=tile.position)
+            placed_tile = tile.place_after(previous_position)
+            layout = Layout(widget=placed_tile.widget, position=placed_tile.position)
             layouts.append(layout)
-            previous_position = tile.position
+            previous_position = placed_tile.position
         return layouts
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
