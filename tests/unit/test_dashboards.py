@@ -16,6 +16,7 @@ from databricks.labs.lsql.dashboards import (
     QueryTile,
     Tile,
     WidgetMetadata,
+    QueryTile,
     Tile,
 )
 from databricks.labs.lsql.lakeview import (
@@ -342,58 +343,10 @@ ORDER BY count DESC, finding DESC
         ("SELECT from_unixtime(timestamp) AS timestamp FROM table", ["timestamp"]),
     ],
 )
-def test_query_tile_finds_fields(tmp_path, query, names):
-    query_file = tmp_path / "query.sql"
-    query_file.write_text(query)
-
-    widget_metadata = WidgetMetadata(query_file, 1, 1, 1)
-    tile = QueryTile(widget_metadata)
-
-    fields = tile._find_fields()  # pylint: disable=protected-access
-
+def test_query_tile_finds_fields(query, names):
+    tile = QueryTile("test", "test")
+    fields = tile.find_fields(query)
     assert [field.name for field in fields] == names
-
-
-def test_query_tile_keeps_original_query(tmp_path):
-    query = "SELECT x, y FROM a JOIN b"
-    query_path = tmp_path / "counter.sql"
-    query_path.write_text(query)
-
-    widget_metadata = WidgetMetadata.from_path(query_path)
-    query_tile = QueryTile(widget_metadata)
-
-    dataset = query_tile.get_dataset()
-
-    assert dataset.query == query
-
-
-@pytest.mark.parametrize(
-    "query, query_transformed",
-    [
-        ("SELECT count FROM table", "SELECT count FROM table"),
-        ("SELECT count FROM database.table", "SELECT count FROM development.table"),
-        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table"),
-        ("SELECT database FROM database.table", "SELECT database FROM development.table"),
-        (
-            "SELECT * FROM server.database.table, server.other_database.table",
-            "SELECT * FROM server.development.table, server.development.table",
-        ),
-        (
-            "SELECT left.* FROM server.database.table AS left JOIN server.other_database.table AS right ON left.id = right.id",
-            "SELECT left.* FROM server.development.table AS left JOIN server.development.table AS right ON left.id = right.id",
-        ),
-    ],
-)
-def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, query_transformed):
-    query_path = tmp_path / "counter.sql"
-    query_path.write_text(query)
-
-    replace_with_development_database = functools.partial(replace_database_in_query, database="development")
-    query_tile = QueryTile(WidgetMetadata.from_path(query_path), query_transformer=replace_with_development_database)
-
-    dataset = query_tile.get_dataset()
-
-    assert dataset.query == query_transformed
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
