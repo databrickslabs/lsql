@@ -7,8 +7,8 @@ commands:
   - name: create-dashboard
     description: Create a(n unpublished) dashboard from code, see [docs](./docs/dashboards.md).
     flags:
-      - name: dashboard-folder
-        description: The folder with dashboard files.
+      - name: folder
+        description: The folder with dashboard files. By default, the current working directory.
 
   - name: publish-dashboard
     description: Publish a dashboard
