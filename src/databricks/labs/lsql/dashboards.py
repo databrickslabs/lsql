@@ -57,9 +57,23 @@ class DashboardMetadata:
         return dataclasses.asdict(self)
 
     @classmethod
-    def from_path(cls, path: Path) -> "DashboardMetadata":
-        """Export dashboard metadata from a YAML file."""
-        fallback_metadata = cls(display_name=path.parent.name)
+    def from_path(cls, dashboard_metadata_path: Path) -> "DashboardMetadata":
+        fallback_metadata = cls(display_name=dashboard_metadata_path.parent.name)
+
+        if not dashboard_metadata_path.exists():
+            return fallback_metadata
+
+        try:
+            raw = yaml.safe_load(dashboard_metadata_path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
+        try:
+            return cls.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
+            return fallback_metadata
+
 
 class WidgetMetadata:
     def __init__(
@@ -278,7 +292,7 @@ class Dashboards:
 
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
-        dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
+        dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
         datasets = self._get_datasets(dashboard_folder)
         tiles = self._get_tiles(widgets_metadata)
@@ -290,25 +304,6 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
-
-    @staticmethod
-    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
-        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
-
-        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
-        if not dashboard_metadata_path.exists():
-            return fallback_metadata
-
-        try:
-            raw = yaml.safe_load(dashboard_metadata_path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
-        try:
-            return DashboardMetadata.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
 
     @staticmethod
     def _parse_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
