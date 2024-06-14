@@ -1,4 +1,5 @@
 import argparse
+import copy
 import dataclasses
 import json
 import logging
@@ -63,19 +64,25 @@ class DashboardMetadata:
         return dataclasses.asdict(self)
 
 
-@dataclass
 class WidgetMetadata:
-    path: Path
-    order: int = 0
-    width: int = 0
-    height: int = 0
-    id: str = ""
+    def __init__(
+        self,
+        path: Path,
+        order: int = 0,
+        width: int = 0,
+        height: int = 0,
+        _id: str = "",
+    ):
+        self.path = path
+        self.order = order
+        self.width = width
+        self.height = height
+        self.id = _id
 
-    def __post_init__(self):
-        width, height = self._size
-        self.width = self.width or width
-        self.height = self.height or height
-        self.id = self.id or self.path.stem
+        size = self._size
+        self.width = self.width or size[0]
+        self.height = self.height or size[1]
+        self.id = self.id or path.stem
 
     def is_markdown(self) -> bool:
         return self.path.suffix == ".md"
@@ -103,12 +110,12 @@ class WidgetMetadata:
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self.path.as_posix()}
-        for field in dataclasses.fields(self):
-            if field.name in body:
+        for attribute in "order", "width", "height", "id":
+            if attribute in body:
                 continue
-            value = getattr(self, field.name)
+            value = getattr(self, attribute)
             if value is not None:
-                body[field.name] = str(value)
+                body[attribute] = str(value)
         return body
 
     @staticmethod
@@ -121,19 +128,19 @@ class WidgetMetadata:
         return parser
 
     def replace_from_arguments(self, arguments: list[str]) -> "WidgetMetadata":
+        replica = copy.deepcopy(self)
         parser = self._get_arguments_parser()
         try:
             args = parser.parse_args(arguments)
         except (argparse.ArgumentError, SystemExit) as e:
             logger.warning(f"Parsing {arguments}: {e}")
-            return dataclasses.replace(self)
-        return dataclasses.replace(
-            self,
-            order=args.order or self.order,
-            width=args.width or self.width,
-            height=args.height or self.height,
-            id=args.id or self.id,
-        )
+            return replica
+
+        replica.order = args.order or self.order
+        replica.width = args.width or self.width
+        replica.height = args.height or self.height
+        replica.id = args.id or self.id
+        return replica
 
     @classmethod
     def from_path(cls, path: Path) -> "WidgetMetadata":
@@ -240,9 +247,9 @@ class Dashboards:
             widgets_metadata.append(widget_metadata)
         widgets_metadata_with_order = []
         for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
-            widgets_metadata_with_order.append(
-                dataclasses.replace(widget_metadata, order=widget_metadata.order or order)
-            )
+            replica = copy.deepcopy(widget_metadata)
+            replica.order = widget_metadata.order or order
+            widgets_metadata_with_order.append(replica)
         widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)))
         return widgets_metadata_sorted
 
