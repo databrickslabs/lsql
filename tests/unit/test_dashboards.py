@@ -455,12 +455,10 @@ def test_dashboard_handles_query_with_star(tmp_path, caplog):
     with (tmp_path / "star.sql").open("w") as f:
         f.write(query)
 
-    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
-        lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    with pytest.raises(NotImplementedError) as e:
+        Dashboards(ws).create_dashboard(tmp_path)
 
-    widget = lakeview_dashboard.pages[0].layout[0].widget
-    assert isinstance(widget.spec, TableV2Spec)
-    assert query in caplog.text
+    assert query in str(e)
     ws.assert_not_called()
 
 
