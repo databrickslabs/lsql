@@ -77,9 +77,12 @@ class WidgetMetadata:
         self.height = self.height or height
         self.id = self.id or self.path.stem
 
+    def is_markdown(self) -> bool:
+        return self.path.suffix == ".md"
+
     @property
     def spec_type(self) -> type[WidgetSpec]:
-        if self.path.suffix == ".md":
+        if self.is_markdown():
             return MarkdownSpec
         # TODO: When supporting more specs, infer spec from query
         return CounterSpec
@@ -282,7 +285,7 @@ class Dashboards:
             return fallback_metadata
 
     def _get_widget(self, widget_metadata: WidgetMetadata) -> Widget:
-        if widget_metadata.spec_type == MarkdownSpec:
+        if widget_metadata.is_markdown():
             return self._get_text_widget(widget_metadata)
         return self._get_counter_widget(widget_metadata)
 
