@@ -185,8 +185,9 @@ class Tile:
             y = position.y
         self.position = dataclasses.replace(self.position, x=x, y=y)
 
+    @property
     @abc.abstractmethod
-    def get_widget(self) -> Widget:
+    def widget(self) -> Widget:
         pass
 
 
@@ -195,7 +196,8 @@ class MarkdownTile(Tile):
     def default_size(self) -> tuple[int, int]:
         return _MAXIMUM_DASHBOARD_WIDTH, 2
 
-    def get_widget(self) -> Widget:
+    @property
+    def widget(self) -> Widget:
         widget = Widget(name=self._name, textbox_spec=self._content)
         return widget
 
@@ -217,7 +219,8 @@ class QueryTile(Tile):
                 fields.append(field)
         return fields
 
-    def get_widget(self) -> Widget:
+    @property
+    def widget(self) -> Widget:
         fields = self.get_fields(self._content)
         named_query = self._get_named_query(fields)
         spec = self._get_spec(fields)
@@ -394,11 +397,10 @@ class Dashboards:
     def _get_layouts(tiles: list[Tile]) -> list[Layout]:
         layouts, previous_position = [], Position(0, 0, 0, 0)  # First widget position
         for tile in tiles:
-            widget = tile.get_widget()
-            if widget is None:
+            if tile.widget is None:
                 continue
             tile.place_after(previous_position)
-            layout = Layout(widget=widget, position=tile.position)
+            layout = Layout(widget=tile.widget, position=tile.position)
             layouts.append(layout)
             previous_position = tile.position
         return layouts
