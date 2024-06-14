@@ -1,3 +1,4 @@
+import abc
 import argparse
 import copy
 import dataclasses
@@ -90,9 +91,6 @@ class WidgetMetadata:
         self.height = height
         self.id = _id or path.stem
 
-    def is_markdown(self) -> bool:
-        return self.path.suffix == ".md"
-
     def as_dict(self) -> dict[str, str]:
         body = {"path": self.path.as_posix()}
         for attribute in "order", "width", "height", "id":
@@ -102,6 +100,13 @@ class WidgetMetadata:
             if value is not None:
                 body[attribute] = str(value)
         return body
+
+    @property
+    def size(self) -> tuple[int, int]:
+        return self.width, self.height
+
+    def is_markdown(self) -> bool:
+        return self.path.suffix == ".md"
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
@@ -151,85 +156,55 @@ class Tile:
 
     def __init__(
         self,
-        widget_metadata: WidgetMetadata,
+        name: str,
+        content: str,
         *,
         position: Position = Position(0, 0, 0, 0),
     ) -> None:
-        self._widget_metadata = widget_metadata
+        self._name = name
+        self._content = content
         self.position = position
 
-        width, height = self.size
-        self.position = dataclasses.replace(
-            self.position, width=self.position.width or width, height=self.position.height or height
-        )
+        width, height = self.default_size
+        self.position = dataclasses.replace(position, width=position.width or width, height=position.height or height)
 
     @property
-    def _spec_type(self) -> type[WidgetSpec] | None:
-        fields = self._get_fields()
-        if len(fields) == 0:
-            return None
-        if len(fields) == 1:
-            return CounterSpec
-        return TableV2Spec
-
-    @property
-    def _default_size(self) -> tuple[int, int]:
-        if self._widget_metadata.is_markdown():
-            return _MAXIMUM_DASHBOARD_WIDTH, 2
-        if self._spec_type == CounterSpec:
-            return 1, 3
-        if self._spec_type == TableV2Spec:
-            return 6, 6
+    def default_size(self) -> tuple[int, int]:
         return 0, 0
 
-    @property
-    def size(self) -> tuple[int, int]:
-        """Get the width and height for a widget.
+    def place_after(self, position: Position) -> None:
+        """Place the tile after another tile:
 
         The tiling logic works if:
         - width < _MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
         - width == _MAXIMUM_DASHBOARD_WIDTH : any height
         """
-        width, height = self._default_size
-        return self._widget_metadata.width or width, self._widget_metadata.height or height
-
-    def place_after(self, position: Position) -> None:
         x = position.x + position.width
-        width, height = self.size
-        if x + width > _MAXIMUM_DASHBOARD_WIDTH:
+        if x + self.position.width > _MAXIMUM_DASHBOARD_WIDTH:
             x = 0
             y = position.y + position.height
         else:
             y = position.y
-        self.position = Position(x=x, y=y, width=width, height=height)
+        self.position = Position(x=x, y=y, width=self.position.width, height=self.position.height)
 
-    def get_widget(self) -> Widget | None:
-        if self._widget_metadata.is_markdown():
-            widget = Widget(name=self._widget_metadata.id, textbox_spec=self._widget_metadata.path.read_text())
-            return widget
-        if self._spec_type is None:
-            return None
+    @abc.abstractmethod
+    def get_widget(self) -> Widget:
+        pass
 
-        fields = self._get_fields()
-        query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
-        # As far as testing went, a NamedQuery should always have "main_query" as name
-        named_query = NamedQuery(name="main_query", query=query)
-        spec: WidgetSpec
-        if self._spec_type == CounterSpec:
-            # Counters are expected to have one field
-            counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-            spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
-        else:
-            field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
-            table_encodings = TableEncodingMap(field_encodings)
-            spec = TableV2Spec(encodings=table_encodings)
-        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
+
+class MarkdownTile(Tile):
+    @property
+    def default_size(self) -> tuple[int, int]:
+        return _MAXIMUM_DASHBOARD_WIDTH, 2
+
+    def get_widget(self) -> Widget:
+        widget = Widget(name=self._name, textbox_spec=self._content)
         return widget
 
-    def _get_fields(self) -> list[Field]:
-        if self._widget_metadata.is_markdown():  # Markdown has no fields
-            return []
-        query = self._widget_metadata.path.read_text()
+
+class QueryTile(Tile):
+    @staticmethod
+    def get_fields(query: str) -> list[Field]:
         try:
             parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
@@ -243,6 +218,77 @@ class Tile:
                 field = Field(name=named_select, expression=f"`{named_select}`")
                 fields.append(field)
         return fields
+
+    def get_widget(self) -> Widget:
+        fields = self.get_fields(self._content)
+        named_query = self._get_named_query(fields)
+        spec = self._get_spec(fields)
+        widget = Widget(name=self._name, queries=[named_query], spec=spec)
+        return widget
+
+    def _get_named_query(self, fields: list[Field]) -> NamedQuery:
+        query = Query(dataset_name=self._name, fields=fields, disaggregated=True)
+        # As far as testing went, a NamedQuery should always have "main_query" as name
+        named_query = NamedQuery(name="main_query", query=query)
+        return named_query
+
+    @staticmethod
+    @abc.abstractmethod
+    def _get_spec(fields: list[Field]) -> WidgetSpec:
+        pass
+
+
+class CounterTile(QueryTile):
+    @property
+    def default_size(self) -> tuple[int, int]:
+        return 1, 3
+
+    @staticmethod
+    def _get_spec(fields: list[Field]) -> CounterSpec:
+        counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
+        spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
+        return spec
+
+
+class TableTile(QueryTile):
+    @property
+    def default_size(self) -> tuple[int, int]:
+        return 6, 6
+
+    @staticmethod
+    def _get_spec(fields: list[Field]) -> TableV2Spec:
+        field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
+        table_encodings = TableEncodingMap(field_encodings)
+        spec = TableV2Spec(encodings=table_encodings)
+        return spec
+
+
+class Tiler:
+    """Factory class to create tiles."""
+
+    @staticmethod
+    def _infer_spec_type(query: str) -> type[WidgetSpec] | None:
+        fields = QueryTile.get_fields(query)
+        if len(fields) == 0:
+            return None
+        if len(fields) == 1:
+            return CounterSpec
+        return TableV2Spec
+
+    def tile(self, widget_metadata: WidgetMetadata) -> Tile | None:
+        width, height = widget_metadata.size
+        position = Position(0, 0, width, height)
+
+        content = widget_metadata.path.read_text()
+        if widget_metadata.is_markdown():
+            return MarkdownTile(widget_metadata.id, content, position=position)
+
+        spec_type = self._infer_spec_type(content)
+        if spec_type is None:
+            return None
+        if spec_type == CounterSpec:
+            return CounterTile(widget_metadata.id, content, position=position)
+        return TableTile(widget_metadata.id, content, position=position)
 
 
 class Dashboards:
@@ -339,7 +385,12 @@ class Dashboards:
 
     @staticmethod
     def _get_tiles(widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
-        return [Tile(widgets_metadata) for widgets_metadata in widgets_metadata]
+        tiler, tiles = Tiler(), []
+        for widget_metadata in widgets_metadata:
+            tile = tiler.tile(widget_metadata)
+            if tile is not None:
+                tiles.append(tile)
+        return tiles
 
     @staticmethod
     def _get_layouts(tiles: list[Tile]) -> list[Layout]:
