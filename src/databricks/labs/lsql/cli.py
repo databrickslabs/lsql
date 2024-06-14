@@ -6,7 +6,6 @@ from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import Dashboards
 
-
 logger = get_logger(__name__)
 lsql = App(__file__)
 
