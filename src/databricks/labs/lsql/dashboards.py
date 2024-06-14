@@ -105,6 +105,9 @@ class WidgetMetadata:
     def is_markdown(self) -> bool:
         return self.path.suffix == ".md"
 
+    def is_query(self) -> bool:
+        return self.path.suffix == ".sql"
+
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
         parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
