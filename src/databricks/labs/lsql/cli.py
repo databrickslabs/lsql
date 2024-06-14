@@ -1,13 +1,13 @@
-import logging
 from pathlib import Path
 
 from databricks.labs.blueprint.cli import App
+from databricks.labs.blueprint.entrypoint import get_logger
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import Dashboards
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 lsql = App(__file__)
 
 
