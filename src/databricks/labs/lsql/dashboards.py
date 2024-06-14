@@ -191,20 +191,15 @@ class Tile:
         self.position = dataclasses.replace(self.position, x=x, y=y)
 
     @property
-    @abc.abstractmethod
     def widget(self) -> Widget:
-        pass
+        widget = Widget(name=self._name, textbox_spec=self._content)
+        return widget
 
 
 class MarkdownTile(Tile):
     @property
     def default_size(self) -> tuple[int, int]:
         return _MAXIMUM_DASHBOARD_WIDTH, 2
-
-    @property
-    def widget(self) -> Widget:
-        widget = Widget(name=self._name, textbox_spec=self._content)
-        return widget
 
 
 class QueryTile(Tile):
