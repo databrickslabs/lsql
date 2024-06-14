@@ -174,8 +174,8 @@ class Tile:
         """Place the tile after another tile:
 
         The tiling logic works if:
-        - width < _MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
-        - width == _MAXIMUM_DASHBOARD_WIDTH : any height
+        - `position.width < _MAXIMUM_DASHBOARD_WIDTH` : tiles in a single row should have the same size
+        - `position.width == _MAXIMUM_DASHBOARD_WIDTH` : any height
         """
         x = position.x + position.width
         if x + self.position.width > _MAXIMUM_DASHBOARD_WIDTH:
@@ -183,7 +183,7 @@ class Tile:
             y = position.y + position.height
         else:
             y = position.y
-        self.position = Position(x=x, y=y, width=self.position.width, height=self.position.height)
+        self.position = dataclasses.replace(self.position, x=x, y=y)
 
     @abc.abstractmethod
     def get_widget(self) -> Widget:
