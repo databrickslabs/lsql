@@ -49,6 +49,30 @@ def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
     assert dashboard_metadata.as_dict() == raw
 
 
+def test_dashboard_metadata_from_raw(tmp_path):
+    raw = {"display_name": "test"}
+
+    path = (tmp_path / "dashboard.yml")
+    with path.open("w") as f:
+        yaml.safe_dump(raw, f)
+
+    from_dict = DashboardMetadata.from_dict(raw)
+    from_path = DashboardMetadata.from_path(path)
+
+    for dashboard_metadata in from_dict, from_path:
+        assert dashboard_metadata.display_name == "test"
+
+
+@pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml", ""])
+def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
+    path = (tmp_path / "dashboard.yml")
+    if len(dashboard_content) > 0:
+        path.write_text(dashboard_content)
+
+    dashboard_metadata = DashboardMetadata.from_path(path)
+    assert dashboard_metadata.display_name == tmp_path.name
+
+
 def test_widget_metadata_replaces_width_and_height():
     widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
