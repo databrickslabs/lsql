@@ -78,6 +78,18 @@ def test_widget_metadata_sets_size():
     assert widget_metadata.size == (10, 10)
 
 
+def test_widget_metadata_is_markdown():
+    widget_metadata = WidgetMetadata(Path("test.md"))
+    assert widget_metadata.is_markdown()
+    assert not widget_metadata.is_query()
+
+
+def test_widget_metadata_is_query():
+    widget_metadata = WidgetMetadata(Path("test.sql"))
+    assert not widget_metadata.is_markdown()
+    assert widget_metadata.is_query()
+
+
 def test_widget_metadata_replaces_width_and_height():
     widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
