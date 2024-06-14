@@ -279,7 +279,7 @@ class Dashboards:
     def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
-        widgets_metadata = self._get_widgets_metadata(dashboard_folder)
+        widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
         datasets = self._get_datasets(dashboard_folder)
         tiles = self._get_tiles(widgets_metadata)
         layouts = self._get_layouts(tiles)
@@ -300,7 +300,7 @@ class Dashboards:
         return datasets
 
     @staticmethod
-    def _get_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
+    def _parse_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
         """Read and parse the widget metadata from each (optional) header.
 
         The order is by default the alphanumerically sorted files, however, the order may be overwritten in the file
