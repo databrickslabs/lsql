@@ -169,11 +169,11 @@ class Tile:
         self._content = content
         self.position = position
 
-        width, height = self.default_size
+        width, height = self._default_size
         self.position = dataclasses.replace(position, width=position.width or width, height=position.height or height)
 
     @property
-    def default_size(self) -> tuple[int, int]:
+    def _default_size(self) -> tuple[int, int]:
         return 0, 0
 
     def place_after(self, position: Position) -> None:
@@ -199,7 +199,7 @@ class Tile:
 
 class MarkdownTile(Tile):
     @property
-    def default_size(self) -> tuple[int, int]:
+    def _default_size(self) -> tuple[int, int]:
         return _MAXIMUM_DASHBOARD_WIDTH, 2
 
 
@@ -242,7 +242,7 @@ class QueryTile(Tile):
 
 class CounterTile(QueryTile):
     @property
-    def default_size(self) -> tuple[int, int]:
+    def _default_size(self) -> tuple[int, int]:
         return 1, 3
 
     @staticmethod
@@ -254,7 +254,7 @@ class CounterTile(QueryTile):
 
 class TableTile(QueryTile):
     @property
-    def default_size(self) -> tuple[int, int]:
+    def _default_size(self) -> tuple[int, int]:
         return 6, 6
 
     @staticmethod
