@@ -10,6 +10,7 @@ from databricks.labs.lsql.dashboards import (
     DashboardMetadata,
     Dashboards,
     WidgetMetadata,
+    Tile,
 )
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
@@ -101,6 +102,26 @@ def test_widget_metadata_as_dict():
     raw = {"path": "test.sql", "id": "test", "order": "10", "width": "10", "height": "10"}
     widget_metadata = WidgetMetadata(Path("test.sql"), 10, 10, 10)
     assert widget_metadata.as_dict() == raw
+
+
+def test_tile_places_tile_to_the_right():
+    tile = Tile("test", "test")
+
+    position = Position(0, 4, 3, 4)
+    placed_tile = tile.place_after(position)
+
+    assert placed_tile.position.x == position.x + position.width
+    assert placed_tile.position.y == 4
+
+
+def test_tile_places_tile_below():
+    tile = Tile("test", "test")
+
+    position = Position(5, 4, 3, 4)
+    placed_tile = tile.place_after(position)
+
+    assert placed_tile.position.x == 0
+    assert placed_tile.position.y == 8
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
