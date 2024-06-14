@@ -11,13 +11,9 @@ from databricks.labs.lsql.dashboards import (
     BaseHandler,
     DashboardMetadata,
     Dashboards,
-    MarkdownHandler,
-    QueryHandler,
     QueryTile,
     Tile,
     WidgetMetadata,
-    QueryTile,
-    Tile,
 )
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
