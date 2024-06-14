@@ -9,9 +9,9 @@ from databricks.sdk import WorkspaceClient
 from databricks.labs.lsql.dashboards import (
     DashboardMetadata,
     Dashboards,
-    WidgetMetadata,
     QueryTile,
     Tile,
+    WidgetMetadata,
 )
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
