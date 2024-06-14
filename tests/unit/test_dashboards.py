@@ -10,6 +10,7 @@ from databricks.labs.lsql.dashboards import (
     DashboardMetadata,
     Dashboards,
     WidgetMetadata,
+    QueryTile,
     Tile,
 )
 from databricks.labs.lsql.lakeview import (
@@ -298,16 +299,10 @@ ORDER BY count DESC, finding DESC
         ("SELECT from_unixtime(timestamp) AS timestamp FROM table", ["timestamp"]),
     ],
 )
-def test_dashboards_gets_fields_with_expected_names(tmp_path, query, names):
-    with (tmp_path / "query.sql").open("w") as f:
-        f.write(query)
-
-    ws = create_autospec(WorkspaceClient)
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-
-    fields = lakeview_dashboard.pages[0].layout[0].widget.queries[0].query.fields
+def test_query_tile_finds_fields(query, names):
+    tile = QueryTile("test", "test")
+    fields = tile.find_fields(query)
     assert [field.name for field in fields] == names
-    ws.assert_not_called()
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
