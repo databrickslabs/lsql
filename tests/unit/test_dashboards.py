@@ -1,4 +1,3 @@
-import dataclasses
 import logging
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -41,26 +40,23 @@ def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
     assert dashboard_metadata.as_dict() == raw
 
 
-def test_widget_metadata_replaces_arguments():
-    widget_metadata = WidgetMetadata(1, 1, 1)
+def test_widget_metadata_replaces_width_and_height():
+    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["order", "width", "height"])
-def test_widget_metadata_replaces_one_attribute(attribute: str):
-    widget_metadata = WidgetMetadata(1, 1, 1)
+@pytest.mark.parametrize("attribute", ["id", "order", "width", "height"])
+def test_widget_metadata_replaces_attribute(attribute: str):
+    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments([f"--{attribute}", "10"])
-
-    other_fields = [field for field in dataclasses.fields(updated_metadata) if field.name != attribute]
-    assert getattr(updated_metadata, attribute) == 10
-    assert all(getattr(updated_metadata, field.name) == 1 for field in other_fields)
+    assert str(getattr(updated_metadata, attribute)) == "10"
 
 
 def test_widget_metadata_as_dict():
-    raw = {"order": 10, "width": 10, "height": 10}
-    widget_metadata = WidgetMetadata(10, 10, 10)
+    raw = {"path": "test.sql", "id": "test", "order": "10", "width": "10", "height": "10"}
+    widget_metadata = WidgetMetadata(Path("test.sql"), 10, 10, 10)
     assert widget_metadata.as_dict() == raw
 
 
@@ -340,6 +336,23 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
 
     assert "".join(widget_names) == "abecdf"
+    ws.assert_not_called()
+
+
+def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    for query_name in "bcdef":
+        with (tmp_path / f"{query_name}.sql").open("w") as f:
+            f.write("SELECT 1 AS count")
+
+    with (tmp_path / "z.sql").open("w") as f:
+        f.write("-- --id a\nSELECT 1 AS count")  # Should be first because id is 'a'
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
+
+    assert "".join(widget_names) == "abcdef"
     ws.assert_not_called()
 
 
