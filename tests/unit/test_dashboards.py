@@ -176,7 +176,7 @@ def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     [
         "SELECT 1",
         "-- --order 10\nSELECT COUNT(* AS invalid_column",
-    ]
+    ],
 )
 def test_query_handler_splits_no_header(tmp_path, query):
     path = tmp_path / "query.sql"
