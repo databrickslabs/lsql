@@ -73,6 +73,22 @@ class DashboardMetadata:
             return fallback_metadata
 
 
+class BaseHandler:
+    """Base file handler."""
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+
+    def split(self) -> tuple[str, str]:
+        """Split the file header from the content.
+
+        Returns
+            str : The file header possibly containing arguments.
+            str : The file contents.
+        """
+        return "", self._path.read_text()
+
+
 class WidgetMetadata:
     def __init__(
         self,
