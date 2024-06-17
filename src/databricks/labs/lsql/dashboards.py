@@ -135,7 +135,10 @@ class MarkdownHandler(BaseHandler):
         return yaml.safe_load(header) or {}
 
     def split(self) -> tuple[str, str]:
-        """Split the markdown file header from the contents."""
+        """Split the markdown file header from the contents.
+
+        The header is enclosed by the boundaries (line with '---').
+        """
         raw = self._path.read_text()
         splits = self._FRONT_MATTER_BOUNDARY.split(raw, 2)
         if len(splits) == 3:
