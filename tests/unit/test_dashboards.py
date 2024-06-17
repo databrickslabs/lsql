@@ -40,23 +40,29 @@ def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
     assert dashboard_metadata.as_dict() == raw
 
 
-def test_widget_metadata_replaces_width_and_height():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
+def test_widget_metadata_replaces_width_and_height(tmp_path):
+    path = tmp_path / "test.sql"
+    path.write_text("SELECT 1")
+    widget_metadata = WidgetMetadata(path, 1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
 
 @pytest.mark.parametrize("attribute", ["id", "order", "width", "height"])
-def test_widget_metadata_replaces_attribute(attribute: str):
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
+def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
+    path = tmp_path / "test.sql"
+    path.write_text("SELECT 1")
+    widget_metadata = WidgetMetadata(path, 1, 1, 1)
     updated_metadata = widget_metadata.replace_from_arguments([f"--{attribute}", "10"])
     assert str(getattr(updated_metadata, attribute)) == "10"
 
 
-def test_widget_metadata_as_dict():
-    raw = {"path": "test.sql", "id": "test", "order": "10", "width": "10", "height": "10"}
-    widget_metadata = WidgetMetadata(Path("test.sql"), 10, 10, 10)
+def test_widget_metadata_as_dict(tmp_path):
+    path = tmp_path / "test.sql"
+    path.write_text("SELECT 1")
+    raw = {"path": path.as_posix(), "id": "test", "order": "10", "width": "10", "height": "10"}
+    widget_metadata = WidgetMetadata(path, 10, 10, 10)
     assert widget_metadata.as_dict() == raw
 
 

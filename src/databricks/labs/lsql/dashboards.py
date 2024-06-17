@@ -95,11 +95,17 @@ class WidgetMetadata:
         height: int = 0,
         _id: str = "",
     ):
-        self.path = path
+        self._path = path
         self.order = order
         self.width = width
         self.height = height
         self.id = _id
+
+        if self.is_markdown():
+            content = self._path.read_text()
+        else:
+            _, content = QueryHandler(self._path).split()
+        self.content = content
 
         size = self._size
         self.width = self.width or size[0]
@@ -107,7 +113,7 @@ class WidgetMetadata:
         self.id = self.id or path.stem
 
     def is_markdown(self) -> bool:
-        return self.path.suffix == ".md"
+        return self._path.suffix == ".md"
 
     @property
     def spec_type(self) -> type[WidgetSpec]:
@@ -129,7 +135,7 @@ class WidgetMetadata:
         return 0, 0
 
     def as_dict(self) -> dict[str, str]:
-        body = {"path": self.path.as_posix()}
+        body = {"path": self._path.as_posix()}
         for attribute in "order", "width", "height", "id":
             if attribute in body:
                 continue
@@ -279,7 +285,7 @@ class Dashboards:
             try:
                 widget = self._get_widget(widget_metadata)
             except sqlglot.ParseError as e:
-                logger.warning(f"Parsing {widget_metadata.path}: {e}")
+                logger.warning(f"Parsing {widget_metadata}: {e}")
                 continue
             widgets.append(widget)
         return widgets
@@ -318,11 +324,11 @@ class Dashboards:
 
     @staticmethod
     def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
-        widget = Widget(name=widget_metadata.id, textbox_spec=widget_metadata.path.read_text())
+        widget = Widget(name=widget_metadata.id, textbox_spec=widget_metadata.content)
         return widget
 
     def _get_counter_widget(self, widget_metadata: WidgetMetadata) -> Widget:
-        fields = self._get_fields(widget_metadata.path.read_text())
+        fields = self._get_fields(widget_metadata.content)
         query = Query(dataset_name=widget_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
