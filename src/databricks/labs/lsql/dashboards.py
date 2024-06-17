@@ -157,15 +157,8 @@ class WidgetMetadata:
 class Tile:
     """A dashboard tile."""
 
-    def __init__(
-        self,
-        name: str,
-        content: str,
-        *,
-        position: Position = Position(0, 0, 0, 0),
-    ) -> None:
-        self._name = name
-        self._content = content
+    def __init__(self, widget_metadata: WidgetMetadata, *, position: Position = Position(0, 0, 0, 0)) -> None:
+        self._widget_metadata = widget_metadata
         self.position = position
 
         width, height = self._default_size
@@ -196,7 +189,7 @@ class Tile:
 
     @property
     def widget(self) -> Widget:
-        widget = Widget(name=self._name, textbox_spec=self._content)
+        widget = Widget(name=self._widget_metadata.id, textbox_spec=self._widget_metadata.path.read_text())
         return widget
 
 
@@ -229,14 +222,14 @@ class QueryTile(Tile):
 
     @property
     def widget(self) -> Widget:
-        fields = self.find_fields(self._content)
+        fields = self.find_fields(self._widget_metadata.path.read_text())
         named_query = self._get_named_query(fields)
         spec = self._get_spec(fields)
-        widget = Widget(name=self._name, queries=[named_query], spec=spec)
+        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
         return widget
 
     def _get_named_query(self, fields: list[Field]) -> NamedQuery:
-        query = Query(dataset_name=self._name, fields=fields, disaggregated=True)
+        query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
         return named_query
@@ -286,14 +279,14 @@ class Tiler:
 
         content = widget_metadata.path.read_text()
         if widget_metadata.is_markdown():
-            return MarkdownTile(widget_metadata.id, content, position=position)
+            return MarkdownTile(widget_metadata, position=position)
 
         spec_type = self._infer_spec_type(content)
         if spec_type is None:
             return None
         if spec_type == CounterSpec:
-            return CounterTile(widget_metadata.id, content, position=position)
-        return TableTile(widget_metadata.id, content, position=position)
+            return CounterTile(widget_metadata, position=position)
+        return TableTile(widget_metadata, position=position)
 
     def tile(self, widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
         """Tile the widgets given their metadata.

@@ -108,7 +108,8 @@ def test_widget_metadata_as_dict():
 
 
 def test_tile_places_tile_to_the_right():
-    tile = Tile("test", "test")
+    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
+    tile = Tile(widget_metadata)
 
     position = Position(0, 4, 3, 4)
     placed_tile = tile.place_after(position)
@@ -118,7 +119,8 @@ def test_tile_places_tile_to_the_right():
 
 
 def test_tile_places_tile_below():
-    tile = Tile("test", "test")
+    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
+    tile = Tile(widget_metadata)
 
     position = Position(5, 4, 3, 4)
     placed_tile = tile.place_after(position)
@@ -339,9 +341,15 @@ ORDER BY count DESC, finding DESC
         ("SELECT from_unixtime(timestamp) AS timestamp FROM table", ["timestamp"]),
     ],
 )
-def test_query_tile_finds_fields(query, names):
-    tile = QueryTile("test", "test")
+def test_query_tile_finds_fields(tmp_path, query, names):
+    query_file = tmp_path / "query.sql"
+    query_file.write_text(query)
+
+    widget_metadata = WidgetMetadata(query_file, 1, 1, 1)
+    tile = QueryTile(widget_metadata)
+
     fields = tile.find_fields(query)
+
     assert [field.name for field in fields] == names
 
 
