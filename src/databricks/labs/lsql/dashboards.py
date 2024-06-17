@@ -133,10 +133,17 @@ class WidgetMetadata:
 
     @classmethod
     def from_path(cls, path: Path) -> "WidgetMetadata":
+        if cls(path=path).is_markdown():
+            return cls.from_markdown_path(path=path)
+        return cls.from_query_path(path=path)
+
+    @classmethod
+    def from_query_path(cls, path: Path) -> "WidgetMetadata":
         fallback_metadata = cls(path=path)
 
+        query = path.read_text()
         try:
-            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
+            parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {path}: {e}")
             return fallback_metadata
@@ -146,6 +153,10 @@ class WidgetMetadata:
 
         first_comment = parsed_query.comments[0]
         return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
+
+    @classmethod
+    def from_markdown_path(cls, path: Path) -> "WidgetMetadata":
+        pass
 
 
 class Tile:
