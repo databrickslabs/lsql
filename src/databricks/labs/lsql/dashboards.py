@@ -156,17 +156,13 @@ class WidgetMetadata:
 class Tile:
     """A dashboard tile."""
 
-    def __init__(
-        self,
-        widget_metadata: WidgetMetadata,
-        *,
-        position: Position = Position(0, 0, 0, 0),
-    ) -> None:
+    def __init__(self, widget_metadata: WidgetMetadata) -> None:
         self._widget_metadata = widget_metadata
-        self.position = position
 
-        width, height = self._default_size()
-        self.position = dataclasses.replace(position, width=position.width or width, height=position.height or height)
+        default_width, default_height = self._default_size()
+        width = self._widget_metadata.width or default_width
+        height = self._widget_metadata.height or default_height
+        self.position = Position(0, 0, width, height)
 
     def _default_size(self) -> tuple[int, int]:
         return 0, 0
@@ -198,20 +194,15 @@ class Tile:
     @classmethod
     def from_widget_metadata(cls, widget_metadata: WidgetMetadata) -> "Tile":
         """Create a tile given the widget metadata."""
-        width, height = widget_metadata.size()
-        position = Position(0, 0, width, height)
-        markdown_tile = MarkdownTile(widget_metadata, position=position)
-
         if widget_metadata.is_markdown():
-            return markdown_tile
-
-        query_tile = QueryTile(widget_metadata, position=position)
+            return MarkdownTile(widget_metadata)
+        query_tile = QueryTile(widget_metadata)
         spec_type = query_tile.infer_spec_type()
         if spec_type is None:
-            return markdown_tile
+            return MarkdownTile(widget_metadata)
         if spec_type == CounterSpec:
-            return CounterTile(widget_metadata, position=position)
-        return TableTile(widget_metadata, position=position)
+            return CounterTile(widget_metadata)
+        return TableTile(widget_metadata)
 
 
 class MarkdownTile(Tile):
