@@ -79,7 +79,14 @@ class BaseHandler:
 
 
 class QueryHandler(BaseHandler):
-    """Handle query files."""
+    """Handle query files.
+
+    Handlers are based on a Python implementation for FrontMatter.
+
+    Sources:
+        https://frontmatter.codes/docs/markdown
+        https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
+    """
 
     def split(self) -> tuple[str, str]:
         """Split the query file header from the contents."""
@@ -104,6 +111,7 @@ class MarkdownHandler(BaseHandler):
 
     @staticmethod
     def _parse_header(header: str) -> dict[str, str]:
+        """Markdown frontmatter header is a YAML."""
         return yaml.safe_load(header) or {}
 
     def split(self) -> tuple[str, str]:
