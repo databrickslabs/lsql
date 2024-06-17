@@ -224,15 +224,31 @@ def test_markdown_handler_parses_attribute_from_header(tmp_path, attribute):
 
 
 @pytest.mark.parametrize("horizontal_rule", ["---", "--------"])
-def test_markdown_handler_splits_header(tmp_path, horizontal_rule):
+def test_markdown_handler_splits_header(tmp_path, caplog, horizontal_rule):
     path = tmp_path / "widget.md"
     path.write_text(f"{horizontal_rule}\norder: 10\n{horizontal_rule}\n# Description")
     handler = MarkdownHandler(path)
 
-    header, content = handler.split()
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        header, content = handler.split()
 
+    assert "Missing closing header boundary" not in caplog.text
     assert header == "order: 10"
     assert content == "# Description"
+
+
+def test_markdown_handler_warns_about_open_ended_header(tmp_path, caplog):
+    path = tmp_path / "widget.md"
+    body = "---\norder: 1\n# Description"
+    path.write_text(body)
+    handler = MarkdownHandler(path)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        header, content = handler.split()
+
+    assert "Missing closing header boundary." in caplog.text
+    assert len(header) == 0
+    assert content == body
 
 
 def test_widget_metadata_replaces_width_and_height(tmp_path):
