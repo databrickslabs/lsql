@@ -164,12 +164,7 @@ class WidgetMetadata:
         self.height = height
         self.id = _id
 
-        handler = BaseHandler
-        if self.is_markdown():
-            handler = MarkdownHandler
-        elif self.is_query():
-            handler = QueryHandler
-        _, self.content = handler(self._path).split()
+        _, self.content = self.handler.split()
 
         size = self._size
         self.width = self.width or size[0]
@@ -181,6 +176,15 @@ class WidgetMetadata:
 
     def is_query(self) -> bool:
         return self._path.suffix == ".sql"
+
+    @property
+    def handler(self) -> BaseHandler:
+        handler = BaseHandler
+        if self.is_markdown():
+            handler = MarkdownHandler
+        elif self.is_query():
+            handler = QueryHandler
+        return handler(self._path)
 
     @property
     def spec_type(self) -> type[WidgetSpec]:
@@ -221,24 +225,12 @@ class WidgetMetadata:
 
     @classmethod
     def from_path(cls, path: Path) -> "WidgetMetadata":
-        if cls(path=path).is_markdown():
-            return cls.from_markdown_path(path=path)
-        return cls.from_query_path(path=path)
-
-    @classmethod
-    def from_query_path(cls, path: Path) -> "WidgetMetadata":
-        query_handler = QueryHandler(path)
-        header = query_handler.parse_header()
-        return cls.from_dict(path, **header)
-
-    @classmethod
-    def from_markdown_path(cls, path: Path) -> "WidgetMetadata":
-        markdown_handler = MarkdownHandler(path)
-        header = markdown_handler.parse_header()
+        widget_metadata = cls(path=path)
+        header = widget_metadata.handler.parse_header()
         return cls.from_dict(path, **header)
 
     def __repr__(self):
-        return f"WidgetMetdata<{self._path.as_posix()}>"
+        return f"WidgetMetdata<{self._path}>"
 
 
 class Dashboards:
