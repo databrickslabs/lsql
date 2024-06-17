@@ -9,6 +9,7 @@ from databricks.labs.lsql.dashboards import (
     BaseHandler,
     DashboardMetadata,
     Dashboards,
+    MarkdownHandler,
     QueryHandler,
     WidgetMetadata,
 )
@@ -153,6 +154,38 @@ def test_query_handler_splits_header(tmp_path):
 
     assert header == "--order 10"
     assert content == query
+
+
+def test_markdown_handler_parses_empty_header(tmp_path):
+    path = tmp_path / "widget.md"
+    path.write_text("# Description")
+    handler = MarkdownHandler(path)
+
+    header = handler.parse_header()
+
+    assert header == {}
+
+
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width"])
+def test_markdown_handler_parses_attribute_from_header(tmp_path, attribute):
+    path = tmp_path / "widget.md"
+    path.write_text(f"---\n{attribute}: 10\n---\n# Description")
+    handler = MarkdownHandler(path)
+
+    header = handler.parse_header()
+
+    assert str(header[attribute]) == "10"
+
+
+def test_markdown_handler_splits_header(tmp_path):
+    path = tmp_path / "widget.md"
+    path.write_text("---\norder: 10\n---\n# Description")
+    handler = MarkdownHandler(path)
+
+    header, content = handler.split()
+
+    assert header == "order: 10"
+    assert content == "# Description"
 
 
 def test_widget_metadata_replaces_width_and_height(tmp_path):

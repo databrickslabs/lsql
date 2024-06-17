@@ -145,7 +145,7 @@ class MarkdownHandler(BaseHandler):
         splits = self._FRONT_MATTER_BOUNDARY.split(self._content, 2)
         if len(splits) == 3:
             _, header, content = splits
-            return header, content
+            return header.strip(), content.lstrip()
         if len(splits) == 1:
             logger.warning(f"Parsing {self._path}: Missing closing header boundary.")
         return "", self._content
