@@ -117,14 +117,47 @@ class WidgetMetadata:
         height: int = 0,
         _id: str = "",
     ):
-        self.path = path
+        self._path = path
         self.order = order
         self.width = width
         self.height = height
         self.id = _id or path.stem
 
+        if self.is_markdown():
+            content = self._path.read_text()
+        else:
+            _, content = QueryHandler(self._path).split()
+        self.content = content
+
+        size = self._size
+        self.width = self.width or size[0]
+        self.height = self.height or size[1]
+        self.id = self.id or path.stem
+
+    def is_markdown(self) -> bool:
+        return self._path.suffix == ".md"
+
+    @property
+    def spec_type(self) -> type[WidgetSpec]:
+        # TODO: When supporting more specs, infer spec from query
+        return CounterSpec
+
+    @property
+    def _size(self) -> tuple[int, int]:
+        """Get the width and height for a widget.
+
+        The tiling logic works if:
+        - width < _MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
+        - width == _MAXIMUM_DASHBOARD_WIDTH : any height
+        """
+        if self.is_markdown():
+            return _MAXIMUM_DASHBOARD_WIDTH, 2
+        if self.spec_type == CounterSpec:
+            return 1, 3
+        return 0, 0
+
     def as_dict(self) -> dict[str, str]:
-        body = {"path": self.path.as_posix()}
+        body = {"path": self._path.as_posix()}
         for attribute in "order", "width", "height", "id":
             if attribute in body:
                 continue
