@@ -188,8 +188,6 @@ class WidgetMetadata:
         self.height = height
         self.id = _id or path.stem
 
-        _, self.content = self.handler.split()
-
         size = self._size
         self.width = self.width or size[0]
         self.height = self.height or size[1]
