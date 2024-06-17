@@ -163,12 +163,7 @@ def test_dashboards_deploys_dashboard_with_markdown_header(ws, make_dashboard, t
     for count, query_name in enumerate("abcdef"):
         (tmp_path / f"{query_name}.sql").write_text(f"SELECT {count} AS count")
 
-    description = """
-    ---
-    order: 1
-    ---
-    Below you see counters.
-    """
+    description = "---\norder: 1\n---\nBelow you see counters."
     (tmp_path / "z_description.md").write_text(description)
 
     dashboards = Dashboards(ws)
