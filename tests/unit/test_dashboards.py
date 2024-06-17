@@ -6,6 +6,7 @@ import pytest
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import (
+    BaseHandler,
     DashboardMetadata,
     Dashboards,
     WidgetMetadata,
@@ -38,6 +39,36 @@ def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
     raw = {"display_name": "test"}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
     assert dashboard_metadata.as_dict() == raw
+
+
+def test_base_handler_parses_empty_header(tmp_path):
+    path = tmp_path / "file.txt"
+    path.write_text("Hello")
+    handler = BaseHandler(path)
+
+    header = handler.parse_header()
+
+    assert header == {}
+
+
+def test_base_handler_splits_empty_header(tmp_path):
+    path = tmp_path / "file.txt"
+    path.write_text("Hello")
+    handler = BaseHandler(path)
+
+    header, _ = handler.split()
+
+    assert header == ""
+
+
+def test_base_handler_splits_body(tmp_path):
+    path = tmp_path / "file.txt"
+    path.write_text("Hello")
+    handler = BaseHandler(path)
+
+    _, body = handler.split()
+
+    assert body == "Hello"
 
 
 def test_widget_metadata_replaces_width_and_height(tmp_path):
