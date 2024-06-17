@@ -149,7 +149,7 @@ class QueryHandler(BaseHandler):
 class MarkdownHandler(BaseHandler):
     """Handle Markdown files."""
 
-    _FM_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
+    _FRONT_MATTER_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
 
     def _parse_header(self, header: str) -> dict[str, str]:
         """Markdown frontmatter header is a YAML."""
@@ -159,7 +159,7 @@ class MarkdownHandler(BaseHandler):
     def split(self) -> tuple[str, str]:
         """Split the markdown file header from the contents."""
         raw = self._path.read_text()
-        splits = self._FM_BOUNDARY.split(raw, 2)
+        splits = self._FRONT_MATTER_BOUNDARY.split(raw, 2)
         if len(splits) == 3:
             _, header, content = splits
             return header, content
