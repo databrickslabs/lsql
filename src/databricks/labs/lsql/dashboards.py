@@ -53,7 +53,14 @@ class DashboardMetadata:
 
 
 class BaseHandler:
-    """Base file handler."""
+    """Base file handler.
+
+    Handlers are based on a Python implementation for FrontMatter.
+
+    Sources:
+        https://frontmatter.codes/docs/markdown
+        https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
+    """
 
     def __init__(self, path: Path) -> None:
         self._path = path
@@ -79,7 +86,7 @@ class BaseHandler:
 
 
 class QueryHandler(BaseHandler):
-    """Handle query files.
+    """Handle query files."""
 
     Handlers are based on a Python implementation for FrontMatter.
 
