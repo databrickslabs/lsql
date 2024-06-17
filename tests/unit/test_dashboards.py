@@ -591,6 +591,22 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws.assert_not_called()
 
 
+def test_dashboard_creates_dashboard_based_on_markdown_header(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    for query_name in "abcdef":
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
+    content = "---\norder: -1\nwidth: 6\nheight: 3\n---\n# Description"
+    (tmp_path / "widget.md").write_text(content)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    position = lakeview_dashboard.pages[0].layout[0].position
+    assert position.width == 6
+    assert position.height == 3
+    ws.assert_not_called()
+
+
 def test_dashboards_deploy_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
