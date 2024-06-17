@@ -166,8 +166,6 @@ class WidgetMetadata:
         self.height = height
         self.id = _id
 
-        _, self.content = self.handler.split()
-
         size = self._size
         self.width = self.width or size[0]
         self.height = self.height or size[1]
@@ -374,11 +372,13 @@ class Dashboards:
 
     @staticmethod
     def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
-        widget = Widget(name=widget_metadata.id, textbox_spec=widget_metadata.content)
+        _, body = widget_metadata.handler.split()
+        widget = Widget(name=widget_metadata.id, textbox_spec=body)
         return widget
 
     def _get_counter_widget(self, widget_metadata: WidgetMetadata) -> Widget:
-        fields = self._get_fields(widget_metadata.content)
+        _, body = widget_metadata.handler.split()
+        fields = self._get_fields(body)
         query = Query(dataset_name=widget_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
