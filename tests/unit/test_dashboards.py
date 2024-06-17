@@ -72,7 +72,7 @@ def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
 
 def test_widget_metadata_sets_size():
     widget_metadata = WidgetMetadata(Path("test.sql"), 1, 10, 10)
-    assert widget_metadata.size == (10, 10)
+    assert widget_metadata.size() == (10, 10)
 
 
 def test_widget_metadata_is_markdown():

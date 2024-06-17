@@ -101,7 +101,6 @@ class WidgetMetadata:
                 body[attribute] = str(value)
         return body
 
-    @property
     def size(self) -> tuple[int, int]:
         return self.width, self.height
 
@@ -161,10 +160,9 @@ class Tile:
         self._widget_metadata = widget_metadata
         self.position = position
 
-        width, height = self._default_size
+        width, height = self._default_size()
         self.position = dataclasses.replace(position, width=position.width or width, height=position.height or height)
 
-    @property
     def _default_size(self) -> tuple[int, int]:
         return 0, 0
 
@@ -194,7 +192,6 @@ class Tile:
 
 
 class MarkdownTile(Tile):
-    @property
     def _default_size(self) -> tuple[int, int]:
         return _MAXIMUM_DASHBOARD_WIDTH, 2
 
@@ -243,13 +240,11 @@ class QueryTile(Tile):
 
 
 class TableTile(QueryTile):
-    @property
     def _default_size(self) -> tuple[int, int]:
         return 6, 6
 
 
 class CounterTile(QueryTile):
-    @property
     def _default_size(self) -> tuple[int, int]:
         return 1, 3
 
@@ -274,7 +269,7 @@ class Tiler:
 
     def _get_tile(self, widget_metadata: WidgetMetadata) -> Tile | None:
         """Create a tile given the widget metadata."""
-        width, height = widget_metadata.size
+        width, height = widget_metadata.size()
         position = Position(0, 0, width, height)
 
         content = widget_metadata.path.read_text()
