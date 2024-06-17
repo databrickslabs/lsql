@@ -348,7 +348,7 @@ def test_query_tile_finds_fields(tmp_path, query, names):
     widget_metadata = WidgetMetadata(query_file, 1, 1, 1)
     tile = QueryTile(widget_metadata)
 
-    fields = tile.find_fields(query)
+    fields = tile._find_fields()  # pylint: disable=protected-access
 
     assert [field.name for field in fields] == names
 
