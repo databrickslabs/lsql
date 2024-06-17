@@ -206,7 +206,7 @@ class WidgetMetadata:
         return 0, 0
 
     @classmethod
-    def from_dict(cls, path: str | Path, **optionals) -> "WidgetMetadata":
+    def from_dict(cls, *, path: str | Path, **optionals) -> "WidgetMetadata":
         path = Path(path)
         if "id" in optionals:
             optionals["_id"] = optionals["id"]
@@ -227,7 +227,8 @@ class WidgetMetadata:
     def from_path(cls, path: Path) -> "WidgetMetadata":
         widget_metadata = cls(path=path)
         header = widget_metadata.handler.parse_header()
-        return cls.from_dict(path, **header)
+        header.pop("path", None)
+        return cls.from_dict(path=path, **header)
 
     def __repr__(self):
         return f"WidgetMetdata<{self._path}>"
