@@ -82,6 +82,46 @@ def test_query_handler_parses_empty_header(tmp_path):
     assert all(value is None for value in header.values())
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "-- --height 5\nSELECT 1 AS count -- --width 6",
+        "-- --height 5\nSELECT 1 AS count\n-- --width 6",
+        "-- --height 5\nSELECT 1 AS count\n/* --width 6 */",
+        "-- --height 5\n-- --width 6\nSELECT 1 AS count",
+        "-- --height 5\n/* --width 6 */\nSELECT 1 AS count",
+        "/* --height 5*/\n/* --width 6 */\nSELECT 1 AS count",
+        "/* --height 5*/\n-- --width 6 */\nSELECT 1 AS count",
+    ],
+)
+def test_query_handler_ignores_comment_on_other_lines(tmp_path, query):
+    path = tmp_path / "query.sql"
+    path.write_text(query)
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert header["width"] is None
+    assert header["height"] == 5
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "SELECT 1\n-- --width 6 --height 6",
+        "SELECT 1\n/*\n--width 6\n--height 6*/",
+    ],
+)
+def test_query_handler_ignores_non_header_comment(tmp_path, query):
+    path = tmp_path / "query.sql"
+    path.write_text(query)
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert all(value is None for value in header.values())
+
+
 @pytest.mark.parametrize("attribute", ["id", "order", "height", "width"])
 def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     path = tmp_path / "query.sql"
@@ -510,53 +550,6 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     assert position.width == 1
     assert position.height == 3
     assert query_path.as_posix() in caplog.text
-    ws.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        "-- --height 5\nSELECT 1 AS count -- --width 6",
-        "-- --height 5\nSELECT 1 AS count\n-- --width 6",
-        "-- --height 5\nSELECT 1 AS count\n/* --width 6 */",
-        "-- --height 5\n-- --width 6\nSELECT 1 AS count",
-        "-- --height 5\n/* --width 6 */\nSELECT 1 AS count",
-        "/* --height 5*/\n/* --width 6 */\nSELECT 1 AS count",
-        "/* --height 5*/\n-- --width 6 */\nSELECT 1 AS count",
-    ],
-)
-def test_dashboard_ignores_comment_on_other_lines(tmp_path, query):
-    ws = create_autospec(WorkspaceClient)
-
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 1
-    assert position.height == 5
-    ws.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        "SELECT 1\n-- --width 6 --height 6",
-        "SELECT 1\n/*\n--width 6\n--height 6*/",
-    ],
-)
-def test_dashboard_ignores_non_header_comment(tmp_path, query):
-    ws = create_autospec(WorkspaceClient)
-
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 1
-    assert position.height == 3
     ws.assert_not_called()
 
 
