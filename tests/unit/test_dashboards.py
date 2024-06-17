@@ -238,7 +238,7 @@ def test_widget_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     widget_metadata = WidgetMetadata(path, 1, 1, 1)
-    updated_metadata = widget_metadata.from_dict(path, **{"width": 10, "height": 10})
+    updated_metadata = widget_metadata.from_dict(**{"path": path, "width": 10, "height": 10})
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
@@ -248,7 +248,7 @@ def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     widget_metadata = WidgetMetadata(path, 1, 1, 1)
-    updated_metadata = widget_metadata.from_dict(path, **{attribute: "10"})
+    updated_metadata = widget_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
 
