@@ -223,9 +223,10 @@ def test_markdown_handler_parses_attribute_from_header(tmp_path, attribute):
     assert str(header[attribute]) == "10"
 
 
-def test_markdown_handler_splits_header(tmp_path):
+@pytest.mark.parametrize("horizontal_rule", ["---", "--------"])
+def test_markdown_handler_splits_header(tmp_path, horizontal_rule):
     path = tmp_path / "widget.md"
-    path.write_text("---\norder: 10\n---\n# Description")
+    path.write_text(f"{horizontal_rule}\norder: 10\n{horizontal_rule}\n# Description")
     handler = MarkdownHandler(path)
 
     header, content = handler.split()
