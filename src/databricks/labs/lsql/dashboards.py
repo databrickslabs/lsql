@@ -170,20 +170,9 @@ class WidgetMetadata:
 
     @classmethod
     def from_query_path(cls, path: Path) -> "WidgetMetadata":
-        fallback_metadata = cls(path=path)
-
-        query = path.read_text()
-        try:
-            parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return fallback_metadata
-
-        first_comment = parsed_query.comments[0]
-        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
+        query_handler = QueryHandler(path)
+        header, _ = query_handler.split()
+        return cls(path=path).replace_from_arguments(shlex.split(header))
 
     @classmethod
     def from_markdown_path(cls, path: Path) -> "WidgetMetadata":
