@@ -169,7 +169,7 @@ def test_dashboards_deploys_dashboard_with_markdown_header(ws, make_dashboard, t
     ---
     Below you see counters.
     """
-    (tmp_path / f"z_description.md").write_text(description)
+    (tmp_path / "z_description.md").write_text(description)
 
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
