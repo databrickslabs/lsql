@@ -93,6 +93,23 @@ def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     assert str(header[attribute]) == "10"
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "SELECT 1",
+        "-- --order 10\nSELECT COUNT(* AS invalid_column",
+    ]
+)
+def test_query_handler_splits_no_header(tmp_path, query):
+    path = tmp_path / "query.sql"
+    path.write_text(query)
+    handler = QueryHandler(path)
+
+    header, _ = handler.split()
+
+    assert len(header) == 0
+
+
 def test_widget_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
