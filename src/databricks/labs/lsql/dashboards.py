@@ -3,6 +3,7 @@ import copy
 import dataclasses
 import json
 import logging
+import re
 import shlex
 from argparse import ArgumentParser
 from dataclasses import dataclass
@@ -108,6 +109,23 @@ class QueryHandler(BaseHandler):
         return first_comment, query
 
 
+class MarkdownHandler(BaseHandler):
+    """Handle Markdown files."""
+
+    _FM_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
+
+    def split(self) -> tuple[str, str]:
+        """Split the markdown file header from the contents."""
+        raw = self._path.read_text()
+        splits = self._FM_BOUNDARY.split(raw, 2)
+        if len(splits) == 3:
+            _, header, content = splits
+            return header, content
+        if len(splits) == 1:
+            logger.warning(f"Parsing {self._path}: Missing closing header boundary.")
+        return "", raw
+
+
 class WidgetMetadata:
     def __init__(
         self,
@@ -124,7 +142,7 @@ class WidgetMetadata:
         self.id = _id or path.stem
 
         if self.is_markdown():
-            content = self._path.read_text()
+            _, content = MarkdownHandler(self._path).split()
         else:
             _, content = QueryHandler(self._path).split()
         self.content = content
