@@ -12,6 +12,7 @@ from databricks.labs.lsql.dashboards import (
     Dashboards,
     QueryTile,
     Tile,
+    QueryHandler,
     WidgetMetadata,
 )
 from databricks.labs.lsql.lakeview import (
@@ -115,6 +116,16 @@ def test_base_handler_splits_body(tmp_path):
     _, body = handler.split()
 
     assert body == "Hello"
+
+
+def test_query_handler_parses_empty_header(tmp_path):
+    path = tmp_path / "query.sql"
+    path.write_text("SELECT 1")
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert all(value is None for value in header.values())
 
 
 def test_widget_metadata_replaces_width_and_height(tmp_path):
