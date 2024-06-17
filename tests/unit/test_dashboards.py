@@ -7,6 +7,7 @@ import yaml
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import (
+    BaseHandler,
     DashboardMetadata,
     Dashboards,
     QueryTile,
@@ -86,6 +87,37 @@ def test_widget_metadata_is_query():
 
 
 def test_widget_metadata_replaces_width_and_height():
+def test_base_handler_parses_empty_header(tmp_path):
+    path = tmp_path / "file.txt"
+    path.write_text("Hello")
+    handler = BaseHandler(path)
+
+    header = handler.parse_header()
+
+    assert header == {}
+
+
+def test_base_handler_splits_empty_header(tmp_path):
+    path = tmp_path / "file.txt"
+    path.write_text("Hello")
+    handler = BaseHandler(path)
+
+    header, _ = handler.split()
+
+    assert header == ""
+
+
+def test_base_handler_splits_body(tmp_path):
+    path = tmp_path / "file.txt"
+    path.write_text("Hello")
+    handler = BaseHandler(path)
+
+    _, body = handler.split()
+
+    assert body == "Hello"
+
+
+def test_widget_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     widget_metadata = WidgetMetadata(path, 1, 1, 1)
