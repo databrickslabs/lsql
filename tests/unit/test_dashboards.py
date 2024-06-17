@@ -128,6 +128,17 @@ def test_query_handler_parses_empty_header(tmp_path):
     assert all(value is None for value in header.values())
 
 
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width"])
+def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
+    path = tmp_path / "query.sql"
+    path.write_text(f"-- --{attribute} 10\nSELECT 1")
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert str(header[attribute]) == "10"
+
+
 def test_widget_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
