@@ -210,19 +210,25 @@ class MarkdownTile(Tile):
 
 
 class QueryTile(Tile):
+    def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
+        query = self._widget_metadata.path.read_text()
+        try:
+            return sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {query}: {e}")
+            return None
+
     def _find_fields(self) -> list[Field]:
         """Find the fields in a query.
 
         The fields are the projections in the query's top level SELECT.
         """
-        query = self._widget_metadata.path.read_text()
-        try:
-            parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {query}: {e}")
+        abstract_syntax_tree = self._get_abstract_syntax_tree()
+        if abstract_syntax_tree is None:
             return []
+
         fields = []
-        for projection in parsed_query.find_all(sqlglot.exp.Select):
+        for projection in abstract_syntax_tree.find_all(sqlglot.exp.Select):
             if projection.depth > 0:
                 continue
             for named_select in projection.named_selects:
