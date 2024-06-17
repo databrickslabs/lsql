@@ -119,11 +119,12 @@ class WidgetMetadata:
         self.height = height
         self.id = _id
 
+        handler = BaseHandler
         if self.is_markdown():
-            _, content = MarkdownHandler(self._path).split()
-        else:
-            _, content = QueryHandler(self._path).split()
-        self.content = content
+            handler = MarkdownHandler
+        elif self.is_query():
+            handler = QueryHandler
+        _, self.content = handler(self._path).split()
 
         size = self._size
         self.width = self.width or size[0]
