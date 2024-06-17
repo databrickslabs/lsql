@@ -67,6 +67,25 @@ class BaseHandler:
         return "", self._path.read_text()
 
 
+class QueryHandler(BaseHandler):
+    """Handle query files."""
+
+    def split(self) -> tuple[str, str]:
+        """Split the query file header from the contents."""
+        query = self._path.read_text()
+        try:
+            parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {self._path}: {e}")
+            return "", query
+
+        if parsed_query.comments is None or len(parsed_query.comments) == 0:
+            return "", query
+
+        first_comment = parsed_query.comments[0]
+        return first_comment, query
+
+
 class WidgetMetadata:
     def __init__(
         self,
