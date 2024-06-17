@@ -80,6 +80,16 @@ class BaseHandler:
     def __init__(self, path: Path) -> None:
         self._path = path
 
+    def parse_header(self) -> dict[str, str]:
+        """Parse the header of the file."""
+        header, _ = self.split()
+        return self._parse_header(header)
+
+    @staticmethod
+    def _parse_header(header: str) -> dict[str, str]:
+        _ = header
+        return {}
+
     def split(self) -> tuple[str, str]:
         """Split the file header from the content.
 
@@ -113,6 +123,10 @@ class MarkdownHandler(BaseHandler):
     """Handle Markdown files."""
 
     _FM_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
+
+    @staticmethod
+    def _parse_header(header: str) -> dict[str, str]:
+        return yaml.safe_load(header) or {}
 
     def split(self) -> tuple[str, str]:
         """Split the markdown file header from the contents."""
@@ -156,6 +170,9 @@ class WidgetMetadata:
     def is_markdown(self) -> bool:
         return self._path.suffix == ".md"
 
+    def is_query(self) -> bool:
+        return self._path.suffix == ".sql"
+
     @property
     def spec_type(self) -> type[WidgetSpec]:
         # TODO: When supporting more specs, infer spec from query
@@ -174,6 +191,14 @@ class WidgetMetadata:
         if self.spec_type == CounterSpec:
             return 1, 3
         return 0, 0
+
+    @classmethod
+    def from_dict(cls, path: str | Path, **optionals) -> "WidgetMetadata":
+        path = Path(path)
+        if "id" in optionals:
+            optionals["_id"] = optionals["id"]
+            del optionals["id"]
+        return cls(path, **optionals)
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self._path.as_posix()}
@@ -232,7 +257,9 @@ class WidgetMetadata:
 
     @classmethod
     def from_markdown_path(cls, path: Path) -> "WidgetMetadata":
-        return cls(path=path)
+        markdown_handler = MarkdownHandler(path)
+        header = markdown_handler.parse_header()
+        return cls.from_dict(path, **header)
 
     def __repr__(self):
         return f"WidgetMetdata<{self._path.as_posix()}>"
