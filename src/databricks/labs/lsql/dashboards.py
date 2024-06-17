@@ -191,7 +191,7 @@ class WidgetMetadata:
 
     @classmethod
     def from_markdown_path(cls, path: Path) -> "WidgetMetadata":
-        pass
+        return cls(path=path)
 
 
 class Tile:
