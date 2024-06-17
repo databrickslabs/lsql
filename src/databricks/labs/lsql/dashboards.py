@@ -92,9 +92,8 @@ class BaseHandler:
         header, _ = self.split()
         return self._parse_header(header)
 
-    @staticmethod
-    def _parse_header(header: str) -> dict[str, str]:
-        _ = header
+    def _parse_header(self, header: str) -> dict[str, str]:
+        _ = self, header
         return {}
 
     def split(self) -> tuple[str, str]:
@@ -110,15 +109,29 @@ class BaseHandler:
 class QueryHandler(BaseHandler):
     """Handle query files."""
 
-    Handlers are based on a Python implementation for FrontMatter.
+    @staticmethod
+    def _get_arguments_parser() -> ArgumentParser:
+        parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
+        parser.add_argument("--id", type=str)
+        parser.add_argument("-o", "--order", type=int)
+        parser.add_argument("-w", "--width", type=int)
+        parser.add_argument("-h", "--height", type=int)
+        return parser
 
-    Sources:
-        https://frontmatter.codes/docs/markdown
-        https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
-    """
+    def _parse_header(self, header: str) -> dict[str, str]:
+        """Header is an argparse string."""
+        parser = self._get_arguments_parser()
+        try:
+            return vars(parser.parse_args(shlex.split(header)))
+        except (argparse.ArgumentError, SystemExit) as e:
+            logger.warning(f"Parsing {self._path}: {e}")
+            return {}
 
     def split(self) -> tuple[str, str]:
-        """Split the query file header from the contents."""
+        """Split the query file header from the contents.
+
+        The optional header is the first comment at the top of the file.
+        """
         query = self._path.read_text()
         try:
             parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
@@ -138,9 +151,9 @@ class MarkdownHandler(BaseHandler):
 
     _FM_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
 
-    @staticmethod
-    def _parse_header(header: str) -> dict[str, str]:
+    def _parse_header(self, header: str) -> dict[str, str]:
         """Markdown frontmatter header is a YAML."""
+        _ = self
         return yaml.safe_load(header) or {}
 
     def split(self) -> tuple[str, str]:
@@ -267,8 +280,8 @@ class WidgetMetadata:
     @classmethod
     def from_query_path(cls, path: Path) -> "WidgetMetadata":
         query_handler = QueryHandler(path)
-        header, _ = query_handler.split()
-        return cls(path=path).replace_from_arguments(shlex.split(header))
+        header = query_handler.parse_header()
+        return cls.from_dict(path, **header)
 
     @classmethod
     def from_markdown_path(cls, path: Path) -> "WidgetMetadata":
