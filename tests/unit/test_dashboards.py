@@ -57,18 +57,9 @@ def test_base_handler_splits_empty_header(tmp_path):
     path.write_text("Hello")
     handler = BaseHandler(path)
 
-    header, _ = handler.split()
+    header, body = handler.split()
 
     assert header == ""
-
-
-def test_base_handler_splits_body(tmp_path):
-    path = tmp_path / "file.txt"
-    path.write_text("Hello")
-    handler = BaseHandler(path)
-
-    _, body = handler.split()
-
     assert body == "Hello"
 
 
