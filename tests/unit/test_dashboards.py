@@ -191,9 +191,10 @@ def test_query_handler_splits_no_header(tmp_path, query):
     path.write_text(query)
     handler = QueryHandler(path)
 
-    header, _ = handler.split()
+    header, content = handler.split()
 
     assert len(header) == 0
+    assert content == query
 
 
 def test_widget_metadata_replaces_width_and_height(tmp_path):
