@@ -185,6 +185,24 @@ class Tile:
         widget = Widget(name=self._widget_metadata.id, textbox_spec=self._widget_metadata.path.read_text())
         return widget
 
+    @classmethod
+    def from_widget_metadata(cls, widget_metadata: WidgetMetadata) -> "Tile":
+        """Create a tile given the widget metadata."""
+        width, height = widget_metadata.size()
+        position = Position(0, 0, width, height)
+        markdown_tile = MarkdownTile(widget_metadata, position=position)
+
+        if widget_metadata.is_markdown():
+            return markdown_tile
+
+        query_tile = QueryTile(widget_metadata, position=position)
+        spec_type = query_tile.infer_spec_type()
+        if spec_type is None:
+            return markdown_tile
+        if spec_type == CounterSpec:
+            return CounterTile(widget_metadata, position=position)
+        return TableTile(widget_metadata, position=position)
+
 
 class MarkdownTile(Tile):
     def _default_size(self) -> tuple[int, int]:
@@ -192,12 +210,12 @@ class MarkdownTile(Tile):
 
 
 class QueryTile(Tile):
-    @staticmethod
-    def find_fields(query: str) -> list[Field]:
+    def _find_fields(self) -> list[Field]:
         """Find the fields in a query.
 
         The fields are the projections in the query's top level SELECT.
         """
+        query = self._widget_metadata.path.read_text()
         try:
             parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
@@ -214,7 +232,7 @@ class QueryTile(Tile):
 
     @property
     def widget(self) -> Widget:
-        fields = self.find_fields(self._widget_metadata.path.read_text())
+        fields = self._find_fields()
         named_query = self._get_named_query(fields)
         spec = self._get_spec(fields)
         widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
@@ -233,6 +251,15 @@ class QueryTile(Tile):
         spec = TableV2Spec(encodings=table_encodings)
         return spec
 
+    def infer_spec_type(self) -> type[WidgetSpec] | None:
+        """Infer the spec type from the query."""
+        fields = self._find_fields()
+        if len(fields) == 0:
+            return None
+        if len(fields) == 1:
+            return CounterSpec
+        return TableV2Spec
+
 
 class TableTile(QueryTile):
     def _default_size(self) -> tuple[int, int]:
@@ -248,57 +275,6 @@ class CounterTile(QueryTile):
         counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
         spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
         return spec
-
-
-class Tiler:
-    """Factory class to create tiles."""
-
-    @staticmethod
-    def _infer_spec_type(query: str) -> type[WidgetSpec] | None:
-        fields = QueryTile.find_fields(query)
-        if len(fields) == 0:
-            return None
-        if len(fields) == 1:
-            return CounterSpec
-        return TableV2Spec
-
-    def _get_tile(self, widget_metadata: WidgetMetadata) -> Tile | None:
-        """Create a tile given the widget metadata."""
-        width, height = widget_metadata.size()
-        position = Position(0, 0, width, height)
-
-        content = widget_metadata.path.read_text()
-        if widget_metadata.is_markdown():
-            return MarkdownTile(widget_metadata, position=position)
-
-        spec_type = self._infer_spec_type(content)
-        if spec_type is None:
-            return None
-        if spec_type == CounterSpec:
-            return CounterTile(widget_metadata, position=position)
-        return TableTile(widget_metadata, position=position)
-
-    def tile(self, widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
-        """Tile the widgets given their metadata.
-
-        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
-        with the `order` key. Hence, the multiple loops to get:
-        i) set the order when not specified;
-        ii) sort the widgets using the order field.
-        """
-        widgets_metadata_with_order = []
-        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
-            replica = copy.deepcopy(widget_metadata)
-            replica.order = widget_metadata.order or order
-            widgets_metadata_with_order.append(replica)
-        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
-            tile = self._get_tile(widget_metadata)
-            if tile is not None:
-                placed_tile = tile.place_after(position)
-                tiles.append(placed_tile)
-                position = placed_tile.position
-        return tiles
 
 
 class Dashboards:
@@ -380,10 +356,26 @@ class Dashboards:
 
     @staticmethod
     def _get_layouts(widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
-        tiler, layouts = Tiler(), []
-        for tile in tiler.tile(widgets_metadata):
-            layout = Layout(widget=tile.widget, position=tile.position)
+        """Create layouts from the widgets metadata.
+
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the multiple loops to get:
+        i) set the order when not specified;
+        ii) sort the widgets using the order field.
+        """
+        widgets_metadata_with_order = []
+        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
+            replica = copy.deepcopy(widget_metadata)
+            replica.order = widget_metadata.order or order
+            widgets_metadata_with_order.append(replica)
+
+        layouts, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
+            tile = Tile.from_widget_metadata(widget_metadata)
+            placed_tile = tile.place_after(position)
+            layout = Layout(widget=placed_tile.widget, position=placed_tile.position)
             layouts.append(layout)
+            position = placed_tile.position
         return layouts
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:

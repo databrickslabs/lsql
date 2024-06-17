@@ -206,7 +206,7 @@ def test_dashboards_creates_one_counter_widget_per_query():
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
-def test_dashboards_skips_invalid_query(tmp_path, caplog):
+def test_dashboards_creates_text_widget_for_invalid_query(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
     # Test for the invalid query not to be the first or last query
@@ -221,7 +221,8 @@ def test_dashboards_skips_invalid_query(tmp_path, caplog):
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
         lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
-    assert len(lakeview_dashboard.pages[0].layout) == 2
+    markdown_widget = lakeview_dashboard.pages[0].layout[1].widget
+    assert markdown_widget.textbox_spec == invalid_query
     assert invalid_query in caplog.text
 
 
@@ -308,7 +309,7 @@ def test_query_tile_finds_fields(tmp_path, query, names):
     widget_metadata = WidgetMetadata(query_file, 1, 1, 1)
     tile = QueryTile(widget_metadata)
 
-    fields = tile.find_fields(query)
+    fields = tile._find_fields()  # pylint: disable=protected-access
 
     assert [field.name for field in fields] == names
 
