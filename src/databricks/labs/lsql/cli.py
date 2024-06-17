@@ -1,3 +1,4 @@
+import webbrowser
 from pathlib import Path
 
 from databricks.labs.blueprint.cli import App
@@ -18,7 +19,7 @@ def create_dashboard(w: WorkspaceClient, folder: Path = Path.cwd()):
     lakeview_dashboard = dashboards.create_dashboard(Path(folder))
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard)
     dashboard_url = f"{w.config.host}/sql/dashboardsv3/{sdk_dashboard.dashboard_id}"
-    logger.info(f"Created dashboard: {dashboard_url}.")
+    webbrowser.open(dashboard_url)
     print(sdk_dashboard.dashboard_id)
 
 
