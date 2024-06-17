@@ -9,3 +9,5 @@ commands:
     flags:
       - name: folder
         description: The folder with dashboard files. By default, the current working directory.
+      - name: no-open
+        description: Do not open the dashboard in the browser after creating

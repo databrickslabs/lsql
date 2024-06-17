@@ -12,14 +12,20 @@ lsql = App(__file__)
 
 
 @lsql.command
-def create_dashboard(w: WorkspaceClient, folder: Path = Path.cwd()):
+def create_dashboard(
+    w: WorkspaceClient,
+    folder: Path = Path.cwd(),
+    *,
+    no_open: bool = False,
+):
     """Create a dashboard from queries"""
     logger.debug("Creating dashboard ...")
     dashboards = Dashboards(w)
     lakeview_dashboard = dashboards.create_dashboard(Path(folder))
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard)
     dashboard_url = f"{w.config.host}/sql/dashboardsv3/{sdk_dashboard.dashboard_id}"
-    webbrowser.open(dashboard_url)
+    if not no_open:
+        webbrowser.open(dashboard_url)
     print(sdk_dashboard.dashboard_id)
 
 
