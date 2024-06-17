@@ -233,6 +233,9 @@ class WidgetMetadata:
     def from_markdown_path(cls, path: Path) -> "WidgetMetadata":
         return cls(path=path)
 
+    def __repr__(self):
+        return f"WidgetMetdata<{self._path.as_posix()}>"
+
 
 class Tile:
     """A dashboard tile."""
