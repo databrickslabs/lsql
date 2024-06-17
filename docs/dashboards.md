@@ -199,8 +199,17 @@ entities.
 
 Markdown files are used to define text widgets that can populate a dashboard. 
 
-The configuration file is written in YAML, and is structured in a way that is easy to read and 
-write.
+The configuration is defined at the top of the file in YAML enclosed by two horizontal rules marked with dashes (---):
+
+``` md
+---
+order: -1
+height: 5
+---
+# Churn dashboard
+
+Welcome to our churn dashboard! Let me show you around ...
+```
 
 [[back to top](#dashboards-as-code)]
 
