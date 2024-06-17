@@ -146,7 +146,7 @@ class QueryHandler(BaseHandler):
             return "", self._content
 
         first_comment = parsed_query.comments[0]
-        return first_comment, self._content
+        return first_comment.strip(), self._content
 
 
 class MarkdownHandler(BaseHandler):

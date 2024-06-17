@@ -197,6 +197,19 @@ def test_query_handler_splits_no_header(tmp_path, query):
     assert content == query
 
 
+def test_query_handler_splits_header(tmp_path):
+    query = "-- --order 10\nSELECT 1"
+
+    path = tmp_path / "query.sql"
+    path.write_text(query)
+    handler = QueryHandler(path)
+
+    header, content = handler.split()
+
+    assert header == "--order 10"
+    assert content == query
+
+
 def test_widget_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
