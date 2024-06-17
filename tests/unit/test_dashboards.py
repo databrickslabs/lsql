@@ -44,7 +44,7 @@ def test_widget_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     widget_metadata = WidgetMetadata(path, 1, 1, 1)
-    updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
+    updated_metadata = widget_metadata.from_dict(path, **{"width": 10, "height": 10})
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
@@ -54,7 +54,7 @@ def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     widget_metadata = WidgetMetadata(path, 1, 1, 1)
-    updated_metadata = widget_metadata.replace_from_arguments([f"--{attribute}", "10"])
+    updated_metadata = widget_metadata.from_dict(path, **{attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
 
@@ -329,14 +329,11 @@ def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_
 def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    for query_name in "abcdf":
-        with (tmp_path / f"{query_name}.sql").open("w") as f:
-            f.write("SELECT 1 AS count")
-
     # Move the 'e' inbetween 'b' and 'c' query. Note that the order 1 puts 'e' on the same position as 'b', but with an
     # order tiebreaker the query name decides the final order.
-    with (tmp_path / "e.sql").open("w") as f:
-        f.write("-- --order 1\nSELECT 1 AS count")
+    (tmp_path / "e.sql").write_text("-- --order 1\nSELECT 1 AS count")
+    for query_name in "abcdf":
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
@@ -433,8 +430,8 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
 
     # Typo is on purpose
     query = "-- --widh 6 --height 3 \nSELECT 82917019218921 AS big_number_needs_big_widget"
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text(query)
 
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
         lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
@@ -442,7 +439,7 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width == 1
     assert position.height == 3
-    assert "--widh" in caplog.text
+    assert query_path.as_posix() in caplog.text
     ws.assert_not_called()
 
 
