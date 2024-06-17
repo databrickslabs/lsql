@@ -65,6 +65,10 @@ class BaseHandler:
     def __init__(self, path: Path) -> None:
         self._path = path
 
+    @property
+    def _content(self) -> str:
+        return self._path.read_text()
+
     def parse_header(self) -> dict[str, str]:
         """Parse the header of the file."""
         header, _ = self.split()
@@ -81,7 +85,7 @@ class BaseHandler:
             str : The file header possibly containing arguments.
             str : The file contents.
         """
-        return "", self._path.read_text()
+        return "", self._content
 
 
 class QueryHandler(BaseHandler):
@@ -110,18 +114,17 @@ class QueryHandler(BaseHandler):
 
         The optional header is the first comment at the top of the file.
         """
-        query = self._path.read_text()
         try:
-            parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+            parsed_query = sqlglot.parse_one(self._content, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {self._path}: {e}")
-            return "", query
+            return "", self._content
 
         if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return "", query
+            return "", self._content
 
         first_comment = parsed_query.comments[0]
-        return first_comment, query
+        return first_comment, self._content
 
 
 class MarkdownHandler(BaseHandler):
@@ -139,14 +142,13 @@ class MarkdownHandler(BaseHandler):
 
         The header is enclosed by the boundaries (line with '---').
         """
-        raw = self._path.read_text()
-        splits = self._FRONT_MATTER_BOUNDARY.split(raw, 2)
+        splits = self._FRONT_MATTER_BOUNDARY.split(self._content, 2)
         if len(splits) == 3:
             _, header, content = splits
             return header, content
         if len(splits) == 1:
             logger.warning(f"Parsing {self._path}: Missing closing header boundary.")
-        return "", raw
+        return "", self._content
 
 
 class WidgetMetadata:
