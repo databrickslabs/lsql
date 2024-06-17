@@ -151,7 +151,12 @@ class WidgetMetadata:
 class Tile:
     """A dashboard tile."""
 
-    def __init__(self, widget_metadata: WidgetMetadata, *, position: Position = Position(0, 0, 0, 0)) -> None:
+    def __init__(
+        self,
+        widget_metadata: WidgetMetadata,
+        *,
+        position: Position = Position(0, 0, 0, 0),
+    ) -> None:
         self._widget_metadata = widget_metadata
         self.position = position
 
