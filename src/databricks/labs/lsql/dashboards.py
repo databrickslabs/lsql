@@ -238,6 +238,15 @@ class QueryTile(Tile):
         return fields
 
     @property
+    def dataset(self) -> Dataset:
+        dataset = Dataset(
+            name=self._widget_metadata.id,
+            display_name=self._widget_metadata.id,
+            query=self._widget_metadata.path.read_text(),
+        )
+        return dataset
+
+    @property
     def widget(self) -> Widget:
         fields = self._find_fields()
         named_query = self._get_named_query(fields)
@@ -333,13 +342,14 @@ class Dashboards:
         """Create a dashboard from code, i.e. configuration and queries."""
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
-        datasets = self._get_datasets(dashboard_folder)
-        layouts = self._get_layouts(widgets_metadata)
+        tiles = self._get_tiles(widgets_metadata)
+        layouts = [Layout(widget=tile.widget, position=tile.position) for tile in tiles]
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
             layout=layouts,
         )
+        datasets = [tile.dataset for tile in tiles if isinstance(tile, QueryTile)]
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
 
@@ -354,16 +364,8 @@ class Dashboards:
         return widgets_metadata
 
     @staticmethod
-    def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
-        datasets = []
-        for query_path in sorted(dashboard_folder.glob("*.sql")):
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query_path.read_text())
-            datasets.append(dataset)
-        return datasets
-
-    @staticmethod
-    def _get_layouts(widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
-        """Create layouts from the widgets metadata.
+    def _get_tiles(widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
+        """Create tiles from the widgets metadata.
 
         The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
         with the `order` key. Hence, the multiple loops to get:
@@ -376,14 +378,13 @@ class Dashboards:
             replica.order = widget_metadata.order or order
             widgets_metadata_with_order.append(replica)
 
-        layouts, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
         for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
             tile = Tile.from_widget_metadata(widget_metadata)
             placed_tile = tile.place_after(position)
-            layout = Layout(widget=placed_tile.widget, position=placed_tile.position)
-            layouts.append(layout)
+            tiles.append(placed_tile)
             position = placed_tile.position
-        return layouts
+        return tiles
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
