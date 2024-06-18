@@ -590,6 +590,21 @@ def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
     ws.assert_not_called()
 
 
+def test_dashboard_creates_dashboard_with_title(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    query = f"-- --title 'Count me in'\nSELECT 2918"
+    (tmp_path / "counter.sql").write_text(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.title == "Count me in"
+    assert frame.show_title
+    ws.assert_not_called()
+
+
+
 def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 

@@ -389,7 +389,7 @@ class Dashboards:
         named_query = NamedQuery(name="main_query", query=query)
         # Counters are expected to have one field
         counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-        frame = WidgetFrameSpec(title=widget_metadata.title)
+        frame = WidgetFrameSpec(title=widget_metadata.title, show_title=widget_metadata is not None)
         counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding), frame=frame)
         widget = Widget(name=widget_metadata.id, queries=[named_query], spec=counter_spec)
         return widget
