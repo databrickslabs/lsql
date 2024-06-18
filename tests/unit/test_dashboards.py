@@ -377,7 +377,7 @@ def test_dashboard_creates_datasets_using_query(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
     query = "SELECT count FROM database.table"
-    (tmp_path / f"counter.sql").write_text(query)
+    (tmp_path / "counter.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
@@ -391,7 +391,7 @@ def test_dashboard_creates_datasets_with_database_overwrite(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
     query = "SELECT count FROM database.table"
-    (tmp_path / f"counter.sql").write_text(query)
+    (tmp_path / "counter.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path, database="development")
 
