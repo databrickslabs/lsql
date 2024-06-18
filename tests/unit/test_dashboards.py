@@ -235,7 +235,14 @@ def test_widget_metadata_as_dict(tmp_path):
         "title": "Test widget",
         "description": "Longer explanation",
     }
-    widget_metadata = WidgetMetadata(path, 10, 10, 10, title="Test widget", description="Longer explanation")
+    widget_metadata = WidgetMetadata(
+        path,
+        10,
+        10,
+        10,
+        title="Test widget",
+        description="Longer explanation",
+    )
     assert widget_metadata.as_dict() == raw
 
 
