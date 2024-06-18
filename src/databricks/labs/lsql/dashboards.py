@@ -293,7 +293,8 @@ class QueryTile(Tile):
     @staticmethod
     def _get_filter_spec(fields: list[Field], query_name: str) -> WidgetSpec:
         control_encodings = [ControlFieldEncoding(field.name, query_name, display_name=field.name) for field in fields]
-        control_encoding_map = ControlEncodingMap(control_encodings)
+        # TODO: Fix type ignore
+        control_encoding_map = ControlEncodingMap(control_encodings)  # type: ignore
         spec = MultiSelectSpec(encodings=control_encoding_map)
         return spec
 
