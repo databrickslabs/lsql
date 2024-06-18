@@ -461,7 +461,7 @@ class Dashboards:
 
     @staticmethod
     def _replace_database_in_query(query: str, database: str) -> str:
-        if len(database) == 0:
+        if not database:
             return query
 
         try:
