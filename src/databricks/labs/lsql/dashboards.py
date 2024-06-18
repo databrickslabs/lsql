@@ -411,10 +411,10 @@ class Dashboards:
         for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
             tile = Tile.from_widget_metadata(widget_metadata)
             placed_tile = tile.place_after(position)
-            layout = Layout(widget=tile.widget, position=tile.position)
+            layout = Layout(widget=placed_tile.widget, position=placed_tile.position)
             layouts.append(layout)
-            if isinstance(tile, QueryTile) and tile.filter is not None:
-                layout = Layout(widget=tile.filter, position=tile.position)
+            if isinstance(placed_tile, QueryTile) and placed_tile.filter is not None:
+                layout = Layout(widget=placed_tile.filter, position=placed_tile.position)
                 layouts.append(layout)
             position = placed_tile.position
         return layouts
