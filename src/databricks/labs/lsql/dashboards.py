@@ -100,6 +100,7 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
         parser.add_argument("-t", "--title", type=str)
+        parser.add_argument("-d", "--description", type=str)
         return parser
 
     def _parse_header(self, header: str) -> dict[str, str]:
@@ -162,6 +163,7 @@ class WidgetMetadata:
         height: int = 0,
         _id: str = "",
         title: str = "",
+        description: str = "",
     ):
         self._path = path
         self.order = order
@@ -169,6 +171,7 @@ class WidgetMetadata:
         self.height = height
         self.id = _id
         self.title = title
+        self.description = description
 
         size = self._size
         self.width = self.width or size[0]
@@ -219,7 +222,7 @@ class WidgetMetadata:
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self._path.as_posix()}
-        for attribute in "order", "width", "height", "id", "title":
+        for attribute in "order", "width", "height", "id", "title", "description":
             if attribute in body:
                 continue
             value = getattr(self, attribute)
@@ -389,7 +392,12 @@ class Dashboards:
         named_query = NamedQuery(name="main_query", query=query)
         # Counters are expected to have one field
         counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-        frame = WidgetFrameSpec(title=widget_metadata.title, show_title=widget_metadata is not None)
+        frame = WidgetFrameSpec(
+            title=widget_metadata.title,
+            show_title=widget_metadata is not None,
+            description=widget_metadata.description,
+            show_description=widget_metadata.description is not None,
+        )
         counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding), frame=frame)
         widget = Widget(name=widget_metadata.id, queries=[named_query], spec=counter_spec)
         return widget

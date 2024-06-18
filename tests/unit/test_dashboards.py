@@ -114,7 +114,7 @@ def test_query_handler_ignores_non_header_comment(tmp_path, query):
     assert all(value is None for value in header.values())
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title"])
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description"])
 def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     path = tmp_path / "query.sql"
     path.write_text(f"-- --{attribute} 10\nSELECT 1")
@@ -214,11 +214,11 @@ def test_widget_metadata_replaces_width_and_height(tmp_path):
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title"])
+@pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title", "description"])
 def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    widget_metadata = WidgetMetadata(path, 1, 1, 1, "1", "1")
+    widget_metadata = WidgetMetadata(path, 1, 1, 1, "1", "1", "1")
     updated_metadata = widget_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
@@ -226,8 +226,16 @@ def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
 def test_widget_metadata_as_dict(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    raw = {"path": path.as_posix(), "id": "test", "order": "10", "width": "10", "height": "10", "title": "Test widget"}
-    widget_metadata = WidgetMetadata(path, 10, 10, 10, title="Test widget")
+    raw = {
+        "path": path.as_posix(),
+        "id": "test",
+        "order": "10",
+        "width": "10",
+        "height": "10",
+        "title": "Test widget",
+        "description": "Longer explanation",
+    }
+    widget_metadata = WidgetMetadata(path, 10, 10, 10, title="Test widget", description="Longer explanation")
     assert widget_metadata.as_dict() == raw
 
 
@@ -593,7 +601,7 @@ def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
 def test_dashboard_creates_dashboard_with_title(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    query = f"-- --title 'Count me in'\nSELECT 2918"
+    query = "-- --title 'Count me in'\nSELECT 2918"
     (tmp_path / "counter.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
@@ -603,6 +611,19 @@ def test_dashboard_creates_dashboard_with_title(tmp_path):
     assert frame.show_title
     ws.assert_not_called()
 
+
+def test_dashboard_creates_dashboard_with_description(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    query = "-- --description 'Only when it counts'\nSELECT 2918"
+    (tmp_path / "counter.sql").write_text(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.description == "Only when it counts"
+    assert frame.show_description
+    ws.assert_not_called()
 
 
 def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
