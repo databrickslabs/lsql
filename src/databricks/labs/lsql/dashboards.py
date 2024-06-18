@@ -18,6 +18,7 @@ from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
+    ControlEncodingMap,
     ControlFieldEncoding,
     CounterEncodingMap,
     CounterFieldEncoding,
@@ -27,6 +28,7 @@ from databricks.labs.lsql.lakeview import (
     Field,
     Layout,
     NamedQuery,
+    MultiSelectSpec,
     Page,
     Position,
     Query,
@@ -256,10 +258,24 @@ class QueryTile(Tile):
         widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
         return widget
 
-    def _get_named_query(self, fields: list[Field]) -> NamedQuery:
+    @property
+    def filter(self) -> Widget | None:
+        if not self._widget_metadata.filter:
+            return None
+        field_name = self._widget_metadata.filter
+        fields = [
+            Field(name=field_name, expression=f"`{field_name}`"),
+            Field(name=f"{field_name}_associativity", expression=f"COUNT_IF(`associative_filter_predicate_group`"),
+        ]
+        named_query = self._get_named_query(fields, name=f"filter_{field_name}")
+        spec = self._get_filter_spec(fields, named_query.name)
+        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
+        return widget
+
+    def _get_named_query(self, fields: list[Field], *, name: str = "main_query") -> NamedQuery:
         query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
-        named_query = NamedQuery(name="main_query", query=query)
+        named_query = NamedQuery(name=name, query=query)
         return named_query
 
     @staticmethod
@@ -267,6 +283,13 @@ class QueryTile(Tile):
         field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
         table_encodings = TableEncodingMap(field_encodings)
         spec = TableV2Spec(encodings=table_encodings)
+        return spec
+
+    @staticmethod
+    def _get_filter_spec(fields: list[Field], query_name: str) -> WidgetSpec:
+        control_encodings = [ControlFieldEncoding(field.name, query_name, display_name=field.name) for field in fields]
+        control_encoding_map = ControlEncodingMap(control_encodings)
+        spec = MultiSelectSpec(encodings=control_encoding_map)
         return spec
 
     def infer_spec_type(self) -> type[WidgetSpec] | None:
@@ -345,7 +368,14 @@ class Dashboards:
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
         tiles = self._get_tiles(widgets_metadata)
-        layouts = [Layout(widget=tile.widget, position=tile.position) for tile in tiles]
+        layouts = []
+        for tile in tiles:
+            layout = Layout(widget=tile.widget, position=tile.position)
+            layouts.append(layout)
+            if isinstance(tile, QueryTile) and tile.filter is not None:
+                layout = Layout(widget=tile.filter, position=tile.position)
+                layouts.append(layout)
+
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
