@@ -81,7 +81,7 @@ class BaseHandler:
     def split(self) -> tuple[str, str]:
         """Split the file header from the content.
 
-        Returns
+        Returns :
             str : The file header possibly containing arguments.
             str : The file contents.
         """
@@ -133,14 +133,14 @@ class MarkdownHandler(BaseHandler):
     _FRONT_MATTER_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
 
     def _parse_header(self, header: str) -> dict[str, str]:
-        """Markdown frontmatter header is a YAML."""
+        """Markdown configuration header is a YAML."""
         _ = self
         return yaml.safe_load(header) or {}
 
     def split(self) -> tuple[str, str]:
         """Split the markdown file header from the contents.
 
-        The header is enclosed by the boundaries (line with '---').
+        The header is enclosed by a horizontal line marked with three dashes '---'.
         """
         splits = self._FRONT_MATTER_BOUNDARY.split(self._content, 2)
         if len(splits) == 3:
