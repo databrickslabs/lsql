@@ -219,7 +219,7 @@ class WidgetMetadata:
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self._path.as_posix()}
-        for attribute in "order", "width", "height", "id":
+        for attribute in "order", "width", "height", "id", "title":
             if attribute in body:
                 continue
             value = getattr(self, attribute)

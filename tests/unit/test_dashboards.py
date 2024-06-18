@@ -226,8 +226,8 @@ def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
 def test_widget_metadata_as_dict(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    raw = {"path": path.as_posix(), "id": "test", "order": "10", "width": "10", "height": "10"}
-    widget_metadata = WidgetMetadata(path, 10, 10, 10)
+    raw = {"path": path.as_posix(), "id": "test", "order": "10", "width": "10", "height": "10", "title": "Test widget"}
+    widget_metadata = WidgetMetadata(path, 10, 10, 10, title="Test widget")
     assert widget_metadata.as_dict() == raw
 
 
