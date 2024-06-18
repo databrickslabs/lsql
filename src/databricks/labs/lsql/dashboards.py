@@ -426,7 +426,7 @@ class Dashboards:
         formatted_query = ";\n".join(statements)
         return formatted_query
 
-    def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
+    def create_dashboard(self, dashboard_folder: Path, *, database: str = "") -> Dashboard:
         """Create a dashboard from code, i.e. configuration and queries."""
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
@@ -451,7 +451,8 @@ class Dashboards:
         return widgets_metadata
 
     @staticmethod
-    def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
+    def _get_datasets(dashboard_folder: Path, *, database: str = "") -> list[Dataset]:
+        _ = database
         datasets = []
         for query_path in sorted(dashboard_folder.glob("*.sql")):
             dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query_path.read_text())
