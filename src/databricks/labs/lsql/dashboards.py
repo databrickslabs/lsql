@@ -242,15 +242,6 @@ class QueryTile(Tile):
         return fields
 
     @property
-    def dataset(self) -> Dataset:
-        dataset = Dataset(
-            name=self._widget_metadata.id,
-            display_name=self._widget_metadata.id,
-            query=self._widget_metadata.path.read_text(),
-        )
-        return dataset
-
-    @property
     def widget(self) -> Widget:
         fields = self._find_fields()
         named_query = self._get_named_query(fields)
