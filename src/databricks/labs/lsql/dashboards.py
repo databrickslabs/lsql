@@ -374,15 +374,7 @@ class Dashboards:
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
         datasets = self._get_datasets(dashboard_folder)
-        tiles = self._get_tiles(widgets_metadata)
-        layouts = []
-        for tile in tiles:
-            layout = Layout(widget=tile.widget, position=tile.position)
-            layouts.append(layout)
-            if isinstance(tile, QueryTile) and tile.filter is not None:
-                layout = Layout(widget=tile.filter, position=tile.position)
-                layouts.append(layout)
-
+        layouts = self._get_layouts(widgets_metadata)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -410,8 +402,8 @@ class Dashboards:
         return datasets
 
     @staticmethod
-    def _get_tiles(widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
-        """Create tiles from the widgets metadata.
+    def _get_layouts(widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
+        """Create layouts from the widgets metadata.
 
         The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
         with the `order` key. Hence, the multiple loops to get:
@@ -424,13 +416,17 @@ class Dashboards:
             replica.order = widget_metadata.order or order
             widgets_metadata_with_order.append(replica)
 
-        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        layouts, position = [], Position(0, 0, 0, 0)  # Position of first tile
         for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
             tile = Tile.from_widget_metadata(widget_metadata)
             placed_tile = tile.place_after(position)
-            tiles.append(placed_tile)
+            layout = Layout(widget=tile.widget, position=tile.position)
+            layouts.append(layout)
+            if isinstance(tile, QueryTile) and tile.filter is not None:
+                layout = Layout(widget=tile.filter, position=tile.position)
+                layouts.append(layout)
             position = placed_tile.position
-        return tiles
+        return layouts
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
