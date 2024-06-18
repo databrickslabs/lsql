@@ -221,9 +221,13 @@ class WidgetMetadata:
         return cls(path, **optionals)
 
     def as_dict(self) -> dict[str, str]:
+        exclude_attributes = {
+            "handler",  # Handler is inferred from file extension
+            "path",  # Path is set explicitly below
+        }
         body = {"path": self._path.as_posix()}
-        for attribute in "order", "width", "height", "id", "title", "description":
-            if attribute in body:
+        for attribute in dir(self):
+            if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
                 continue
             value = getattr(self, attribute)
             if value is not None:
