@@ -1,0 +1,64 @@
+displayName: test_dashboard_deploys_dashboa0
+layout:
+- position:
+    height: 6
+    width: 6
+    x: 0
+    y: 0
+  widget:
+    name: table
+    queries:
+    - name: main_query
+      query:
+        datasetName: databricks_office_locations
+        disaggregated: true
+        fields:
+        - expression: '`Address`'
+          name: Address
+        - expression: '`City`'
+          name: City
+        - expression: '`State`'
+          name: State
+        - expression: '`Zip Code`'
+          name: Zip Code
+        - expression: '`Country`'
+          name: Country
+    spec:
+      encodings:
+        columns:
+        - fieldName: Address
+        - fieldName: City
+        - fieldName: State
+        - fieldName: Zip Code
+        - fieldName: Country
+      version: 2
+      widgetType: table
+- position:
+    height: 6
+    width: 6
+    x: 0
+    y: 0
+  widget:
+    name: filter-multi-select
+    queries:
+    - name: filter_City
+      query:
+        datasetName: databricks_office_locations
+        disaggregated: true
+        fields:
+        - expression: '`City`'
+          name: City
+        - expression: COUNT_IF(`associative_filter_predicate_group`
+          name: City_associativity
+    spec:
+      encodings:
+        fields:
+        - displayName: City
+          fieldName: City
+          queryName: filter_City
+        - displayName: City_associativity
+          fieldName: City_associativity
+          queryName: filter_City
+      version: 2
+      widgetType: filter-multi-select
+name: test_dashboard_deploys_dashboa0

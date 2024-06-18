@@ -265,7 +265,7 @@ class QueryTile(Tile):
         field_name = self._widget_metadata.filter
         query_fields = [
             Field(name=field_name, expression=f"`{field_name}`"),
-            Field(name=f"{field_name}_associativity", expression=f"COUNT_IF(`associative_filter_predicate_group`"),
+            Field(name=f"{field_name}_associativity", expression=f"COUNT_IF(`associative_filter_predicate_group`)"),
         ]
         named_query = self._get_named_query(query_fields, name=f"filter_{field_name}", disaggregated=False)
         spec_fields = [
