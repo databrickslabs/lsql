@@ -393,8 +393,15 @@ def test_dashboard_creates_datasets_using_query(tmp_path):
         ("SELECT count FROM table", "SELECT count FROM table"),
         ("SELECT count FROM database.table", "SELECT count FROM development.table"),
         ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table"),
-    ]
         ("SELECT database FROM database.table", "SELECT database FROM development.table"),
+        (
+            "SELECT * FROM server.database.table, server.other_database.table",
+            "SELECT * FROM server.development.table, server.development.table",
+        ),
+        (
+            "SELECT left.* FROM server.database.table AS left JOIN server.other_database.table AS right ON left.id = right.id",
+            "SELECT left.* FROM server.development.table AS left JOIN server.development.table AS right ON left.id = right.id",
+        ),
     ],
 )
 def test_dashboard_creates_datasets_with_database_overwrite(tmp_path, query, query_transformed):
