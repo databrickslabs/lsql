@@ -394,6 +394,8 @@ def test_dashboard_creates_datasets_using_query(tmp_path):
         ("SELECT count FROM database.table", "SELECT count FROM development.table"),
         ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table"),
     ]
+        ("SELECT database FROM database.table", "SELECT database FROM development.table"),
+    ],
 )
 def test_dashboard_creates_datasets_with_database_overwrite(tmp_path, query, query_transformed):
     ws = create_autospec(WorkspaceClient)
