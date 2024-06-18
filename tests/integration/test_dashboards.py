@@ -1,8 +1,10 @@
 import json
 import logging
+import webbrowser
 from pathlib import Path
 
 import pytest
+from databricks.labs.blueprint.entrypoint import is_in_debug
 from databricks.sdk.core import DatabricksError
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 
@@ -42,6 +44,9 @@ def make_dashboard(ws, make_random):
         else:
             display_name = f"{display_name} ({make_random()})"
         dashboard = ws.lakeview.create(display_name)
+        if is_in_debug():
+            dashboard_url = f"{ws.config.host}/sql/dashboardsv3/{dashboard.dashboard_id}"
+            webbrowser.open(dashboard_url)
         return dashboard
 
     def delete(dashboard: SDKDashboard) -> None:
