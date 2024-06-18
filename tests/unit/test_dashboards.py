@@ -229,17 +229,17 @@ def test_widget_metadata_as_dict(tmp_path):
     raw = {
         "path": path.as_posix(),
         "id": "test",
-        "order": "10",
-        "width": "10",
-        "height": "10",
+        "order": "-1",
+        "width": "3",
+        "height": "6",
         "title": "Test widget",
         "description": "Longer explanation",
     }
     widget_metadata = WidgetMetadata(
         path,
-        10,
-        10,
-        10,
+        order=-1,
+        width=3,
+        height=6,
         title="Test widget",
         description="Longer explanation",
     )
