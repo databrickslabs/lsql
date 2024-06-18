@@ -114,7 +114,7 @@ def test_query_handler_ignores_non_header_comment(tmp_path, query):
     assert all(value is None for value in header.values())
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "height", "width"])
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title"])
 def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     path = tmp_path / "query.sql"
     path.write_text(f"-- --{attribute} 10\nSELECT 1")

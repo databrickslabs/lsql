@@ -98,6 +98,7 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
+        parser.add_argument("-t", "--title", type=str)
         return parser
 
     def _parse_header(self, header: str) -> dict[str, str]:
