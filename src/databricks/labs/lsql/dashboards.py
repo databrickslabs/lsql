@@ -84,16 +84,18 @@ class WidgetMetadata:
         width: int = 0,
         height: int = 0,
         _id: str = "",
+        _filter: str = "",
     ):
         self.path = path
         self.order = order
         self.width = width
         self.height = height
         self.id = _id or path.stem
+        self.filter = _filter
 
     def as_dict(self) -> dict[str, str]:
         body = {"path": self.path.as_posix()}
-        for attribute in "order", "width", "height", "id":
+        for attribute in "order", "width", "height", "id", "filter":
             if attribute in body:
                 continue
             value = getattr(self, attribute)
@@ -117,8 +119,7 @@ class WidgetMetadata:
         parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
-        parser.add_argument("-t", "--title", type=str)
-        parser.add_argument("-d", "--description", type=str)
+        parser.add_argument("-f", "--filter", type=str)  # TODO: Support multiple filters
         return parser
 
     def _parse_header(self, header: str) -> dict[str, str]:
@@ -134,6 +135,7 @@ class WidgetMetadata:
         replica.width = args.width or self.width
         replica.height = args.height or self.height
         replica.id = args.id or self.id
+        replica.filter = args.filter or self.filter
         return replica
 
     @classmethod
