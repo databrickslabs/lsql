@@ -30,6 +30,7 @@ from databricks.labs.lsql.lakeview import (
     Position,
     Query,
     Widget,
+    WidgetFrameSpec,
     WidgetSpec,
 )
 
@@ -160,12 +161,14 @@ class WidgetMetadata:
         width: int = 0,
         height: int = 0,
         _id: str = "",
+        title: str = "",
     ):
         self._path = path
         self.order = order
         self.width = width
         self.height = height
         self.id = _id
+        self.title = title
 
         size = self._size
         self.width = self.width or size[0]
@@ -386,7 +389,8 @@ class Dashboards:
         named_query = NamedQuery(name="main_query", query=query)
         # Counters are expected to have one field
         counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-        counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
+        frame = WidgetFrameSpec(title=widget_metadata.title)
+        counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding), frame=frame)
         widget = Widget(name=widget_metadata.id, queries=[named_query], spec=counter_spec)
         return widget
 

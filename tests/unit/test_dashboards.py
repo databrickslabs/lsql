@@ -214,11 +214,11 @@ def test_widget_metadata_replaces_width_and_height(tmp_path):
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "width", "height"])
+@pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title"])
 def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    widget_metadata = WidgetMetadata(path, 1, 1, 1)
+    widget_metadata = WidgetMetadata(path, 1, 1, 1, "1", "1")
     updated_metadata = widget_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
