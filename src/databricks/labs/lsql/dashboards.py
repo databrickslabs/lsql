@@ -263,17 +263,20 @@ class QueryTile(Tile):
         if not self._widget_metadata.filter:
             return None
         field_name = self._widget_metadata.filter
-        fields = [
+        query_fields = [
             Field(name=field_name, expression=f"`{field_name}`"),
             Field(name=f"{field_name}_associativity", expression=f"COUNT_IF(`associative_filter_predicate_group`"),
         ]
-        named_query = self._get_named_query(fields, name=f"filter_{field_name}")
-        spec = self._get_filter_spec(fields, named_query.name)
+        named_query = self._get_named_query(query_fields, name=f"filter_{field_name}", disaggregated=False)
+        spec_fields = [
+            Field(name=field_name, expression=f"`{field_name}`"),
+        ]
+        spec = self._get_filter_spec(spec_fields, named_query.name)
         widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
         return widget
 
-    def _get_named_query(self, fields: list[Field], *, name: str = "main_query") -> NamedQuery:
-        query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
+    def _get_named_query(self, fields: list[Field], *, name: str = "main_query", disaggregated: bool = True) -> NamedQuery:
+        query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=disaggregated)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name=name, query=query)
         return named_query
