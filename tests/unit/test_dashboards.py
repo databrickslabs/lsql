@@ -387,17 +387,24 @@ def test_dashboard_creates_datasets_using_query(tmp_path):
     ws.assert_not_called()
 
 
-def test_dashboard_creates_datasets_with_database_overwrite(tmp_path):
+@pytest.mark.parametrize(
+    "query, query_transformed",
+    [
+        ("SELECT count FROM table", "SELECT count FROM table"),
+        ("SELECT count FROM database.table", "SELECT count FROM development.table"),
+        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table"),
+    ]
+)
+def test_dashboard_creates_datasets_with_database_overwrite(tmp_path, query, query_transformed):
     ws = create_autospec(WorkspaceClient)
 
-    query = "SELECT count FROM database.table"
     (tmp_path / "counter.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path, database="development")
 
     dataset = lakeview_dashboard.datasets[0]
 
-    assert dataset.query == "SELECT count FROM development.table"
+    assert dataset.query == query_transformed
     ws.assert_not_called()
 
 

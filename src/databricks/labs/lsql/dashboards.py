@@ -463,7 +463,21 @@ class Dashboards:
     def _replace_database_in_query(query: str, database: str) -> str:
         if len(database) == 0:
             return query
-        return query
+
+        try:
+            syntax_tree = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {query}: {e}")
+            return query
+
+        def transformer(node: sqlglot.Expression) -> sqlglot.Expression:
+            if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
+                node.args["db"].set("this", database)
+            return node
+
+        syntax_tree_transformed = syntax_tree.transform(transformer)
+        query_transformed = syntax_tree_transformed.sql(dialect="databricks")
+        return query_transformed
 
     @staticmethod
     def _get_layouts(widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
