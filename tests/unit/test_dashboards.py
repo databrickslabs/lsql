@@ -400,6 +400,7 @@ def test_dashboard_creates_datasets_with_database_overwrite(tmp_path):
     assert dataset.query == "SELECT count FROM development.table"
     ws.assert_not_called()
 
+
 def test_dashboards_creates_one_counter_widget_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
