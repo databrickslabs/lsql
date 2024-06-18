@@ -475,8 +475,7 @@ class Dashboards:
                 node.args["db"].set("this", database)
             return node
 
-        syntax_tree_transformed = syntax_tree.transform(transformer)
-        query_transformed = syntax_tree_transformed.sql(dialect="databricks")
+        query_transformed = syntax_tree.transform(transformer).sql(dialect=sqlglot.dialects.Databricks)
         return query_transformed
 
     @staticmethod
