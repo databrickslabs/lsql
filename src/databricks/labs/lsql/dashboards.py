@@ -27,8 +27,8 @@ from databricks.labs.lsql.lakeview import (
     Dataset,
     Field,
     Layout,
-    NamedQuery,
     MultiSelectSpec,
+    NamedQuery,
     Page,
     Position,
     Query,
@@ -265,7 +265,7 @@ class QueryTile(Tile):
         field_name = self._widget_metadata.filter
         query_fields = [
             Field(name=field_name, expression=f"`{field_name}`"),
-            Field(name=f"{field_name}_associativity", expression=f"COUNT_IF(`associative_filter_predicate_group`)"),
+            Field(name=f"{field_name}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
         ]
         named_query = self._get_named_query(query_fields, name=f"filter_{field_name}", disaggregated=False)
         spec_fields = [
@@ -275,7 +275,9 @@ class QueryTile(Tile):
         widget = Widget(name=f"{self._widget_metadata.id}_filter", queries=[named_query], spec=spec)
         return widget
 
-    def _get_named_query(self, fields: list[Field], *, name: str = "main_query", disaggregated: bool = True) -> NamedQuery:
+    def _get_named_query(
+        self, fields: list[Field], *, name: str = "main_query", disaggregated: bool = True
+    ) -> NamedQuery:
         query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=disaggregated)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name=name, query=query)
