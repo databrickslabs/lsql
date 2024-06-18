@@ -450,14 +450,20 @@ class Dashboards:
                 widgets_metadata.append(widget_metadata)
         return widgets_metadata
 
-    @staticmethod
-    def _get_datasets(dashboard_folder: Path, *, database: str = "") -> list[Dataset]:
+    def _get_datasets(self, dashboard_folder: Path, *, database: str = "") -> list[Dataset]:
         _ = database
         datasets = []
         for query_path in sorted(dashboard_folder.glob("*.sql")):
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query_path.read_text())
+            query = self._replace_database_in_query(query_path.read_text(), database)
+            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query)
             datasets.append(dataset)
         return datasets
+
+    @staticmethod
+    def _replace_database_in_query(query: str, database: str) -> str:
+        if len(database) == 0:
+            return query
+        return query
 
     @staticmethod
     def _get_layouts(widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
