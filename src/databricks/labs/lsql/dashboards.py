@@ -272,7 +272,7 @@ class QueryTile(Tile):
             Field(name=field_name, expression=f"`{field_name}`"),
         ]
         spec = self._get_filter_spec(spec_fields, named_query.name)
-        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
+        widget = Widget(name=f"{self._widget_metadata.id}_filter", queries=[named_query], spec=spec)
         return widget
 
     def _get_named_query(self, fields: list[Field], *, name: str = "main_query", disaggregated: bool = True) -> NamedQuery:
