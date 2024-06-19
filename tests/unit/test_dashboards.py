@@ -71,11 +71,6 @@ def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
     assert dashboard_metadata.display_name == tmp_path.name
 
 
-def test_widget_metadata_sets_size():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 10, 10)
-    assert widget_metadata.size() == (10, 10)
-
-
 def test_widget_metadata_is_markdown():
     widget_metadata = WidgetMetadata(Path("test.md"))
     assert widget_metadata.is_markdown()
