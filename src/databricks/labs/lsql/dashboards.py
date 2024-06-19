@@ -6,6 +6,7 @@ import logging
 import re
 import shlex
 from argparse import ArgumentParser
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
@@ -301,10 +302,21 @@ class MarkdownTile(Tile):
         return _MAXIMUM_DASHBOARD_WIDTH, 3
 
 
+def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sqlglot.Expression:
+    """Replace the database in a query."""
+    if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
+        node.args["db"].set("this", database)
+    return node
+
+
 class QueryTile(Tile):
-    @staticmethod
-    def _replace_database_in_query(query: str, database: str) -> str:
-        if not database:
+    def __init__(self, widget_metadata: WidgetMetadata) -> None:
+        super().__init__(widget_metadata)
+        self.query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+
+    def _get_query(self) -> str:
+        _, query = self._widget_metadata.handler.split()
+        if self.query_transformer is None:
             return query
 
         try:
@@ -313,23 +325,17 @@ class QueryTile(Tile):
             logger.warning(f"Parsing {query}: {e}")
             return query
 
-        def transformer(node: sqlglot.Expression) -> sqlglot.Expression:
-            if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
-                node.args["db"].set("this", database)
-            return node
-
-        query_transformed = syntax_tree.transform(transformer).sql(dialect=sqlglot.dialects.Databricks)
+        query_transformed = syntax_tree.transform(self.query_transformer).sql(dialect=sqlglot.dialects.Databricks)
         return query_transformed
 
-    def get_dataset(self, database: str = "") -> Dataset:
+    def get_dataset(self) -> Dataset:
         """Get the dataset belonging to the query."""
-        _, query = self._widget_metadata.handler.split()
-        query = self._replace_database_in_query(query, database)
+        query = self._get_query()
         dataset = Dataset(name=self._widget_metadata.id, display_name=self._widget_metadata.id, query=query)
         return dataset
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        dataset = self.get_dataset()  # TODO: Persist the optional database somehow
+        dataset = self.get_dataset()
         try:
             return sqlglot.parse_one(dataset.query, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
@@ -452,12 +458,28 @@ class Dashboards:
         formatted_query = ";\n".join(statements)
         return formatted_query
 
-    def create_dashboard(self, dashboard_folder: Path, *, database: str = "") -> Dashboard:
-        """Create a dashboard from code, i.e. configuration and queries."""
+    def create_dashboard(
+        self,
+        dashboard_folder: Path,
+        *,
+        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
+    ) -> Dashboard:
+        """Create a dashboard from code, i.e. configuration and queries.
+
+        Parameters :
+            dashboard_folder : Path
+                The path to the folder with dashboard files.
+            query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default | None)
+                A sqlglot transformer applied on the queries (SQL files) before creating the dashboard. If None, no
+                transformation will be applied.
+
+        Source :
+            https://sqlglot.com/sqlglot/transforms.html
+        """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
-        tiles = self._get_tiles(widgets_metadata)
-        datasets = self._get_datasets(tiles, database=database)
+        tiles = self._get_tiles(widgets_metadata, query_transformer=query_transformer)
+        datasets = self._get_datasets(tiles)
         layouts = self._get_layouts(tiles)
         page = Page(
             name=dashboard_metadata.display_name,
@@ -478,7 +500,10 @@ class Dashboards:
         return widgets_metadata
 
     @staticmethod
-    def _get_tiles(widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
+    def _get_tiles(
+        widgets_metadata: list[WidgetMetadata],
+        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
+    ) -> list[Tile]:
         """Create tiles from the widgets metadata.
 
         The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
@@ -496,16 +521,18 @@ class Dashboards:
         for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
             tile = Tile.from_widget_metadata(widget_metadata)
             placed_tile = tile.place_after(position)
+            if isinstance(placed_tile, QueryTile):
+                placed_tile.query_transformer = query_transformer
             tiles.append(placed_tile)
             position = placed_tile.position
         return tiles
 
     @staticmethod
-    def _get_datasets(tiles: list[Tile], *, database: str = "") -> list[Dataset]:
+    def _get_datasets(tiles: list[Tile]) -> list[Dataset]:
         datasets = []
         for tile in tiles:
             if isinstance(tile, QueryTile):
-                dataset = tile.get_dataset(database=database)
+                dataset = tile.get_dataset()
                 datasets.append(dataset)
         return datasets
 

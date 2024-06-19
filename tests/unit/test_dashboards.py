@@ -1,3 +1,4 @@
+import functools
 import logging
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -15,6 +16,7 @@ from databricks.labs.lsql.dashboards import (
     QueryTile,
     Tile,
     WidgetMetadata,
+    replace_database_in_query,
 )
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
@@ -409,7 +411,8 @@ def test_dashboard_creates_datasets_with_database_overwrite(tmp_path, query, que
 
     (tmp_path / "counter.sql").write_text(query)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path, database="development")
+    query_transformer = functools.partial(replace_database_in_query, database="development")
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path, query_transformer=query_transformer)
 
     dataset = lakeview_dashboard.datasets[0]
 
