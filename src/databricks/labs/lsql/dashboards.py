@@ -33,7 +33,6 @@ from databricks.labs.lsql.lakeview import (
     TableEncodingMap,
     TableV2Spec,
     Widget,
-    WidgetFrameSpec,
     WidgetSpec,
 )
 
@@ -259,12 +258,6 @@ class WidgetMetadata:
     def size(self) -> tuple[int, int]:
         return self.width, self.height
 
-    def is_markdown(self) -> bool:
-        return self.path.suffix == ".md"
-
-    def is_query(self) -> bool:
-        return self.path.suffix == ".sql"
-
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
         parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
@@ -335,7 +328,8 @@ class Tile:
 
     @property
     def widget(self) -> Widget:
-        widget = Widget(name=self._widget_metadata.id, textbox_spec=self._widget_metadata.path.read_text())
+        _, text = self._widget_metadata.handler.split()
+        widget = Widget(name=self._widget_metadata.id, textbox_spec=text)
         return widget
 
     @classmethod
@@ -359,7 +353,7 @@ class MarkdownTile(Tile):
 
 class QueryTile(Tile):
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        query = self._widget_metadata.path.read_text()
+        _, query = self._widget_metadata.handler.split()
         try:
             return sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
