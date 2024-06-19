@@ -430,7 +430,7 @@ class Dashboards:
         """Create a dashboard from code, i.e. configuration and queries."""
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
-        datasets = self._get_datasets(dashboard_folder)
+        datasets = self._get_datasets(dashboard_folder, database=database)
         layouts = self._get_layouts(widgets_metadata)
         page = Page(
             name=dashboard_metadata.display_name,
