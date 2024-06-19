@@ -663,7 +663,7 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_width_and_
     position = lakeview_dashboard.pages[0].layout[0].position
 
     assert position.width == 6
-    assert position.height == 2
+    assert position.height == 3
     ws.assert_not_called()
 
 
