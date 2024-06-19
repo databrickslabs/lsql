@@ -160,3 +160,32 @@ def test_dashboards_deploys_dashboard_with_order_overwrite(ws, make_dashboard, t
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_table(ws, make_dashboard):
+    sdk_dashboard = make_dashboard()
+
+    dashboard_folder = Path(__file__).parent / "dashboards" / "one_table"
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(dashboard_folder)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_invalid_query(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    for query_name in range(6):
+        with (tmp_path / f"{query_name}.sql").open("w") as f:
+            f.write(f"SELECT {query_name} AS count")
+    with (tmp_path / "4.sql").open("w") as f:
+        f.write("SELECT COUNT(* AS invalid_column")
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)

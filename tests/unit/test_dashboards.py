@@ -3,11 +3,14 @@ from pathlib import Path
 from unittest.mock import create_autospec
 
 import pytest
+import yaml
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import (
     DashboardMetadata,
     Dashboards,
+    QueryTile,
+    Tile,
     WidgetMetadata,
 )
 from databricks.labs.lsql.lakeview import (
@@ -20,24 +23,66 @@ from databricks.labs.lsql.lakeview import (
     Page,
     Position,
     Query,
+    TableV2Spec,
     Widget,
 )
 
 
-def test_dashboard_configuration_raises_key_error_if_display_name_is_missing():
+def test_dashboard_metadata_raises_key_error_if_display_name_is_missing():
     with pytest.raises(KeyError):
         DashboardMetadata.from_dict({})
 
 
-def test_dashboard_configuration_sets_display_name_from_dict():
+def test_dashboard_metadata_sets_display_name_from_dict():
     dashboard_metadata = DashboardMetadata.from_dict({"display_name": "test"})
     assert dashboard_metadata.display_name == "test"
 
 
-def test_dashboard_configuration_from_and_as_dict_is_a_unit_function():
+def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
     raw = {"display_name": "test"}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
     assert dashboard_metadata.as_dict() == raw
+
+
+def test_dashboard_metadata_from_raw(tmp_path):
+    raw = {"display_name": "test"}
+
+    path = tmp_path / "dashboard.yml"
+    with path.open("w") as f:
+        yaml.safe_dump(raw, f)
+
+    from_dict = DashboardMetadata.from_dict(raw)
+    from_path = DashboardMetadata.from_path(path)
+
+    for dashboard_metadata in from_dict, from_path:
+        assert dashboard_metadata.display_name == "test"
+
+
+@pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml", ""])
+def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
+    path = tmp_path / "dashboard.yml"
+    if len(dashboard_content) > 0:
+        path.write_text(dashboard_content)
+
+    dashboard_metadata = DashboardMetadata.from_path(path)
+    assert dashboard_metadata.display_name == tmp_path.name
+
+
+def test_widget_metadata_sets_size():
+    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 10, 10)
+    assert widget_metadata.size() == (10, 10)
+
+
+def test_widget_metadata_is_markdown():
+    widget_metadata = WidgetMetadata(Path("test.md"))
+    assert widget_metadata.is_markdown()
+    assert not widget_metadata.is_query()
+
+
+def test_widget_metadata_is_query():
+    widget_metadata = WidgetMetadata(Path("test.sql"))
+    assert not widget_metadata.is_markdown()
+    assert widget_metadata.is_query()
 
 
 def test_widget_metadata_replaces_width_and_height():
@@ -58,6 +103,28 @@ def test_widget_metadata_as_dict():
     raw = {"path": "test.sql", "id": "test", "order": "10", "width": "10", "height": "10"}
     widget_metadata = WidgetMetadata(Path("test.sql"), 10, 10, 10)
     assert widget_metadata.as_dict() == raw
+
+
+def test_tile_places_tile_to_the_right():
+    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
+    tile = Tile(widget_metadata)
+
+    position = Position(0, 4, 3, 4)
+    placed_tile = tile.place_after(position)
+
+    assert placed_tile.position.x == position.x + position.width
+    assert placed_tile.position.y == 4
+
+
+def test_tile_places_tile_below():
+    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
+    tile = Tile(widget_metadata)
+
+    position = Position(5, 4, 3, 4)
+    placed_tile = tile.place_after(position)
+
+    assert placed_tile.position.x == 0
+    assert placed_tile.position.y == 8
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
@@ -139,7 +206,7 @@ def test_dashboards_creates_one_counter_widget_per_query():
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
-def test_dashboards_skips_invalid_query(tmp_path, caplog):
+def test_dashboards_creates_text_widget_for_invalid_query(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
     # Test for the invalid query not to be the first or last query
@@ -154,7 +221,8 @@ def test_dashboards_skips_invalid_query(tmp_path, caplog):
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
         lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
-    assert len(lakeview_dashboard.pages[0].layout) == 2
+    markdown_widget = lakeview_dashboard.pages[0].layout[1].widget
+    assert markdown_widget.textbox_spec == invalid_query
     assert invalid_query in caplog.text
 
 
@@ -234,16 +302,16 @@ ORDER BY count DESC, finding DESC
         ("SELECT from_unixtime(timestamp) AS timestamp FROM table", ["timestamp"]),
     ],
 )
-def test_dashboards_gets_fields_with_expected_names(tmp_path, query, names):
-    with (tmp_path / "query.sql").open("w") as f:
-        f.write(query)
+def test_query_tile_finds_fields(tmp_path, query, names):
+    query_file = tmp_path / "query.sql"
+    query_file.write_text(query)
 
-    ws = create_autospec(WorkspaceClient)
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    widget_metadata = WidgetMetadata(query_file, 1, 1, 1)
+    tile = QueryTile(widget_metadata)
 
-    fields = lakeview_dashboard.pages[0].layout[0].widget.queries[0].query.fields
+    fields = tile._find_fields()  # pylint: disable=protected-access
+
     assert [field.name for field in fields] == names
-    ws.assert_not_called()
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
@@ -257,6 +325,20 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
     assert isinstance(counter_spec, CounterSpec)
     assert counter_spec.encodings.value.field_name == "amount"
     assert counter_spec.encodings.value.display_name == "amount"
+    ws.assert_not_called()
+
+
+def test_dashboards_creates_dashboard_with_expected_table_field_encodings(tmp_path):
+    with (tmp_path / "query.sql").open("w") as f:
+        f.write("SELECT 1 AS first, 2 AS second")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    table_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(table_spec, TableV2Spec)
+    assert table_spec.encodings.columns[0].field_name == "first"
+    assert table_spec.encodings.columns[1].field_name == "second"
     ws.assert_not_called()
 
 
@@ -356,7 +438,13 @@ def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     ws.assert_not_called()
 
 
-@pytest.mark.parametrize("query, width, height", [("SELECT 1 AS count", 1, 3)])
+@pytest.mark.parametrize(
+    "query, width, height",
+    [
+        ("SELECT 1 AS count", 1, 3),
+        ("SELECT 1 AS first, 2 AS second", 6, 6),
+    ],
+)
 def test_dashboards_creates_dashboards_where_widget_has_expected_width_and_height(tmp_path, query, width, height):
     ws = create_autospec(WorkspaceClient)
 
