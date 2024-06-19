@@ -329,11 +329,11 @@ class QueryTile(Tile):
         return dataset
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        _, query = self._widget_metadata.handler.split()
+        dataset = self.get_dataset()  # TODO: Persist the optional database somehow
         try:
-            return sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+            return sqlglot.parse_one(dataset.query, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {query}: {e}")
+            logger.warning(f"Parsing {dataset.query}: {e}")
             return None
 
     def _find_fields(self) -> list[Field]:
