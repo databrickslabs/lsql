@@ -10,10 +10,10 @@ from databricks.labs.lsql.dashboards import (
     BaseHandler,
     DashboardMetadata,
     Dashboards,
-    QueryTile,
-    Tile,
     MarkdownHandler,
     QueryHandler,
+    QueryTile,
+    Tile,
     WidgetMetadata,
 )
 from databricks.labs.lsql.lakeview import (
@@ -88,7 +88,6 @@ def test_widget_metadata_is_query():
     assert widget_metadata.is_query()
 
 
-def test_widget_metadata_replaces_width_and_height():
 def test_base_handler_parses_empty_header(tmp_path):
     path = tmp_path / "file.txt"
     path.write_text("Hello")
