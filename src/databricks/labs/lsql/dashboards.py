@@ -288,13 +288,7 @@ class Tile:
         """Create a tile given the widget metadata."""
         if widget_metadata.is_markdown():
             return MarkdownTile(widget_metadata)
-        query_tile = QueryTile(widget_metadata)
-        spec_type = query_tile.infer_spec_type()
-        if spec_type is None:
-            return MarkdownTile(widget_metadata)
-        if spec_type == CounterSpec:
-            return CounterTile(widget_metadata)
-        return TableTile(widget_metadata)
+        return QueryTile.from_widget_metadata(widget_metadata)
 
 
 class MarkdownTile(Tile):
@@ -310,13 +304,18 @@ def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sql
 
 
 class QueryTile(Tile):
-    def __init__(self, widget_metadata: WidgetMetadata) -> None:
+    def __init__(
+        self,
+        widget_metadata: WidgetMetadata,
+        *,
+        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
+    ) -> None:
         super().__init__(widget_metadata)
-        self.query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+        self._query_transformer = query_transformer
 
     def _get_query(self) -> str:
         _, query = self._widget_metadata.handler.split()
-        if self.query_transformer is None:
+        if self._query_transformer is None:
             return query
 
         try:
@@ -325,7 +324,7 @@ class QueryTile(Tile):
             logger.warning(f"Parsing {query}: {e}")
             return query
 
-        query_transformed = syntax_tree.transform(self.query_transformer).sql(dialect=sqlglot.dialects.Databricks)
+        query_transformed = syntax_tree.transform(self._query_transformer).sql(dialect=sqlglot.dialects.Databricks)
         return query_transformed
 
     def get_dataset(self) -> Dataset:
@@ -386,6 +385,21 @@ class QueryTile(Tile):
         table_encodings = TableEncodingMap(field_encodings)
         spec = TableV2Spec(encodings=table_encodings, frame=frame)
         return spec
+
+    @classmethod
+    def from_widget_metadata(
+        cls,
+        widget_metadata: WidgetMetadata,
+        *,
+        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
+    ) -> Tile:
+        query_tile = QueryTile(widget_metadata)
+        spec_type = query_tile.infer_spec_type()
+        if spec_type is None:
+            return MarkdownTile(widget_metadata)
+        if spec_type == CounterSpec:
+            return CounterTile(widget_metadata, query_transformer=query_transformer)
+        return TableTile(widget_metadata, query_transformer=query_transformer)
 
     def infer_spec_type(self) -> type[WidgetSpec] | None:
         """Infer the spec type from the query."""
@@ -519,10 +533,11 @@ class Dashboards:
 
         tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
         for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
-            tile = Tile.from_widget_metadata(widget_metadata)
+            if widget_metadata.is_query():
+                tile = QueryTile.from_widget_metadata(widget_metadata, query_transformer=query_transformer)
+            else:
+                tile = Tile.from_widget_metadata(widget_metadata)
             placed_tile = tile.place_after(position)
-            if isinstance(placed_tile, QueryTile):
-                placed_tile.query_transformer = query_transformer
             tiles.append(placed_tile)
             position = placed_tile.position
         return tiles
