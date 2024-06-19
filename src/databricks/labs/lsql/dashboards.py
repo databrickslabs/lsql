@@ -298,7 +298,7 @@ class Tile:
 
 class MarkdownTile(Tile):
     def _default_size(self) -> tuple[int, int]:
-        return _MAXIMUM_DASHBOARD_WIDTH, 2
+        return _MAXIMUM_DASHBOARD_WIDTH, 3
 
 
 class QueryTile(Tile):
