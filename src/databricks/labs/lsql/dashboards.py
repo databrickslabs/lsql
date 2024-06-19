@@ -302,6 +302,32 @@ class MarkdownTile(Tile):
 
 
 class QueryTile(Tile):
+    @staticmethod
+    def _replace_database_in_query(query: str, database: str) -> str:
+        if not database:
+            return query
+
+        try:
+            syntax_tree = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {query}: {e}")
+            return query
+
+        def transformer(node: sqlglot.Expression) -> sqlglot.Expression:
+            if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
+                node.args["db"].set("this", database)
+            return node
+
+        query_transformed = syntax_tree.transform(transformer).sql(dialect=sqlglot.dialects.Databricks)
+        return query_transformed
+
+    def get_dataset(self, database: str = "") -> Dataset:
+        """Get the dataset belonging to the query."""
+        _, query = self._widget_metadata.handler.split()
+        query = self._replace_database_in_query(query, database)
+        dataset = Dataset(name=self._widget_metadata.id, display_name=self._widget_metadata.id, query=query)
+        return dataset
+
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
         _, query = self._widget_metadata.handler.split()
         try:
@@ -430,8 +456,9 @@ class Dashboards:
         """Create a dashboard from code, i.e. configuration and queries."""
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
-        datasets = self._get_datasets(dashboard_folder, database=database)
-        layouts = self._get_layouts(widgets_metadata)
+        tiles = self._get_tiles(widgets_metadata)
+        datasets = self._get_datasets(tiles, database=database)
+        layouts = self._get_layouts(tiles)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -450,37 +477,9 @@ class Dashboards:
                 widgets_metadata.append(widget_metadata)
         return widgets_metadata
 
-    def _get_datasets(self, dashboard_folder: Path, *, database: str = "") -> list[Dataset]:
-        _ = database
-        datasets = []
-        for query_path in sorted(dashboard_folder.glob("*.sql")):
-            query = self._replace_database_in_query(query_path.read_text(), database)
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=query)
-            datasets.append(dataset)
-        return datasets
-
     @staticmethod
-    def _replace_database_in_query(query: str, database: str) -> str:
-        if not database:
-            return query
-
-        try:
-            syntax_tree = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {query}: {e}")
-            return query
-
-        def transformer(node: sqlglot.Expression) -> sqlglot.Expression:
-            if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
-                node.args["db"].set("this", database)
-            return node
-
-        query_transformed = syntax_tree.transform(transformer).sql(dialect=sqlglot.dialects.Databricks)
-        return query_transformed
-
-    @staticmethod
-    def _get_layouts(widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
-        """Create layouts from the widgets metadata.
+    def _get_tiles(widgets_metadata: list[WidgetMetadata]) -> list[Tile]:
+        """Create tiles from the widgets metadata.
 
         The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
         with the `order` key. Hence, the multiple loops to get:
@@ -493,13 +492,30 @@ class Dashboards:
             replica.order = widget_metadata.order if widget_metadata.order is not None else order
             widgets_metadata_with_order.append(replica)
 
-        layouts, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
         for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
             tile = Tile.from_widget_metadata(widget_metadata)
             placed_tile = tile.place_after(position)
-            layout = Layout(widget=placed_tile.widget, position=placed_tile.position)
-            layouts.append(layout)
+            tiles.append(placed_tile)
             position = placed_tile.position
+        return tiles
+
+    @staticmethod
+    def _get_datasets(tiles: list[Tile], *, database: str = "") -> list[Dataset]:
+        datasets = []
+        for tile in tiles:
+            if isinstance(tile, QueryTile):
+                dataset = tile.get_dataset(database=database)
+                datasets.append(dataset)
+        return datasets
+
+    @staticmethod
+    def _get_layouts(tiles: list[Tile]) -> list[Layout]:
+        """Create layouts from the tiles."""
+        layouts = []
+        for tile in tiles:
+            layout = Layout(widget=tile.widget, position=tile.position)
+            layouts.append(layout)
         return layouts
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
