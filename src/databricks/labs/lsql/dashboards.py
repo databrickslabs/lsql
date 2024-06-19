@@ -77,7 +77,7 @@ class WidgetMetadata:
     def __init__(
         self,
         path: Path,
-        order: int = 0,
+        order: int | None = None,
         width: int = 0,
         height: int = 0,
         _id: str = "",
@@ -125,7 +125,7 @@ class WidgetMetadata:
             logger.warning(f"Parsing {arguments}: {e}")
             return replica
 
-        replica.order = args.order or self.order
+        replica.order = args.order if args.order is not None else self.order
         replica.width = args.width or self.width
         replica.height = args.height or self.height
         replica.id = args.id or self.id
@@ -368,7 +368,7 @@ class Dashboards:
         widgets_metadata_with_order = []
         for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
             replica = copy.deepcopy(widget_metadata)
-            replica.order = widget_metadata.order or order
+            replica.order = widget_metadata.order if widget_metadata.order is not None else order
             widgets_metadata_with_order.append(replica)
 
         layouts, position = [], Position(0, 0, 0, 0)  # Position of first tile

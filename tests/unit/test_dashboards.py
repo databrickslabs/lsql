@@ -421,6 +421,22 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboards_with_widgets_order_overwrite_zero(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    # Move the 'e' inbetween 'a' and 'b' query. Note that the order 0 puts 'e' on the same position as 'a', but with an
+    # order tiebreaker the query name decides the final order.
+    (tmp_path / "e.sql").write_text("-- --order 0\nSELECT 1 AS count")
+    for query_name in "abcdf":
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
+
+    assert "".join(widget_names) == "aebcdf"
+    ws.assert_not_called()
+
+
 def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
