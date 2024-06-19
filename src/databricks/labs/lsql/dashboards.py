@@ -231,30 +231,6 @@ class WidgetMetadata:
                 body[attribute] = str(value)
         return body
 
-    @staticmethod
-    def _get_arguments_parser() -> ArgumentParser:
-        parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
-        parser.add_argument("--id", type=str)
-        parser.add_argument("-o", "--order", type=int)
-        parser.add_argument("-w", "--width", type=int)
-        parser.add_argument("-h", "--height", type=int)
-        return parser
-
-    def replace_from_arguments(self, arguments: list[str]) -> "WidgetMetadata":
-        replica = copy.deepcopy(self)
-        parser = self._get_arguments_parser()
-        try:
-            args = parser.parse_args(arguments)
-        except (argparse.ArgumentError, SystemExit) as e:
-            logger.warning(f"Parsing {arguments}: {e}")
-            return replica
-
-        replica.order = args.order if args.order is not None else self.order
-        replica.width = args.width or self.width
-        replica.height = args.height or self.height
-        replica.id = args.id or self.id
-        return replica
-
     @classmethod
     def from_path(cls, path: Path) -> "WidgetMetadata":
         widget_metadata = cls(path=path)
