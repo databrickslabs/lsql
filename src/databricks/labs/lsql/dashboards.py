@@ -33,6 +33,7 @@ from databricks.labs.lsql.lakeview import (
     TableEncodingMap,
     TableV2Spec,
     Widget,
+    WidgetFrameSpec,
     WidgetSpec,
 )
 
@@ -331,7 +332,13 @@ class QueryTile(Tile):
     def widget(self) -> Widget:
         fields = self._find_fields()
         named_query = self._get_named_query(fields)
-        spec = self._get_spec(fields)
+        frame = WidgetFrameSpec(
+            title=self._widget_metadata.title,
+            show_title=self._widget_metadata is not None,
+            description=self._widget_metadata.description,
+            show_description=self._widget_metadata.description is not None,
+        )
+        spec = self._get_spec(fields, frame=frame)
         widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
         return widget
 
@@ -342,10 +349,10 @@ class QueryTile(Tile):
         return named_query
 
     @staticmethod
-    def _get_spec(fields: list[Field]) -> WidgetSpec:
+    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
         field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
         table_encodings = TableEncodingMap(field_encodings)
-        spec = TableV2Spec(encodings=table_encodings)
+        spec = TableV2Spec(encodings=table_encodings, frame=frame)
         return spec
 
     def infer_spec_type(self) -> type[WidgetSpec] | None:
@@ -368,9 +375,9 @@ class CounterTile(QueryTile):
         return 1, 3
 
     @staticmethod
-    def _get_spec(fields: list[Field]) -> CounterSpec:
+    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
         counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-        spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
+        spec = CounterSpec(CounterEncodingMap(value=counter_encodings), frame=frame)
         return spec
 
 
