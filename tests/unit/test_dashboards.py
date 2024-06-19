@@ -1,3 +1,4 @@
+import functools
 import logging
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -15,6 +16,7 @@ from databricks.labs.lsql.dashboards import (
     QueryTile,
     Tile,
     WidgetMetadata,
+    replace_database_in_query,
 )
 from databricks.labs.lsql.lakeview import (
     CounterEncodingMap,
@@ -373,6 +375,43 @@ def test_dashboards_creates_one_dataset_per_query():
     assert len(dashboard.datasets) == len([query for query in queries.glob("*.sql")])
 
 
+def test_dashboard_creates_datasets_using_query(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    query = "SELECT count FROM database.table"
+    (tmp_path / "counter.sql").write_text(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    dataset = lakeview_dashboard.datasets[0]
+
+    assert dataset.query == query
+    ws.assert_not_called()
+
+
+def test_dashboard_creates_datasets_with_transformed_query(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    # Note that sqlglot sees "$inventory" (convention in ucx) as a parameter thus only replaces "inventory"
+    query = """
+WITH raw AS (
+  SELECT object_type, object_id, IF(failures == '[]', 1, 0) AS ready
+  FROM inventory.objects
+)
+SELECT COALESCE(CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%'), 'N/A') AS readiness FROM raw
+""".lstrip()
+    (tmp_path / "counter.sql").write_text(query)
+
+    query_transformer = functools.partial(replace_database_in_query, database="development")
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path, query_transformer=query_transformer)
+
+    dataset = lakeview_dashboard.datasets[0]
+
+    assert "$inventory.objects" not in dataset.query
+    assert "development.objects" in dataset.query
+    ws.assert_not_called()
+
+
 def test_dashboards_creates_one_counter_widget_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
@@ -493,6 +532,48 @@ def test_query_tile_finds_fields(tmp_path, query, names):
     fields = tile._find_fields()  # pylint: disable=protected-access
 
     assert [field.name for field in fields] == names
+
+
+def test_query_tile_keeps_original_query(tmp_path):
+    query = "SELECT x, y FROM a JOIN b"
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text(query)
+
+    widget_metadata = WidgetMetadata.from_path(query_path)
+    query_tile = QueryTile(widget_metadata)
+
+    dataset = query_tile.get_dataset()
+
+    assert dataset.query == query
+
+
+@pytest.mark.parametrize(
+    "query, query_transformed",
+    [
+        ("SELECT count FROM table", "SELECT count FROM table"),
+        ("SELECT count FROM database.table", "SELECT count FROM development.table"),
+        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table"),
+        ("SELECT database FROM database.table", "SELECT database FROM development.table"),
+        (
+            "SELECT * FROM server.database.table, server.other_database.table",
+            "SELECT * FROM server.development.table, server.development.table",
+        ),
+        (
+            "SELECT left.* FROM server.database.table AS left JOIN server.other_database.table AS right ON left.id = right.id",
+            "SELECT left.* FROM server.development.table AS left JOIN server.development.table AS right ON left.id = right.id",
+        ),
+    ],
+)
+def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, query_transformed):
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text(query)
+
+    replace_with_development_database = functools.partial(replace_database_in_query, database="development")
+    query_tile = QueryTile(WidgetMetadata.from_path(query_path), query_transformer=replace_with_development_database)
+
+    dataset = query_tile.get_dataset()
+
+    assert dataset.query == query_transformed
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
