@@ -304,6 +304,8 @@ def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sql
 
 
 class QueryTile(Tile):
+    _DIALECT = sqlglot.dialects.Databricks
+
     def __init__(
         self,
         widget_metadata: WidgetMetadata,
@@ -313,18 +315,22 @@ class QueryTile(Tile):
         super().__init__(widget_metadata)
         self._query_transformer = query_transformer
 
+    def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
+        _, query = self._widget_metadata.handler.split()
+        try:
+            return sqlglot.parse_one(query, dialect=self._DIALECT)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {query}: {e}")
+            return None
+
     def _get_query(self) -> str:
         _, query = self._widget_metadata.handler.split()
         if self._query_transformer is None:
             return query
-
-        dialect = sqlglot.dialects.Databricks
-        try:
-            syntax_tree = sqlglot.parse_one(query, dialect=dialect)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {query}: {e}")
+        syntax_tree = self._get_abstract_syntax_tree()
+        if syntax_tree is None:
             return query
-        query_transformed = syntax_tree.transform(self._query_transformer).sql(dialect=dialect)
+        query_transformed = syntax_tree.transform(self._query_transformer).sql(dialect=self._DIALECT)
         return query_transformed
 
     def get_dataset(self) -> Dataset:
@@ -332,14 +338,6 @@ class QueryTile(Tile):
         query = self._get_query()
         dataset = Dataset(name=self._widget_metadata.id, display_name=self._widget_metadata.id, query=query)
         return dataset
-
-    def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        query = self._get_query()
-        try:
-            return sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {query}: {e}")
-            return None
 
     def _find_fields(self) -> list[Field]:
         """Find the fields in a query.
