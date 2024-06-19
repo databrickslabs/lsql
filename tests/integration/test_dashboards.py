@@ -225,25 +225,13 @@ def test_dashboards_deploys_dashboard_with_widget_title_and_description(ws, make
 def test_dashboards_deploys_dashboard_from_query_with_cte(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard()
 
-    query_with_cte = """
-WITH data AS (
-  SELECT
-    Address,
-    City,
-    State,
-    `Zip Code`,
-    Country
-  FROM
-  VALUES
-    ('160 Spear St 15th Floor', 'San Francisco', 'CA', '94105', 'USA'),
-    ('756 W Peachtree St NW, Suite 03W114', 'Atlanta', 'GA', '30308', 'USA'),
-    ('500 108th Ave NE, Suite 1820', 'Bellevue', 'WA', '98004', 'USA'),
-    ('125 High St, Suite 220', 'Boston', 'MA', '02110', 'USA'),
-    ('2120 University Ave, Suite 722', 'Berkeley', 'CA', '94704', 'USA') AS tab(Address, City, State, `Zip Code`, Country)
-)
--- --title 'Databricks Office Locations'
-SELECT Address, State, Country FROM data
-""".lstrip()
+    table_query_path = Path(__file__).parent / "dashboards/one_table/databricks_office_locations.sql"
+    office_locations = table_query_path.read_text()
+    query_with_cte = (
+        f"WITH data AS ({office_locations})\n"
+        "-- --title 'Databricks Office Locations'\n"
+        "SELECT Address, State, Country FROM data"
+    )
     (tmp_path / "table.sql").write_text(query_with_cte)
 
     dashboards = Dashboards(ws)
