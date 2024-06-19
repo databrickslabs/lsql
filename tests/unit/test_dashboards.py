@@ -511,6 +511,19 @@ def test_query_tile_finds_fields(tmp_path, query, names):
     assert [field.name for field in fields] == names
 
 
+def test_query_tile_keeps_original_query(tmp_path):
+    query = "SELECT x, y FROM a JOIN b"
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text(query)
+
+    widget_metadata = WidgetMetadata.from_path(query_path)
+    query_tile = QueryTile(widget_metadata)
+
+    dataset = query_tile.get_dataset()
+
+    assert dataset.query == query
+
+
 @pytest.mark.parametrize(
     "query, query_transformed",
     [
