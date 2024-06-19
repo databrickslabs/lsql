@@ -389,37 +389,6 @@ def test_dashboard_creates_datasets_using_query(tmp_path):
     ws.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "query, query_transformed",
-    [
-        ("SELECT count FROM table", "SELECT count FROM table"),
-        ("SELECT count FROM database.table", "SELECT count FROM development.table"),
-        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table"),
-        ("SELECT database FROM database.table", "SELECT database FROM development.table"),
-        (
-            "SELECT * FROM server.database.table, server.other_database.table",
-            "SELECT * FROM server.development.table, server.development.table",
-        ),
-        (
-            "SELECT left.* FROM server.database.table AS left JOIN server.other_database.table AS right ON left.id = right.id",
-            "SELECT left.* FROM server.development.table AS left JOIN server.development.table AS right ON left.id = right.id",
-        ),
-    ],
-)
-def test_dashboard_creates_datasets_with_database_overwrite(tmp_path, query, query_transformed):
-    ws = create_autospec(WorkspaceClient)
-
-    (tmp_path / "counter.sql").write_text(query)
-
-    query_transformer = functools.partial(replace_database_in_query, database="development")
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path, query_transformer=query_transformer)
-
-    dataset = lakeview_dashboard.datasets[0]
-
-    assert dataset.query == query_transformed
-    ws.assert_not_called()
-
-
 def test_dashboards_creates_one_counter_widget_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
@@ -540,6 +509,36 @@ def test_query_tile_finds_fields(tmp_path, query, names):
     fields = tile._find_fields()  # pylint: disable=protected-access
 
     assert [field.name for field in fields] == names
+
+
+@pytest.mark.parametrize(
+    "query, query_transformed",
+    [
+        ("SELECT count FROM table", "SELECT count FROM table"),
+        ("SELECT count FROM database.table", "SELECT count FROM development.table"),
+        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table"),
+        ("SELECT database FROM database.table", "SELECT database FROM development.table"),
+        (
+            "SELECT * FROM server.database.table, server.other_database.table",
+            "SELECT * FROM server.development.table, server.development.table",
+        ),
+        (
+            "SELECT left.* FROM server.database.table AS left JOIN server.other_database.table AS right ON left.id = right.id",
+            "SELECT left.* FROM server.development.table AS left JOIN server.development.table AS right ON left.id = right.id",
+        ),
+    ],
+)
+def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, query_transformed):
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text(query)
+
+    query_transformer = functools.partial(replace_database_in_query, database="development")
+    query_tile = QueryTile(WidgetMetadata.from_path(query_path))
+    query_tile.query_transformer = query_transformer
+
+    dataset = query_tile.get_dataset()
+
+    assert dataset.query == query_transformed
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
