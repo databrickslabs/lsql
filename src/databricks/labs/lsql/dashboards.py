@@ -3,6 +3,7 @@ import copy
 import dataclasses
 import json
 import logging
+import re
 import shlex
 from argparse import ArgumentParser
 from dataclasses import dataclass
@@ -32,6 +33,7 @@ from databricks.labs.lsql.lakeview import (
     TableEncodingMap,
     TableV2Spec,
     Widget,
+    WidgetFrameSpec,
     WidgetSpec,
 )
 
@@ -73,39 +75,44 @@ class DashboardMetadata:
             return fallback_metadata
 
 
-class WidgetMetadata:
-    def __init__(
-        self,
-        path: Path,
-        order: int | None = None,
-        width: int = 0,
-        height: int = 0,
-        _id: str = "",
-    ):
-        self.path = path
-        self.order = order
-        self.width = width
-        self.height = height
-        self.id = _id or path.stem
+class BaseHandler:
+    """Base file handler.
 
-    def as_dict(self) -> dict[str, str]:
-        body = {"path": self.path.as_posix()}
-        for attribute in "order", "width", "height", "id":
-            if attribute in body:
-                continue
-            value = getattr(self, attribute)
-            if value is not None:
-                body[attribute] = str(value)
-        return body
+    Handlers are based on a Python implementation for FrontMatter.
 
-    def size(self) -> tuple[int, int]:
-        return self.width, self.height
+    Sources:
+        https://frontmatter.codes/docs/markdown
+        https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
+    """
 
-    def is_markdown(self) -> bool:
-        return self.path.suffix == ".md"
+    def __init__(self, path: Path) -> None:
+        self._path = path
 
-    def is_query(self) -> bool:
-        return self.path.suffix == ".sql"
+    @property
+    def _content(self) -> str:
+        return self._path.read_text()
+
+    def parse_header(self) -> dict[str, str]:
+        """Parse the header of the file."""
+        header, _ = self.split()
+        return self._parse_header(header)
+
+    def _parse_header(self, header: str) -> dict[str, str]:
+        _ = self, header
+        return {}
+
+    def split(self) -> tuple[str, str]:
+        """Split the file header from the content.
+
+        Returns :
+            str : The file header possibly containing arguments.
+            str : The file contents.
+        """
+        return "", self._content
+
+
+class QueryHandler(BaseHandler):
+    """Handle query files."""
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
@@ -114,38 +121,126 @@ class WidgetMetadata:
         parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
+        parser.add_argument("-t", "--title", type=str)
+        parser.add_argument("-d", "--description", type=str)
         return parser
 
-    def replace_from_arguments(self, arguments: list[str]) -> "WidgetMetadata":
-        replica = copy.deepcopy(self)
+    def _parse_header(self, header: str) -> dict[str, str]:
+        """Header is an argparse string."""
         parser = self._get_arguments_parser()
         try:
-            args = parser.parse_args(arguments)
+            return vars(parser.parse_args(shlex.split(header)))
         except (argparse.ArgumentError, SystemExit) as e:
-            logger.warning(f"Parsing {arguments}: {e}")
-            return replica
+            logger.warning(f"Parsing {self._path}: {e}")
+            return {}
 
-        replica.order = args.order if args.order is not None else self.order
-        replica.width = args.width or self.width
-        replica.height = args.height or self.height
-        replica.id = args.id or self.id
-        return replica
+    def split(self) -> tuple[str, str]:
+        """Split the query file header from the contents.
+
+        The optional header is the first comment at the top of the file.
+        """
+        try:
+            parsed_query = sqlglot.parse_one(self._content, dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {self._path}: {e}")
+            return "", self._content
+
+        if parsed_query.comments is None or len(parsed_query.comments) == 0:
+            return "", self._content
+
+        first_comment = parsed_query.comments[0]
+        return first_comment.strip(), self._content
+
+
+class MarkdownHandler(BaseHandler):
+    """Handle Markdown files."""
+
+    _FRONT_MATTER_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
+
+    def _parse_header(self, header: str) -> dict[str, str]:
+        """Markdown configuration header is a YAML."""
+        _ = self
+        return yaml.safe_load(header) or {}
+
+    def split(self) -> tuple[str, str]:
+        """Split the markdown file header from the contents.
+
+        The header is enclosed by a horizontal line marked with three dashes '---'.
+        """
+        splits = self._FRONT_MATTER_BOUNDARY.split(self._content, 2)
+        if len(splits) == 3:
+            _, header, content = splits
+            return header.strip(), content.lstrip()
+        if len(splits) == 2:
+            logger.warning(f"Parsing {self._path}: Missing closing header boundary.")
+        return "", self._content
+
+
+class WidgetMetadata:
+    def __init__(
+        self,
+        path: Path,
+        order: int | None = None,
+        width: int = 0,
+        height: int = 0,
+        _id: str = "",
+        title: str = "",
+        description: str = "",
+    ):
+        self._path = path
+        self.order = order
+        self.width = width
+        self.height = height
+        self.id = _id or path.stem
+        self.title = title
+        self.description = description
+
+    def is_markdown(self) -> bool:
+        return self._path.suffix == ".md"
+
+    def is_query(self) -> bool:
+        return self._path.suffix == ".sql"
+
+    @property
+    def handler(self) -> BaseHandler:
+        handler = BaseHandler
+        if self.is_markdown():
+            handler = MarkdownHandler
+        elif self.is_query():
+            handler = QueryHandler
+        return handler(self._path)
+
+    @classmethod
+    def from_dict(cls, *, path: str | Path, **optionals) -> "WidgetMetadata":
+        path = Path(path)
+        if "id" in optionals:
+            optionals["_id"] = optionals["id"]
+            del optionals["id"]
+        return cls(path, **optionals)
+
+    def as_dict(self) -> dict[str, str]:
+        exclude_attributes = {
+            "handler",  # Handler is inferred from file extension
+            "path",  # Path is set explicitly below
+        }
+        body = {"path": self._path.as_posix()}
+        for attribute in dir(self):
+            if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
+                continue
+            value = getattr(self, attribute)
+            if value is not None:
+                body[attribute] = str(value)
+        return body
 
     @classmethod
     def from_path(cls, path: Path) -> "WidgetMetadata":
-        fallback_metadata = cls(path=path)
+        widget_metadata = cls(path=path)
+        header = widget_metadata.handler.parse_header()
+        header.pop("path", None)
+        return cls.from_dict(path=path, **header)
 
-        try:
-            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return fallback_metadata
-
-        first_comment = parsed_query.comments[0]
-        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
+    def __repr__(self):
+        return f"WidgetMetdata<{self._path}>"
 
 
 class Tile:
@@ -183,7 +278,8 @@ class Tile:
 
     @property
     def widget(self) -> Widget:
-        widget = Widget(name=self._widget_metadata.id, textbox_spec=self._widget_metadata.path.read_text())
+        _, text = self._widget_metadata.handler.split()
+        widget = Widget(name=self._widget_metadata.id, textbox_spec=text)
         return widget
 
     @classmethod
@@ -207,7 +303,7 @@ class MarkdownTile(Tile):
 
 class QueryTile(Tile):
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        query = self._widget_metadata.path.read_text()
+        _, query = self._widget_metadata.handler.split()
         try:
             return sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
         except sqlglot.ParseError as e:
@@ -236,7 +332,13 @@ class QueryTile(Tile):
     def widget(self) -> Widget:
         fields = self._find_fields()
         named_query = self._get_named_query(fields)
-        spec = self._get_spec(fields)
+        frame = WidgetFrameSpec(
+            title=self._widget_metadata.title,
+            show_title=self._widget_metadata is not None,
+            description=self._widget_metadata.description,
+            show_description=self._widget_metadata.description is not None,
+        )
+        spec = self._get_spec(fields, frame=frame)
         widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
         return widget
 
@@ -247,10 +349,10 @@ class QueryTile(Tile):
         return named_query
 
     @staticmethod
-    def _get_spec(fields: list[Field]) -> WidgetSpec:
+    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
         field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
         table_encodings = TableEncodingMap(field_encodings)
-        spec = TableV2Spec(encodings=table_encodings)
+        spec = TableV2Spec(encodings=table_encodings, frame=frame)
         return spec
 
     def infer_spec_type(self) -> type[WidgetSpec] | None:
@@ -273,9 +375,9 @@ class CounterTile(QueryTile):
         return 1, 3
 
     @staticmethod
-    def _get_spec(fields: list[Field]) -> CounterSpec:
+    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
         counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-        spec = CounterSpec(CounterEncodingMap(value=counter_encodings))
+        spec = CounterSpec(CounterEncodingMap(value=counter_encodings), frame=frame)
         return spec
 
 

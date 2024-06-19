@@ -7,8 +7,11 @@ import yaml
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import (
+    BaseHandler,
     DashboardMetadata,
     Dashboards,
+    MarkdownHandler,
+    QueryHandler,
     QueryTile,
     Tile,
     WidgetMetadata,
@@ -68,11 +71,6 @@ def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
     assert dashboard_metadata.display_name == tmp_path.name
 
 
-def test_widget_metadata_sets_size():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 10, 10)
-    assert widget_metadata.size() == (10, 10)
-
-
 def test_widget_metadata_is_markdown():
     widget_metadata = WidgetMetadata(Path("test.md"))
     assert widget_metadata.is_markdown()
@@ -85,23 +83,206 @@ def test_widget_metadata_is_query():
     assert widget_metadata.is_query()
 
 
-def test_widget_metadata_replaces_width_and_height():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
-    updated_metadata = widget_metadata.replace_from_arguments(["--width", "10", "--height", "10"])
+def test_base_handler_parses_empty_header(tmp_path):
+    path = tmp_path / "file.txt"
+    path.write_text("Hello")
+    handler = BaseHandler(path)
+
+    header = handler.parse_header()
+
+    assert header == {}
+
+
+def test_base_handler_splits_empty_header(tmp_path):
+    path = tmp_path / "file.txt"
+    path.write_text("Hello")
+    handler = BaseHandler(path)
+
+    header, body = handler.split()
+
+    assert header == ""
+    assert body == "Hello"
+
+
+def test_query_handler_parses_empty_header(tmp_path):
+    path = tmp_path / "query.sql"
+    path.write_text("SELECT 1")
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert all(value is None for value in header.values())
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "-- --height 5\nSELECT 1 AS count -- --width 6",
+        "-- --height 5\nSELECT 1 AS count\n-- --width 6",
+        "-- --height 5\nSELECT 1 AS count\n/* --width 6 */",
+        "-- --height 5\n-- --width 6\nSELECT 1 AS count",
+        "-- --height 5\n/* --width 6 */\nSELECT 1 AS count",
+        "/* --height 5*/\n/* --width 6 */\nSELECT 1 AS count",
+        "/* --height 5*/\n-- --width 6 */\nSELECT 1 AS count",
+    ],
+)
+def test_query_handler_ignores_comment_on_other_lines(tmp_path, query):
+    path = tmp_path / "query.sql"
+    path.write_text(query)
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert header["width"] is None
+    assert header["height"] == 5
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "SELECT 1\n-- --width 6 --height 6",
+        "SELECT 1\n/*\n--width 6\n--height 6*/",
+    ],
+)
+def test_query_handler_ignores_non_header_comment(tmp_path, query):
+    path = tmp_path / "query.sql"
+    path.write_text(query)
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert all(value is None for value in header.values())
+
+
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description"])
+def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
+    path = tmp_path / "query.sql"
+    path.write_text(f"-- --{attribute} 10\nSELECT 1")
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert str(header[attribute]) == "10"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "SELECT 1",
+        "-- --order 10\nSELECT COUNT(* AS invalid_column",
+    ],
+)
+def test_query_handler_splits_no_header(tmp_path, query):
+    path = tmp_path / "query.sql"
+    path.write_text(query)
+    handler = QueryHandler(path)
+
+    header, content = handler.split()
+
+    assert len(header) == 0
+    assert content == query
+
+
+def test_query_handler_splits_header(tmp_path):
+    query = "-- --order 10\nSELECT 1"
+
+    path = tmp_path / "query.sql"
+    path.write_text(query)
+    handler = QueryHandler(path)
+
+    header, content = handler.split()
+
+    assert header == "--order 10"
+    assert content == query
+
+
+def test_markdown_handler_parses_empty_header(tmp_path):
+    path = tmp_path / "widget.md"
+    path.write_text("# Description")
+    handler = MarkdownHandler(path)
+
+    header = handler.parse_header()
+
+    assert header == {}
+
+
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width"])
+def test_markdown_handler_parses_attribute_from_header(tmp_path, attribute):
+    path = tmp_path / "widget.md"
+    path.write_text(f"---\n{attribute}: 10\n---\n# Description")
+    handler = MarkdownHandler(path)
+
+    header = handler.parse_header()
+
+    assert str(header[attribute]) == "10"
+
+
+@pytest.mark.parametrize("horizontal_rule", ["---", "--------"])
+def test_markdown_handler_splits_header(tmp_path, caplog, horizontal_rule):
+    path = tmp_path / "widget.md"
+    path.write_text(f"{horizontal_rule}\norder: 10\n{horizontal_rule}\n# Description")
+    handler = MarkdownHandler(path)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        header, content = handler.split()
+
+    assert "Missing closing header boundary" not in caplog.text
+    assert header == "order: 10"
+    assert content == "# Description"
+
+
+def test_markdown_handler_warns_about_open_ended_header(tmp_path, caplog):
+    path = tmp_path / "widget.md"
+    body = "---\norder: 1\n# Description"
+    path.write_text(body)
+    handler = MarkdownHandler(path)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        header, content = handler.split()
+
+    assert "Missing closing header boundary." in caplog.text
+    assert len(header) == 0
+    assert content == body
+
+
+def test_widget_metadata_replaces_width_and_height(tmp_path):
+    path = tmp_path / "test.sql"
+    path.write_text("SELECT 1")
+    widget_metadata = WidgetMetadata(path, 1, 1, 1)
+    updated_metadata = widget_metadata.from_dict(**{"path": path, "width": 10, "height": 10})
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "width", "height"])
-def test_widget_metadata_replaces_attribute(attribute: str):
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
-    updated_metadata = widget_metadata.replace_from_arguments([f"--{attribute}", "10"])
+@pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title", "description"])
+def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
+    path = tmp_path / "test.sql"
+    path.write_text("SELECT 1")
+    widget_metadata = WidgetMetadata(path, 1, 1, 1, "1", "1", "1")
+    updated_metadata = widget_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
 
-def test_widget_metadata_as_dict():
-    raw = {"path": "test.sql", "id": "test", "order": "10", "width": "10", "height": "10"}
-    widget_metadata = WidgetMetadata(Path("test.sql"), 10, 10, 10)
+def test_widget_metadata_as_dict(tmp_path):
+    path = tmp_path / "test.sql"
+    path.write_text("SELECT 1")
+    raw = {
+        "path": path.as_posix(),
+        "id": "test",
+        "order": "-1",
+        "width": "3",
+        "height": "6",
+        "title": "Test widget",
+        "description": "Longer explanation",
+    }
+    widget_metadata = WidgetMetadata(
+        path,
+        order=-1,
+        width=3,
+        height=6,
+        title="Test widget",
+        description="Longer explanation",
+    )
     assert widget_metadata.as_dict() == raw
 
 
@@ -405,14 +586,11 @@ def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_
 def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    for query_name in "abcdf":
-        with (tmp_path / f"{query_name}.sql").open("w") as f:
-            f.write("SELECT 1 AS count")
-
     # Move the 'e' inbetween 'b' and 'c' query. Note that the order 1 puts 'e' on the same position as 'b', but with an
     # order tiebreaker the query name decides the final order.
-    with (tmp_path / "e.sql").open("w") as f:
-        f.write("-- --order 1\nSELECT 1 AS count")
+    (tmp_path / "e.sql").write_text("-- --order 1\nSELECT 1 AS count")
+    for query_name in "abcdf":
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
@@ -526,13 +704,41 @@ def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
     ws.assert_not_called()
 
 
+def test_dashboard_creates_dashboard_with_title(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    query = "-- --title 'Count me in'\nSELECT 2918"
+    (tmp_path / "counter.sql").write_text(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.title == "Count me in"
+    assert frame.show_title
+    ws.assert_not_called()
+
+
+def test_dashboard_creates_dashboard_with_description(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    query = "-- --description 'Only when it counts'\nSELECT 2918"
+    (tmp_path / "counter.sql").write_text(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.description == "Only when it counts"
+    assert frame.show_description
+    ws.assert_not_called()
+
+
 def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
     # Typo is on purpose
     query = "-- --widh 6 --height 3 \nSELECT 82917019218921 AS big_number_needs_big_widget"
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text(query)
 
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
         lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
@@ -540,53 +746,22 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width == 1
     assert position.height == 3
-    assert "--widh" in caplog.text
+    assert query_path.as_posix() in caplog.text
     ws.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "query",
-    [
-        "-- --height 5\nSELECT 1 AS count -- --width 6",
-        "-- --height 5\nSELECT 1 AS count\n-- --width 6",
-        "-- --height 5\nSELECT 1 AS count\n/* --width 6 */",
-        "-- --height 5\n-- --width 6\nSELECT 1 AS count",
-        "-- --height 5\n/* --width 6 */\nSELECT 1 AS count",
-        "/* --height 5*/\n/* --width 6 */\nSELECT 1 AS count",
-        "/* --height 5*/\n-- --width 6 */\nSELECT 1 AS count",
-    ],
-)
-def test_dashboard_ignores_comment_on_other_lines(tmp_path, query):
+def test_dashboard_creates_dashboard_based_on_markdown_header(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
+    for query_name in "abcdef":
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
+    content = "---\norder: -1\nwidth: 6\nheight: 3\n---\n# Description"
+    (tmp_path / "widget.md").write_text(content)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
     position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 1
-    assert position.height == 5
-    ws.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "query",
-    [
-        "SELECT 1\n-- --width 6 --height 6",
-        "SELECT 1\n/*\n--width 6\n--height 6*/",
-    ],
-)
-def test_dashboard_ignores_non_header_comment(tmp_path, query):
-    ws = create_autospec(WorkspaceClient)
-
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write(query)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    position = lakeview_dashboard.pages[0].layout[0].position
-
-    assert position.width == 1
+    assert position.width == 6
     assert position.height == 3
     ws.assert_not_called()
 
