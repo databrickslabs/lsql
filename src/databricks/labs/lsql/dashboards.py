@@ -194,11 +194,6 @@ class WidgetMetadata:
         self.title = title
         self.description = description
 
-        size = self._size
-        self.width = self.width or size[0]
-        self.height = self.height or size[1]
-        self.id = self.id or path.stem
-
     def is_markdown(self) -> bool:
         return self._path.suffix == ".md"
 
@@ -213,25 +208,6 @@ class WidgetMetadata:
         elif self.is_query():
             handler = QueryHandler
         return handler(self._path)
-
-    @property
-    def spec_type(self) -> type[WidgetSpec]:
-        # TODO: When supporting more specs, infer spec from query
-        return CounterSpec
-
-    @property
-    def _size(self) -> tuple[int, int]:
-        """Get the width and height for a widget.
-
-        The tiling logic works if:
-        - width < _MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
-        - width == _MAXIMUM_DASHBOARD_WIDTH : any height
-        """
-        if self.is_markdown():
-            return _MAXIMUM_DASHBOARD_WIDTH, 2
-        if self.spec_type == CounterSpec:
-            return 1, 3
-        return 0, 0
 
     @classmethod
     def from_dict(cls, *, path: str | Path, **optionals) -> "WidgetMetadata":
@@ -254,9 +230,6 @@ class WidgetMetadata:
             if value is not None:
                 body[attribute] = str(value)
         return body
-
-    def size(self) -> tuple[int, int]:
-        return self.width, self.height
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
