@@ -318,13 +318,13 @@ class QueryTile(Tile):
         if self._query_transformer is None:
             return query
 
+        dialect = sqlglot.dialects.Databricks
         try:
-            syntax_tree = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
+            syntax_tree = sqlglot.parse_one(query, dialect=dialect)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {query}: {e}")
             return query
-
-        query_transformed = syntax_tree.transform(self._query_transformer).sql(dialect=sqlglot.dialects.Databricks)
+        query_transformed = syntax_tree.transform(self._query_transformer).sql(dialect=dialect)
         return query_transformed
 
     def get_dataset(self) -> Dataset:
