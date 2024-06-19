@@ -568,9 +568,8 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
     query_path = tmp_path / "counter.sql"
     query_path.write_text(query)
 
-    query_transformer = functools.partial(replace_database_in_query, database="development")
-    query_tile = QueryTile(WidgetMetadata.from_path(query_path))
-    query_tile.query_transformer = query_transformer
+    replace_with_development_database = functools.partial(replace_database_in_query, database="development")
+    query_tile = QueryTile(WidgetMetadata.from_path(query_path), query_transformer=replace_with_development_database)
 
     dataset = query_tile.get_dataset()
 
