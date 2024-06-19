@@ -389,6 +389,29 @@ def test_dashboard_creates_datasets_using_query(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboard_creates_datasets_with_transformed_query(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    # Note that sqlglot sees "$inventory" (convention in ucx) as a parameter thus only replaces "inventory"
+    query = """
+WITH raw AS (
+  SELECT object_type, object_id, IF(failures == '[]', 1, 0) AS ready
+  FROM inventory.objects
+)
+SELECT COALESCE(CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%'), 'N/A') AS readiness FROM raw
+""".lstrip()
+    (tmp_path / "counter.sql").write_text(query)
+
+    query_transformer = functools.partial(replace_database_in_query, database="development")
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path, query_transformer=query_transformer)
+
+    dataset = lakeview_dashboard.datasets[0]
+
+    assert "$inventory.objects" not in dataset.query
+    assert "development.objects" in dataset.query
+    ws.assert_not_called()
+
+
 def test_dashboards_creates_one_counter_widget_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
