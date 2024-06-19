@@ -33,6 +33,7 @@ from databricks.labs.lsql.lakeview import (
     TableEncodingMap,
     TableV2Spec,
     Widget,
+    WidgetFrameSpec,
     WidgetSpec,
 )
 
@@ -120,6 +121,8 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
+        parser.add_argument("-t", "--title", type=str)
+        parser.add_argument("-d", "--description", type=str)
         return parser
 
     def _parse_header(self, header: str) -> dict[str, str]:
@@ -181,12 +184,16 @@ class WidgetMetadata:
         width: int = 0,
         height: int = 0,
         _id: str = "",
+        title: str = "",
+        description: str = "",
     ):
         self._path = path
         self.order = order
         self.width = width
         self.height = height
         self.id = _id or path.stem
+        self.title = title
+        self.description = description
 
         size = self._size
         self.width = self.width or size[0]
@@ -236,9 +243,13 @@ class WidgetMetadata:
         return cls(path, **optionals)
 
     def as_dict(self) -> dict[str, str]:
+        exclude_attributes = {
+            "handler",  # Handler is inferred from file extension
+            "path",  # Path is set explicitly below
+        }
         body = {"path": self._path.as_posix()}
-        for attribute in "order", "width", "height", "id":
-            if attribute in body:
+        for attribute in dir(self):
+            if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
                 continue
             value = getattr(self, attribute)
             if value is not None:

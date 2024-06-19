@@ -206,3 +206,17 @@ def test_dashboards_deploys_dashboard_with_markdown_header(ws, make_dashboard, t
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_widget_title_and_description(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    description = "-- --title 'Counting' --description 'The answer to life'\nSELECT 42"
+    (tmp_path / "counter.sql").write_text(description)
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
