@@ -411,14 +411,20 @@ class QueryTile(Tile):
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
-    def _get_filter_layouts(self) -> Iterable[Layout]:
+    def _get_filter_layouts(self, column: str) -> Iterable[Layout]:
         """Get the layout visualizing the (optional) filter."""
+        _ = column
         yield from []
+
+    def _get_filters_layouts(self) -> Iterable[Layout]:
+        """Get the layout visualizing the (optional) filters."""
+        for filter_column in self._tile_metadata.filters:
+            yield from self._get_filter_layouts(filter_column)
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
         yield from self._get_query_layouts()
-        yield from self._get_filter_layouts()
+        yield from self._get_filters_layouts()
 
     @staticmethod
     def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
