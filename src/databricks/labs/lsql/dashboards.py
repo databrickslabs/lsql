@@ -381,8 +381,11 @@ class QueryTile(Tile):
         dataset = Dataset(name=self._tile_metadata.id, display_name=self._tile_metadata.id, query=query)
         yield dataset
 
-    def get_layouts(self) -> Iterable[Layout]:
-        """Get the layout(s) reflecting this tile in the dashboard."""
+    def _get_query_layouts(self) -> Iterable[Layout]:
+        """Get the layout visualizing the dataset.
+
+        This is the main layout within the tile as it visualizes the dataset.
+        """
         fields = self._find_fields()
         query = Query(dataset_name=self._tile_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
@@ -397,6 +400,15 @@ class QueryTile(Tile):
         widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
         layout = Layout(widget=widget, position=self.position)
         yield layout
+
+    def _get_filter_layouts(self) -> Iterable[Layout]:
+        """Get the layout visualizing the (optional) filter."""
+        yield from []
+
+    def get_layouts(self) -> Iterable[Layout]:
+        """Get the layout(s) reflecting this tile in the dashboard."""
+        yield from self._get_query_layouts()
+        yield from self._get_filter_layouts()
 
     @staticmethod
     def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
