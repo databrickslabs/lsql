@@ -393,13 +393,13 @@ class QueryTile(Tile):
             description=self._tile_metadata.description,
             show_description=self._tile_metadata.description is not None,
         )
-        spec = self._get_spec(fields, frame=frame)
+        spec = self._get_query_widget_spec(fields, frame=frame)
         widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
     @staticmethod
-    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
+    def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
         field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
         table_encodings = TableEncodingMap(field_encodings)
         spec = TableV2Spec(encodings=table_encodings, frame=frame)
@@ -416,7 +416,7 @@ class CounterTile(QueryTile):
         return 1, 3
 
     @staticmethod
-    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
+    def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
         counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
         spec = CounterSpec(CounterEncodingMap(value=counter_encodings), frame=frame)
         return spec
