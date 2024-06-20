@@ -441,7 +441,16 @@ class QueryTile(Tile):
         return widget
 
     def _get_filters_layouts(self) -> Iterable[Layout]:
-        """Get the layout visualizing the (optional) filters."""
+        """Get the layout visualizing the (optional) filters.
+
+        The positioning of filters works as follows:
+        0) Filters fit **within** the tile
+        1) Filters are placed above the query widget
+        2) Many filters:
+           i) fill up a row first by adjusting their width so that the total width of the filters in a row match the
+              width of the tile whilst having a minimum filter with of one
+           ii) occupy an additional row if the previous one is filled completely.
+        """
         if len(self._tile_metadata.filters) >= (self.position.width * (self.position.height - 1)):
             raise ValueError(f"Too many filters defined for {self}")
         filter_rows = len(self._tile_metadata.filters) // self.position.width
