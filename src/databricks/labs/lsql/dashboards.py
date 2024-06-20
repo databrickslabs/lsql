@@ -442,6 +442,8 @@ class QueryTile(Tile):
 
     def _get_filters_layouts(self) -> Iterable[Layout]:
         """Get the layout visualizing the (optional) filters."""
+        if len(self._tile_metadata.filters) >= (self.position.width * (self.position.height - 1)):
+            raise ValueError(f"Too many filters defined for {self}")
         for filter_column in self._tile_metadata.filters:
             yield from self._get_filter_layouts(filter_column)
 
