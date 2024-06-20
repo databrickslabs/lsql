@@ -178,7 +178,7 @@ class MarkdownHandler(BaseHandler):
         return "", self._content
 
 
-class WidgetMetadata:
+class TileMetadata:
     def __init__(
         self,
         path: Path,
@@ -213,7 +213,7 @@ class WidgetMetadata:
         return handler(self._path)
 
     @classmethod
-    def from_dict(cls, *, path: str | Path, **optionals) -> "WidgetMetadata":
+    def from_dict(cls, *, path: str | Path, **optionals) -> "TileMetadata":
         path = Path(path)
         if "id" in optionals:
             optionals["_id"] = optionals["id"]
@@ -235,9 +235,9 @@ class WidgetMetadata:
         return body
 
     @classmethod
-    def from_path(cls, path: Path) -> "WidgetMetadata":
-        widget_metadata = cls(path=path)
-        header = widget_metadata.handler.parse_header()
+    def from_path(cls, path: Path) -> "TileMetadata":
+        tile_metadata = cls(path=path)
+        header = tile_metadata.handler.parse_header()
         header.pop("path", None)
         return cls.from_dict(path=path, **header)
 
@@ -248,12 +248,12 @@ class WidgetMetadata:
 class Tile:
     """A dashboard tile."""
 
-    def __init__(self, widget_metadata: WidgetMetadata) -> None:
-        self._widget_metadata = widget_metadata
+    def __init__(self, tile_metadata: TileMetadata) -> None:
+        self._tile_metadata = tile_metadata
 
         default_width, default_height = self._default_size()
-        width = self._widget_metadata.width or default_width
-        height = self._widget_metadata.height or default_height
+        width = self._tile_metadata.width or default_width
+        height = self._tile_metadata.height or default_height
         self.position = Position(0, 0, width, height)
 
     def _default_size(self) -> tuple[int, int]:
@@ -261,8 +261,8 @@ class Tile:
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        _, text = self._widget_metadata.handler.split()
-        widget = Widget(name=self._widget_metadata.id, textbox_spec=text)
+        _, text = self._tile_metadata.handler.split()
+        widget = Widget(name=self._tile_metadata.id, textbox_spec=text)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
@@ -286,17 +286,17 @@ class Tile:
         return replica
 
     @classmethod
-    def from_widget_metadata(cls, widget_metadata: WidgetMetadata) -> "Tile":
-        """Create a tile given the widget metadata."""
-        if widget_metadata.is_markdown():
-            return MarkdownTile(widget_metadata)
-        query_tile = QueryTile(widget_metadata)
+    def from_tile_metadata(cls, tile_metadata: TileMetadata) -> "Tile":
+        """Create a tile given the tile metadata."""
+        if tile_metadata.is_markdown():
+            return MarkdownTile(tile_metadata)
+        query_tile = QueryTile(tile_metadata)
         spec_type = query_tile.infer_spec_type()
         if spec_type is None:
-            return MarkdownTile(widget_metadata)
+            return MarkdownTile(tile_metadata)
         if spec_type == CounterSpec:
-            return CounterTile(widget_metadata)
-        return TableTile(widget_metadata)
+            return CounterTile(tile_metadata)
+        return TableTile(tile_metadata)
 
 
 class MarkdownTile(Tile):
@@ -316,15 +316,15 @@ class QueryTile(Tile):
 
     def __init__(
         self,
-        widget_metadata: WidgetMetadata,
+        tile_metadata: TileMetadata,
         *,
         query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
     ) -> None:
-        super().__init__(widget_metadata)
+        super().__init__(tile_metadata)
         self.query_transformer = query_transformer
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        _, query = self._widget_metadata.handler.split()
+        _, query = self._tile_metadata.handler.split()
         try:
             return sqlglot.parse_one(query, dialect=self._DIALECT)
         except sqlglot.ParseError as e:
@@ -332,7 +332,7 @@ class QueryTile(Tile):
             return None
 
     def _get_query(self) -> str:
-        _, query = self._widget_metadata.handler.split()
+        _, query = self._tile_metadata.handler.split()
         if self.query_transformer is None:
             return query
         syntax_tree = self._get_abstract_syntax_tree()
@@ -378,23 +378,23 @@ class QueryTile(Tile):
     def get_dataset(self) -> Dataset:
         """Get the dataset belonging to the query."""
         query = self._get_query()
-        dataset = Dataset(name=self._widget_metadata.id, display_name=self._widget_metadata.id, query=query)
+        dataset = Dataset(name=self._tile_metadata.id, display_name=self._tile_metadata.id, query=query)
         return dataset
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
         fields = self._find_fields()
-        query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
+        query = Query(dataset_name=self._tile_metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
         frame = WidgetFrameSpec(
-            title=self._widget_metadata.title,
-            show_title=self._widget_metadata is not None,
-            description=self._widget_metadata.description,
-            show_description=self._widget_metadata.description is not None,
+            title=self._tile_metadata.title,
+            show_title=self._tile_metadata is not None,
+            description=self._tile_metadata.description,
+            show_description=self._tile_metadata.description is not None,
         )
         spec = self._get_spec(fields, frame=frame)
-        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
+        widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
@@ -486,8 +486,8 @@ class Dashboards:
             https://sqlglot.com/sqlglot/transforms.html
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
-        widgets_metadata = self._parse_widgets_metadata(dashboard_folder)
-        tiles = self._get_tiles(widgets_metadata, query_transformer=query_transformer)
+        tiles_metadata = self._parse_tiles_metadata(dashboard_folder)
+        tiles = self._get_tiles(tiles_metadata, query_transformer=query_transformer)
         datasets = self._get_datasets(tiles)
         layouts = self._get_layouts(tiles)
         page = Page(
@@ -499,36 +499,36 @@ class Dashboards:
         return lakeview_dashboard
 
     @staticmethod
-    def _parse_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
-        """Parse the widget metadata from each (optional) header."""
-        widgets_metadata = []
+    def _parse_tiles_metadata(dashboard_folder: Path) -> list[TileMetadata]:
+        """Parse the tile metadata from each (optional) header."""
+        tiles_metadata = []
         for path in dashboard_folder.iterdir():
             if path.suffix in {".sql", ".md"}:
-                widget_metadata = WidgetMetadata.from_path(path)
-                widgets_metadata.append(widget_metadata)
-        return widgets_metadata
+                tile_metadata = TileMetadata.from_path(path)
+                tiles_metadata.append(tile_metadata)
+        return tiles_metadata
 
     @staticmethod
     def _get_tiles(
-        widgets_metadata: list[WidgetMetadata],
+        tiles_metadata: list[TileMetadata],
         query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
     ) -> list[Tile]:
-        """Create tiles from the widgets metadata.
+        """Create tiles from the tiles metadata.
 
         The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
         with the `order` key. Hence, the multiple loops to get:
         i) set the order when not specified;
-        ii) sort the widgets using the order field.
+        ii) sort the tiles using the order field.
         """
-        widgets_metadata_with_order = []
-        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
-            replica = copy.deepcopy(widget_metadata)
-            replica.order = widget_metadata.order if widget_metadata.order is not None else order
-            widgets_metadata_with_order.append(replica)
+        tiles_metadata_with_order = []
+        for order, tile_metadata in enumerate(sorted(tiles_metadata, key=lambda wm: wm.id)):
+            replica = copy.deepcopy(tile_metadata)
+            replica.order = tile_metadata.order if tile_metadata.order is not None else order
+            tiles_metadata_with_order.append(replica)
 
         tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for widget_metadata in sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
-            tile = Tile.from_widget_metadata(widget_metadata)
+        for tile_metadata in sorted(tiles_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
+            tile = Tile.from_tile_metadata(tile_metadata)
             if isinstance(tile, QueryTile):
                 tile.query_transformer = query_transformer
             placed_tile = tile.place_after(position)

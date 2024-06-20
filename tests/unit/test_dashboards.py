@@ -16,7 +16,7 @@ from databricks.labs.lsql.dashboards import (
     QueryHandler,
     QueryTile,
     Tile,
-    WidgetMetadata,
+    TileMetadata,
     replace_database_in_query,
 )
 from databricks.labs.lsql.lakeview import (
@@ -74,16 +74,16 @@ def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
     assert dashboard_metadata.display_name == tmp_path.name
 
 
-def test_widget_metadata_is_markdown():
-    widget_metadata = WidgetMetadata(Path("test.md"))
-    assert widget_metadata.is_markdown()
-    assert not widget_metadata.is_query()
+def test_tile_metadata_is_markdown():
+    tile_metadata = TileMetadata(Path("test.md"))
+    assert tile_metadata.is_markdown()
+    assert not tile_metadata.is_query()
 
 
-def test_widget_metadata_is_query():
-    widget_metadata = WidgetMetadata(Path("test.sql"))
-    assert not widget_metadata.is_markdown()
-    assert widget_metadata.is_query()
+def test_tile_metadata_is_query():
+    tile_metadata = TileMetadata(Path("test.sql"))
+    assert not tile_metadata.is_markdown()
+    assert tile_metadata.is_query()
 
 
 def test_base_handler_parses_empty_header(tmp_path):
@@ -248,25 +248,25 @@ def test_markdown_handler_warns_about_open_ended_header(tmp_path, caplog):
     assert content == body
 
 
-def test_widget_metadata_replaces_width_and_height(tmp_path):
+def test_tile_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    widget_metadata = WidgetMetadata(path, 1, 1, 1)
-    updated_metadata = widget_metadata.from_dict(**{"path": path, "width": 10, "height": 10})
+    tile_metadata = TileMetadata(path, 1, 1, 1)
+    updated_metadata = tile_metadata.from_dict(**{"path": path, "width": 10, "height": 10})
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
 
 @pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title", "description"])
-def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
+def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    widget_metadata = WidgetMetadata(path, 1, 1, 1, "1", "1", "1")
-    updated_metadata = widget_metadata.from_dict(**{"path": path, attribute: "10"})
+    tile_metadata = TileMetadata(path, 1, 1, 1, "1", "1", "1")
+    updated_metadata = tile_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
 
-def test_widget_metadata_as_dict(tmp_path):
+def test_tile_metadata_as_dict(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     raw = {
@@ -278,7 +278,7 @@ def test_widget_metadata_as_dict(tmp_path):
         "title": "Test widget",
         "description": "Longer explanation",
     }
-    widget_metadata = WidgetMetadata(
+    tile_metadata = TileMetadata(
         path,
         order=-1,
         width=3,
@@ -286,12 +286,12 @@ def test_widget_metadata_as_dict(tmp_path):
         title="Test widget",
         description="Longer explanation",
     )
-    assert widget_metadata.as_dict() == raw
+    assert tile_metadata.as_dict() == raw
 
 
 def test_tile_places_tile_to_the_right():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
-    tile = Tile(widget_metadata)
+    tile_metadata = TileMetadata(Path("test.sql"), 1, 1, 1)
+    tile = Tile(tile_metadata)
 
     position = Position(0, 4, 3, 4)
     placed_tile = tile.place_after(position)
@@ -301,8 +301,8 @@ def test_tile_places_tile_to_the_right():
 
 
 def test_tile_places_tile_below():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
-    tile = Tile(widget_metadata)
+    tile_metadata = TileMetadata(Path("test.sql"), 1, 1, 1)
+    tile = Tile(tile_metadata)
 
     position = Position(5, 4, 3, 4)
     placed_tile = tile.place_after(position)
@@ -528,8 +528,8 @@ def test_query_tile_finds_fields(tmp_path, query, names):
     query_file = tmp_path / "query.sql"
     query_file.write_text(query)
 
-    widget_metadata = WidgetMetadata(query_file, 1, 1, 1)
-    tile = QueryTile(widget_metadata)
+    tile_metadata = TileMetadata(query_file, 1, 1, 1)
+    tile = QueryTile(tile_metadata)
 
     fields = tile._find_fields()  # pylint: disable=protected-access
 
@@ -541,8 +541,8 @@ def test_query_tile_keeps_original_query(tmp_path):
     query_path = tmp_path / "counter.sql"
     query_path.write_text(query)
 
-    widget_metadata = WidgetMetadata.from_path(query_path)
-    query_tile = QueryTile(widget_metadata)
+    tile_metadata = TileMetadata.from_path(query_path)
+    query_tile = QueryTile(tile_metadata)
 
     dataset = query_tile.get_dataset()
 
@@ -571,7 +571,7 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
     query_path.write_text(query)
 
     replace_with_development_database = functools.partial(replace_database_in_query, database="development")
-    query_tile = QueryTile(WidgetMetadata.from_path(query_path), query_transformer=replace_with_development_database)
+    query_tile = QueryTile(TileMetadata.from_path(query_path), query_transformer=replace_with_development_database)
 
     dataset = query_tile.get_dataset()
 
