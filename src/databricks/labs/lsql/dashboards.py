@@ -133,6 +133,7 @@ class QueryHandler(BaseHandler):
             type=str,
             action="extend",
             dest="filters",
+            nargs="*",
         )
         return parser
 
