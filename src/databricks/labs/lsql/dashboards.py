@@ -437,7 +437,7 @@ class QueryTile(Tile):
         control_encodings: list[ControlEncoding] = [ControlFieldEncoding(column, named_query.name, display_name=column)]
         control_encoding_map = ControlEncodingMap(control_encodings)
         spec = MultiSelectSpec(encodings=control_encoding_map)
-        widget = Widget(name=f"{self._tile_metadata.id}_filter", queries=[named_query], spec=spec)
+        widget = Widget(name=f"{self._tile_metadata.id}_filter_{column}", queries=[named_query], spec=spec)
         return widget
 
     def _get_filters_layouts(self) -> Iterable[Layout]:
