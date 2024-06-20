@@ -457,7 +457,7 @@ class QueryTile(Tile):
         if filters_size >= self.position.width * (self.position.height - 1):
             raise ValueError(f"Too many filters defined for {self}")
 
-        # The bottom row is "special" as it is dynamically filled up with filters
+        # The bottom row requires bookkeeping to dynamically fill it with filters
         bottom_row_index = len(self._tile_metadata.filters) // self.position.width
         bottom_row_filter_count = len(self._tile_metadata.filters) % self.position.width
         bottom_row_filter_width = self.position.width // bottom_row_filter_count
