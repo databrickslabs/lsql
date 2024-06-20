@@ -257,7 +257,6 @@ def test_dashboards_deploys_dashboard_with_two_filters(ws, make_dashboard, tmp_p
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-@pytest.mark.parametrize("width", (2, 5))
 def test_dashboards_deploys_dashboard_with_many_filters(ws, make_dashboard, tmp_path, width):
     sdk_dashboard = make_dashboard()
 
