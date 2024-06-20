@@ -18,6 +18,8 @@ from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
+    ControlEncoding,
+    ControlEncodingMap,
     ControlFieldEncoding,
     CounterEncodingMap,
     CounterFieldEncoding,
@@ -26,6 +28,7 @@ from databricks.labs.lsql.lakeview import (
     Dataset,
     Field,
     Layout,
+    MultiSelectSpec,
     NamedQuery,
     Page,
     Position,
@@ -412,9 +415,23 @@ class QueryTile(Tile):
         yield layout
 
     def _get_filter_layouts(self, column: str) -> Iterable[Layout]:
-        """Get the layout visualizing the (optional) filter."""
-        _ = column
-        yield from []
+        """Get the layout visualizing the (optional) filter.
+
+        For a filter, an additional query column implements the filter (see _associativity below). Note that this column
+        does not need to be encoded.
+        """
+        fields = [
+            Field(name=column, expression=f"`{column}`"),
+            Field(name=f"{column}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
+        ]
+        query = Query(dataset_name=self._tile_metadata.id, fields=fields, disaggregated=False)
+        named_query = NamedQuery(name=f"filter_{column}", query=query)
+        control_encodings: list[ControlEncoding] = [ControlFieldEncoding(column, named_query.name, display_name=column)]
+        control_encoding_map = ControlEncodingMap(control_encodings)
+        spec = MultiSelectSpec(encodings=control_encoding_map)
+        widget = Widget(name=f"{self._tile_metadata.id}_filter", queries=[named_query], spec=spec)
+        layout = Layout(widget=widget, position=self.position)
+        yield layout
 
     def _get_filters_layouts(self) -> Iterable[Layout]:
         """Get the layout visualizing the (optional) filters."""
