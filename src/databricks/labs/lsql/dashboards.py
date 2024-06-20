@@ -459,7 +459,7 @@ class QueryTile(Tile):
 
         # The bottom row requires bookkeeping to dynamically fill it with filters
         bottom_row_index = len(self._tile_metadata.filters) // self.position.width
-        bottom_row_filter_count = len(self._tile_metadata.filters) % self.position.width
+        bottom_row_filter_count = len(self._tile_metadata.filters) % self.position.width or self.position.width
         bottom_row_filter_width = self.position.width // bottom_row_filter_count
         bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
 
