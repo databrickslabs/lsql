@@ -348,27 +348,6 @@ class QueryTile(Tile):
         )
         return query_transformed
 
-    def get_dataset(self) -> Dataset:
-        """Get the dataset belonging to the query."""
-        query = self._get_query()
-        dataset = Dataset(name=self._widget_metadata.id, display_name=self._widget_metadata.id, query=query)
-        return dataset
-
-    def get_layouts(self) -> Iterable[Layout]:
-        """Get the layout(s) reflecting this tile in the dashboard."""
-        fields = self._find_fields()
-        named_query = self._get_named_query(fields)
-        frame = WidgetFrameSpec(
-            title=self._widget_metadata.title,
-            show_title=self._widget_metadata is not None,
-            description=self._widget_metadata.description,
-            show_description=self._widget_metadata.description is not None,
-        )
-        spec = self._get_spec(fields, frame=frame)
-        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
-        layout = Layout(widget=widget, position=self.position)
-        yield layout
-
     def _find_fields(self) -> list[Field]:
         """Find the fields in a query.
 
@@ -387,19 +366,6 @@ class QueryTile(Tile):
                 fields.append(field)
         return fields
 
-    def _get_named_query(self, fields: list[Field]) -> NamedQuery:
-        query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
-        # As far as testing went, a NamedQuery should always have "main_query" as name
-        named_query = NamedQuery(name="main_query", query=query)
-        return named_query
-
-    @staticmethod
-    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
-        field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
-        table_encodings = TableEncodingMap(field_encodings)
-        spec = TableV2Spec(encodings=table_encodings, frame=frame)
-        return spec
-
     def infer_spec_type(self) -> type[WidgetSpec] | None:
         """Infer the spec type from the query."""
         fields = self._find_fields()
@@ -408,6 +374,36 @@ class QueryTile(Tile):
         if len(fields) == 1:
             return CounterSpec
         return TableV2Spec
+
+    def get_dataset(self) -> Dataset:
+        """Get the dataset belonging to the query."""
+        query = self._get_query()
+        dataset = Dataset(name=self._widget_metadata.id, display_name=self._widget_metadata.id, query=query)
+        return dataset
+
+    def get_layouts(self) -> Iterable[Layout]:
+        """Get the layout(s) reflecting this tile in the dashboard."""
+        fields = self._find_fields()
+        query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
+        # As far as testing went, a NamedQuery should always have "main_query" as name
+        named_query = NamedQuery(name="main_query", query=query)
+        frame = WidgetFrameSpec(
+            title=self._widget_metadata.title,
+            show_title=self._widget_metadata is not None,
+            description=self._widget_metadata.description,
+            show_description=self._widget_metadata.description is not None,
+        )
+        spec = self._get_spec(fields, frame=frame)
+        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
+        layout = Layout(widget=widget, position=self.position)
+        yield layout
+
+    @staticmethod
+    def _get_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
+        field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
+        table_encodings = TableEncodingMap(field_encodings)
+        spec = TableV2Spec(encodings=table_encodings, frame=frame)
+        return spec
 
 
 class TableTile(QueryTile):
