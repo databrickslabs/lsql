@@ -327,6 +327,7 @@ def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sql
 
 class QueryTile(Tile):
     _DIALECT = sqlglot.dialects.Databricks
+    _FILTER_HEIGHT = 1
 
     def __init__(
         self,
@@ -412,7 +413,11 @@ class QueryTile(Tile):
         )
         spec = self._get_query_widget_spec(fields, frame=frame)
         widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
-        layout = Layout(widget=widget, position=self.position)
+        height = self.position.height
+        if len(self._tile_metadata.filters) > 0:
+            height -= self._FILTER_HEIGHT * (1 + len(self._tile_metadata.filters) // self.position.width)
+        position = dataclasses.replace(self.position, height=max(height, 0))
+        layout = Layout(widget=widget, position=position)
         yield layout
 
     def _get_filter_layouts(self, column: str) -> Iterable[Layout]:
@@ -431,7 +436,8 @@ class QueryTile(Tile):
         control_encoding_map = ControlEncodingMap(control_encodings)
         spec = MultiSelectSpec(encodings=control_encoding_map)
         widget = Widget(name=f"{self._tile_metadata.id}_filter", queries=[named_query], spec=spec)
-        layout = Layout(widget=widget, position=self.position)
+        position = dataclasses.replace(self.position, height=self._FILTER_HEIGHT)
+        layout = Layout(widget=widget, position=position)
         yield layout
 
     def _get_filters_layouts(self) -> Iterable[Layout]:
