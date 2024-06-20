@@ -255,3 +255,18 @@ def test_dashboards_deploys_dashboard_with_filter(ws, make_dashboard, tmp_path):
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_many_filters(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    table_query_path = Path(__file__).parent / "dashboards/one_table/databricks_office_locations.sql"
+    office_locations = table_query_path.read_text()
+    (tmp_path / "table.sql").write_text(f"-- --width 2 --filter City State Country\n{office_locations}")
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)

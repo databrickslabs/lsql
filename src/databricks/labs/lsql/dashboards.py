@@ -420,8 +420,8 @@ class QueryTile(Tile):
         layout = Layout(widget=widget, position=position)
         yield layout
 
-    def _get_filter_layouts(self, column: str) -> Iterable[Layout]:
-        """Get the layout visualizing the (optional) filter.
+    def _get_filter_widget(self, column: str) -> Widget:
+        """Get the widget for visualizing the (optional) filter.
 
         For a filter, an additional query column implements the filter (see _associativity below). Note that this column
         does not need to be encoded.
@@ -436,16 +436,24 @@ class QueryTile(Tile):
         control_encoding_map = ControlEncodingMap(control_encodings)
         spec = MultiSelectSpec(encodings=control_encoding_map)
         widget = Widget(name=f"{self._tile_metadata.id}_filter", queries=[named_query], spec=spec)
-        position = dataclasses.replace(self.position, height=self._FILTER_HEIGHT)
-        layout = Layout(widget=widget, position=position)
-        yield layout
+        return widget
 
     def _get_filters_layouts(self) -> Iterable[Layout]:
         """Get the layout visualizing the (optional) filters."""
         if len(self._tile_metadata.filters) >= (self.position.width * (self.position.height - 1)):
             raise ValueError(f"Too many filters defined for {self}")
-        for filter_column in self._tile_metadata.filters:
-            yield from self._get_filter_layouts(filter_column)
+        filter_rows = len(self._tile_metadata.filters) // self.position.width
+        for filter_index, filter_column in enumerate(self._tile_metadata.filters):
+            widget = self._get_filter_widget(filter_column)
+            x = self.position.x + filter_index % self.position.width
+            y = self.position.y + filter_index // self.position.width
+            if (filter_index + 1) // self.position.width < filter_rows:
+                width = 1
+            else:
+                width = self.position.width - filter_index % self.position.width
+            position = Position(x, y, width, self._FILTER_HEIGHT)
+            layout = Layout(widget=widget, position=position)
+            yield layout
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
