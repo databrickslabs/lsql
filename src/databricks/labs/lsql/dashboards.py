@@ -6,7 +6,7 @@ import logging
 import re
 import shlex
 from argparse import ArgumentParser
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
@@ -259,6 +259,13 @@ class Tile:
     def _default_size(self) -> tuple[int, int]:
         return 0, 0
 
+    def get_layouts(self) -> Iterable[Layout]:
+        """Get the layout(s) reflecting this tile in the dashboard."""
+        _, text = self._widget_metadata.handler.split()
+        widget = Widget(name=self._widget_metadata.id, textbox_spec=text)
+        layout = Layout(widget=widget, position=self.position)
+        yield layout
+
     def place_after(self, position: Position) -> "Tile":
         """Place the tile after another tile:
 
@@ -277,12 +284,6 @@ class Tile:
         replica = copy.deepcopy(self)
         replica.position = new_position
         return replica
-
-    @property
-    def widget(self) -> Widget:
-        _, text = self._widget_metadata.handler.split()
-        widget = Widget(name=self._widget_metadata.id, textbox_spec=text)
-        return widget
 
     @classmethod
     def from_widget_metadata(cls, widget_metadata: WidgetMetadata) -> "Tile":
@@ -353,6 +354,21 @@ class QueryTile(Tile):
         dataset = Dataset(name=self._widget_metadata.id, display_name=self._widget_metadata.id, query=query)
         return dataset
 
+    def get_layouts(self) -> Iterable[Layout]:
+        """Get the layout(s) reflecting this tile in the dashboard."""
+        fields = self._find_fields()
+        named_query = self._get_named_query(fields)
+        frame = WidgetFrameSpec(
+            title=self._widget_metadata.title,
+            show_title=self._widget_metadata is not None,
+            description=self._widget_metadata.description,
+            show_description=self._widget_metadata.description is not None,
+        )
+        spec = self._get_spec(fields, frame=frame)
+        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
+        layout = Layout(widget=widget, position=self.position)
+        yield layout
+
     def _find_fields(self) -> list[Field]:
         """Find the fields in a query.
 
@@ -370,20 +386,6 @@ class QueryTile(Tile):
                 field = Field(name=named_select, expression=f"`{named_select}`")
                 fields.append(field)
         return fields
-
-    @property
-    def widget(self) -> Widget:
-        fields = self._find_fields()
-        named_query = self._get_named_query(fields)
-        frame = WidgetFrameSpec(
-            title=self._widget_metadata.title,
-            show_title=self._widget_metadata is not None,
-            description=self._widget_metadata.description,
-            show_description=self._widget_metadata.description is not None,
-        )
-        spec = self._get_spec(fields, frame=frame)
-        widget = Widget(name=self._widget_metadata.id, queries=[named_query], spec=spec)
-        return widget
 
     def _get_named_query(self, fields: list[Field]) -> NamedQuery:
         query = Query(dataset_name=self._widget_metadata.id, fields=fields, disaggregated=True)
@@ -550,10 +552,9 @@ class Dashboards:
     @staticmethod
     def _get_layouts(tiles: list[Tile]) -> list[Layout]:
         """Create layouts from the tiles."""
-        layouts = []
+        layouts: list[Layout] = []
         for tile in tiles:
-            layout = Layout(widget=tile.widget, position=tile.position)
-            layouts.append(layout)
+            layouts.extend(tile.get_layouts())
         return layouts
 
     def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
