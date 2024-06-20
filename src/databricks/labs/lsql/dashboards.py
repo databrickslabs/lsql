@@ -416,7 +416,9 @@ class QueryTile(Tile):
         height = self.position.height
         if len(self._tile_metadata.filters) > 0:
             height -= self._FILTER_HEIGHT * (1 + len(self._tile_metadata.filters) // self.position.width)
-        position = dataclasses.replace(self.position, height=max(height, 0))
+        height = max(height, 0)
+        y = self.position.y + self.position.height - height
+        position = dataclasses.replace(self.position, y=y, height=height)
         layout = Layout(widget=widget, position=position)
         yield layout
 
