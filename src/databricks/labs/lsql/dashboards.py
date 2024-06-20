@@ -447,8 +447,8 @@ class QueryTile(Tile):
         0) Filters fit **within** the tile
         1) Filters are placed above the query widget
         2) Many filters:
-           i) fill up a row first by adjusting their width so that the total width of the filters in a row match the
-              width of the tile whilst having a minimum filter with of one
+           i) fill up a row first, by adjusting their width so that the total width of the filters in a row match the
+              width of the tile whilst having a minimum filter width of one
            ii) occupy an additional row if the previous one is filled completely.
         """
         if len(self._tile_metadata.filters) >= (self.position.width * (self.position.height - 1)):
