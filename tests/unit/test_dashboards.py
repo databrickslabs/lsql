@@ -261,9 +261,30 @@ def test_tile_metadata_replaces_width_and_height(tmp_path):
 def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    tile_metadata = TileMetadata(path, 1, 1, 1, "1", "1", "1")
+    tile_metadata = TileMetadata(
+        path,
+        order=1,
+        width=1,
+        height=1,
+        _id="1",
+        title="1",
+        description="1",
+    )
     updated_metadata = tile_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
+
+
+def test_tile_metadata_replaces_filters(tmp_path):
+    path = tmp_path / "test.sql"
+    path.write_text("SELECT 1")
+    tile_metadata = TileMetadata(
+        path,
+        filters=[
+            "column",
+        ],
+    )
+    updated_metadata = tile_metadata.from_dict(path=path, filters=["a", "b", "c"])
+    assert updated_metadata.filters == ["a", "b", "c"]
 
 
 def test_tile_metadata_as_dict(tmp_path):
@@ -272,11 +293,12 @@ def test_tile_metadata_as_dict(tmp_path):
     raw = {
         "path": path.as_posix(),
         "id": "test",
-        "order": "-1",
-        "width": "3",
-        "height": "6",
+        "order": -1,
+        "width": 3,
+        "height": 6,
         "title": "Test widget",
         "description": "Longer explanation",
+        "filters": ["column"],
     }
     tile_metadata = TileMetadata(
         path,
@@ -285,6 +307,7 @@ def test_tile_metadata_as_dict(tmp_path):
         height=6,
         title="Test widget",
         description="Longer explanation",
+        filters=["column"],
     )
     assert tile_metadata.as_dict() == raw
 

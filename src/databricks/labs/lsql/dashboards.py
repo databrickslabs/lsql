@@ -6,7 +6,7 @@ import logging
 import re
 import shlex
 from argparse import ArgumentParser
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
@@ -124,6 +124,13 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-h", "--height", type=int)
         parser.add_argument("-t", "--title", type=str)
         parser.add_argument("-d", "--description", type=str)
+        parser.add_argument(
+            "-f",
+            "--filter",
+            type=str,
+            action="extend",
+            dest="filters",
+        )
         return parser
 
     def _parse_header(self, header: str) -> dict[str, str]:
@@ -188,6 +195,7 @@ class TileMetadata:
         _id: str = "",
         title: str = "",
         description: str = "",
+        filters: list[str] | None = None,
     ):
         self._path = path
         self.order = order
@@ -196,6 +204,7 @@ class TileMetadata:
         self.id = _id or path.stem
         self.title = title
         self.description = description
+        self.filters = filters or []
 
     def is_markdown(self) -> bool:
         return self._path.suffix == ".md"
@@ -230,8 +239,9 @@ class TileMetadata:
             if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
                 continue
             value = getattr(self, attribute)
-            if value is not None:
-                body[attribute] = str(value)
+            if value is None or (isinstance(value, Sized) and len(value) == 0):
+                continue
+            body[attribute] = value
         return body
 
     @classmethod
