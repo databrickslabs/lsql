@@ -375,11 +375,11 @@ class QueryTile(Tile):
             return CounterSpec
         return TableV2Spec
 
-    def get_dataset(self) -> Dataset:
+    def get_datasets(self) -> Iterable[Dataset]:
         """Get the dataset belonging to the query."""
         query = self._get_query()
         dataset = Dataset(name=self._tile_metadata.id, display_name=self._tile_metadata.id, query=query)
-        return dataset
+        yield dataset
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
@@ -538,11 +538,10 @@ class Dashboards:
 
     @staticmethod
     def _get_datasets(tiles: list[Tile]) -> list[Dataset]:
-        datasets = []
+        datasets: list[Dataset] = []
         for tile in tiles:
             if isinstance(tile, QueryTile):
-                dataset = tile.get_dataset()
-                datasets.append(dataset)
+                datasets.extend(tile.get_datasets())
         return datasets
 
     @staticmethod

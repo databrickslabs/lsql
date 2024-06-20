@@ -544,7 +544,7 @@ def test_query_tile_keeps_original_query(tmp_path):
     tile_metadata = TileMetadata.from_path(query_path)
     query_tile = QueryTile(tile_metadata)
 
-    dataset = query_tile.get_dataset()
+    dataset = next(query_tile.get_datasets())
 
     assert dataset.query == query
 
@@ -573,7 +573,7 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
     replace_with_development_database = functools.partial(replace_database_in_query, database="development")
     query_tile = QueryTile(TileMetadata.from_path(query_path), query_transformer=replace_with_development_database)
 
-    dataset = query_tile.get_dataset()
+    dataset = next(query_tile.get_datasets())
 
     assert dataset.query == sqlglot.parse_one(query_transformed).sql(pretty=True)
 
