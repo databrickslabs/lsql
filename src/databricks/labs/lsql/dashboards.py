@@ -464,7 +464,7 @@ class QueryTile(Tile):
         bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
 
         for filter_index, filter_column in enumerate(self._tile_metadata.filters):
-            if (filter_index % self.position.width) == 0:
+            if filter_index % self.position.width == 0:
                 x_offset = 0  # Reset on new row
 
             widget = self._get_filter_widget(filter_column)
