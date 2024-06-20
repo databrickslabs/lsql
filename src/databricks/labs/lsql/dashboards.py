@@ -451,20 +451,40 @@ class QueryTile(Tile):
               width of the tile whilst having a minimum filter width of one
            ii) occupy an additional row if the previous one is filled completely.
         """
-        if len(self._tile_metadata.filters) >= (self.position.width * (self.position.height - 1)):
+        if len(self._tile_metadata.filters) == 0:
+            return
+        filters_size = len(self._tile_metadata.filters) * self._FILTER_HEIGHT
+        if filters_size >= self.position.width * (self.position.height - 1):
             raise ValueError(f"Too many filters defined for {self}")
-        filter_rows = len(self._tile_metadata.filters) // self.position.width
+
+        # The bottom row is "special" as it is dynamically filled up with filters
+        bottom_row_index = len(self._tile_metadata.filters) // self.position.width
+        bottom_row_filter_count = len(self._tile_metadata.filters) % self.position.width
+        bottom_row_filter_width = self.position.width // bottom_row_filter_count
+        bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
+
+        x_offset = 0
         for filter_index, filter_column in enumerate(self._tile_metadata.filters):
+            if (filter_index % self.position.width) == 0:
+                x_offset = 0  # Reset on new row
+
             widget = self._get_filter_widget(filter_column)
-            if (filter_index + 1) // self.position.width < filter_rows:
-                width = 1
-            else:
-                width = self.position.width // (len(self._tile_metadata.filters) % self.position.width)
-            x = self.position.x + width * (filter_index % self.position.width)
+            x = self.position.x + x_offset
             y = self.position.y + self._FILTER_HEIGHT * (filter_index // self.position.width)
+
+            width = 1
+            if filter_index // self.position.width == bottom_row_index:  # Reached bottom row
+                width = bottom_row_filter_width
+                if filter_index >= (len(self._tile_metadata.filters) - bottom_row_remainder_width):
+                    # Fills up the remainder width when the self.position.width is not a multiple of the number of
+                    # filters on the bottom row
+                    width += 1
+
             position = Position(x, y, width, self._FILTER_HEIGHT)
             layout = Layout(widget=widget, position=position)
             yield layout
+
+            x_offset += width
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
