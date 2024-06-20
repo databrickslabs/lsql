@@ -412,6 +412,10 @@ class QueryTile(Tile):
 
     @staticmethod
     def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
+        """Get the query widget spec.
+
+        In most cases, overwriting this method with a Tile specific spec is sufficient for support other widget types.
+        """
         field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
         table_encodings = TableEncodingMap(field_encodings)
         spec = TableV2Spec(encodings=table_encodings, frame=frame)
