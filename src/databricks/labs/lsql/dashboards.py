@@ -456,12 +456,12 @@ class QueryTile(Tile):
         filter_rows = len(self._tile_metadata.filters) // self.position.width
         for filter_index, filter_column in enumerate(self._tile_metadata.filters):
             widget = self._get_filter_widget(filter_column)
-            x = self.position.x + filter_index % self.position.width
-            y = self.position.y + filter_index // self.position.width
             if (filter_index + 1) // self.position.width < filter_rows:
                 width = 1
             else:
-                width = self.position.width - filter_index % self.position.width
+                width = self.position.width // (len(self._tile_metadata.filters) % self.position.width)
+            x = self.position.x + width * (filter_index % self.position.width)
+            y = self.position.y + self._FILTER_HEIGHT * (filter_index // self.position.width)
             position = Position(x, y, width, self._FILTER_HEIGHT)
             layout = Layout(widget=widget, position=position)
             yield layout
