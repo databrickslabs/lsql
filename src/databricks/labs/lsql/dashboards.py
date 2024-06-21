@@ -414,7 +414,7 @@ class QueryTile(Tile):
         spec = self._get_query_widget_spec(fields, frame=frame)
         widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
         height = self.position.height
-        if len(self._tile_metadata.filters) > 0:
+        if len(self._tile_metadata.filters) > 0 and self.position.width > 0:
             height -= self._FILTER_HEIGHT * (1 + len(self._tile_metadata.filters) // self.position.width)
         height = max(height, 0)
         y = self.position.y + self.position.height - height
