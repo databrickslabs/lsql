@@ -474,9 +474,7 @@ class QueryTile(Tile):
             if filter_index // self.position.width == bottom_row_index:  # Reached bottom row
                 width = bottom_row_filter_width
                 if filter_index % self.position.width < bottom_row_remainder_width:
-                    # Fills up the remainder width when the self.position.width is not a multiple of the number of
-                    # filters on the bottom row
-                    width += 1
+                    width += 1  # Fills up the remainder width if self.position.width % bottom_row_filter_count != 0
 
             position = Position(x, y, width, self._FILTER_HEIGHT)
             layout = Layout(widget=widget, position=position)
