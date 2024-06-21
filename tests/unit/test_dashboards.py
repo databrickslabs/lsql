@@ -602,8 +602,8 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
     assert dataset.query == sqlglot.parse_one(query_transformed).sql(pretty=True)
 
 
-@pytest.mark.parametrize("width", [3, 5, 8])
-@pytest.mark.parametrize("height", [4, 6, 10])
+@pytest.mark.parametrize("width", [5, 8, 13])
+@pytest.mark.parametrize("height", [4, 8, 12])
 @pytest.mark.parametrize("filters", ["", "a", "ab", "abc", "abcde", "abcdefgh"])
 @pytest.mark.parametrize("axes", ["xy", "yx"])
 def test_query_tile_fills_up_tile(tmp_path, width, height, filters, axes):
