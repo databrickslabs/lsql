@@ -605,20 +605,26 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
 @pytest.mark.parametrize("width", [3, 5, 8])
 @pytest.mark.parametrize("height", [4, 6, 10])
 @pytest.mark.parametrize("filters", ["", "a", "ab", "abc", "abcde", "abcdefgh"])
-def test_query_tile_fills_up_horizontal_axis(tmp_path, width, height, filters):
+@pytest.mark.parametrize("axes", ["xy", "yx"])
+def test_query_tile_fills_up_axis(tmp_path, width, height, filters, axes):
     query_path = tmp_path / "counter.sql"
     query_path.write_text("SELECT 1")
 
     widget_metadata = TileMetadata(query_path, width=width, height=height, filters=list(filters))
     query_tile = QueryTile(widget_metadata)
 
-    layouts = query_tile.get_layouts()
-    positions = [layout.position for layout in layouts]
+    positions = [layout.position for layout in query_tile.get_layouts()]
 
-    for _, g in itertools.groupby(positions, lambda position: position.y):
+    axis, group_axis = axes[0], axes[1]
+    dimension = "width" if axis == "x" else "height"
+    positions_sorted = sorted(positions, key=lambda p: (getattr(p, group_axis), getattr(p, axis)))
+    for key, g in itertools.groupby(positions_sorted, lambda position: getattr(position, group_axis)):
         group = list(g)
-        assert sum(position.width for position in group) == widget_metadata.width
-        assert all(before.x + before.width == after.x for before, after in zip(group[:-1], group[1:]))
+        if key == 0:
+            assert sum(getattr(position, dimension) for position in group) == getattr(query_tile.position, dimension)
+        for before, after in zip(group[:-1], group[1:]):
+            message = f"Positions do not line up: {before} -> {after}"
+            assert getattr(before, axis) + getattr(before, dimension) == getattr(after, axis), message
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
