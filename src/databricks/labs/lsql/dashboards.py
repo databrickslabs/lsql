@@ -658,14 +658,15 @@ class Dashboards:
     ) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
         serialized_dashboard = json.dumps(lakeview_dashboard.as_dict())
+        display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
         if dashboard_id is not None:
             dashboard = self._ws.lakeview.update(
                 dashboard_id,
+                display_name=display_name,
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
         else:
-            display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
             dashboard = self._ws.lakeview.create(
                 display_name,
                 parent_path=parent_path,

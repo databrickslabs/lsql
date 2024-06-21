@@ -968,11 +968,12 @@ def test_dashboards_deploy_calls_update_with_dashboard_id():
     dashboards = Dashboards(ws)
 
     dashboard = Dashboard([], [Page("test", [])])
-    dashboards.deploy_dashboard(dashboard, dashboard_id="test", warehouse_id="warehouse")
+    dashboards.deploy_dashboard(dashboard, dashboard_id="id", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_not_called()
     ws.lakeview.update.assert_called_with(
-        "test",
+        "id",
+        display_name="test",
         serialized_dashboard=json.dumps({"pages": [{"name": "test"}]}),
         warehouse_id="warehouse",
     )
