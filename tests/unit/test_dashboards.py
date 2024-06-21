@@ -817,7 +817,7 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
     # Typo is on purpose
-    query = "-- --widh 6 --height 3 \nSELECT 82917019218921 AS big_number_needs_big_widget"
+    query = "-- --widh 6 --height 5 \nSELECT 82917019218921 AS big_number_needs_big_widget"
     query_path = tmp_path / "counter.sql"
     query_path.write_text(query)
 
@@ -826,7 +826,7 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
 
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width == 1
-    assert position.height == 3
+    assert position.height == 5
     assert query_path.as_posix() in caplog.text
     ws.assert_not_called()
 
@@ -850,11 +850,7 @@ def test_dashboard_creates_dashboard_based_on_markdown_header(tmp_path):
 def test_dashboard_uses_metadata_above_select_when_query_has_cte(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    query = (
-        "WITH data AS (SELECT 1 AS count)\n"
-        "-- --width 6 --height 6\n"
-        "SELECT count FROM data"
-    )
+    query = "WITH data AS (SELECT 1 AS count)\n" "-- --width 6 --height 6\n" "SELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
@@ -868,11 +864,7 @@ def test_dashboard_uses_metadata_above_select_when_query_has_cte(tmp_path):
 def test_dashboard_ignores_first_line_metadata_when_query_has_cte(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    query = (
-        "-- --width 6 --height 6\n"
-        "WITH data AS (SELECT 1 AS count)\n"
-        "SELECT count FROM data"
-    )
+    query = "-- --width 6 --height 6\n" "WITH data AS (SELECT 1 AS count)\n" "SELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)

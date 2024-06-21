@@ -128,12 +128,13 @@ class QueryHandler(BaseHandler):
 
     def _parse_header(self, header: str) -> dict[str, str]:
         """Header is an argparse string."""
+        header_split = shlex.split(header)
         parser = self._get_arguments_parser()
         try:
-            return vars(parser.parse_args(shlex.split(header)))
+            return vars(parser.parse_args(header_split))
         except (argparse.ArgumentError, SystemExit) as e:
             logger.warning(f"Parsing {self._path}: {e}")
-            return {}
+            return vars(parser.parse_known_args(header_split)[0])
 
     def split(self) -> tuple[str, str]:
         """Split the query file header from the contents.
