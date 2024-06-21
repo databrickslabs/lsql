@@ -606,7 +606,7 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
 @pytest.mark.parametrize("height", [4, 8, 12])
 @pytest.mark.parametrize("filters", ["", "a", "ab", "abc", "abcde", "abcdefgh"])
 @pytest.mark.parametrize("axes", ["xy", "yx"])
-def test_query_tile_fills_up_tile(tmp_path, width, height, filters, axes):
+def test_query_tile_fills_up_size(tmp_path, width, height, filters, axes):
     query_path = tmp_path / "counter.sql"
     query_path.write_text("SELECT 1")
 
