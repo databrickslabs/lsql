@@ -440,8 +440,8 @@ class QueryTile(Tile):
         widget = Widget(name=f"{self._tile_metadata.id}_filter_{column}", queries=[named_query], spec=spec)
         return widget
 
-    def _get_filters_layouts(self) -> Iterable[Layout]:
-        """Get the layout visualizing the (optional) filters.
+    def _get_filter_positions(self) -> Iterable[Position]:
+        """Get the filter positions.
 
         The positioning of filters works as follows:
         0) Filters fit **within** the tile
@@ -451,8 +451,6 @@ class QueryTile(Tile):
               width of the tile whilst having a minimum filter width of one
            ii) occupy an additional row if the previous one is filled completely.
         """
-        if len(self._tile_metadata.filters) == 0:
-            return
         filters_size = len(self._tile_metadata.filters) * self._FILTER_HEIGHT
         if filters_size > self.position.width * (self.position.height - 1):  # At least one row for the query widget
             raise ValueError(f"Too many filters defined for {self}")
@@ -463,9 +461,7 @@ class QueryTile(Tile):
         bottom_row_filter_width = self.position.width // bottom_row_filter_count
         bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
 
-        for filter_index, filter_column in enumerate(self._tile_metadata.filters):
-            widget = self._get_filter_widget(filter_column)
-
+        for filter_index in range(len(self._tile_metadata.filters)):
             if filter_index % self.position.width == 0:
                 x_offset = 0  # Reset on new row
             x = self.position.x + x_offset
@@ -475,12 +471,18 @@ class QueryTile(Tile):
                 width = bottom_row_filter_width
                 if filter_index % self.position.width < bottom_row_remainder_width:
                     width += 1  # Fills up the remainder width if self.position.width % bottom_row_filter_count != 0
-
             position = Position(x, y, width, self._FILTER_HEIGHT)
+            yield position
+            x_offset += width
+
+    def _get_filters_layouts(self) -> Iterable[Layout]:
+        """Get the layout visualizing the (optional) filters."""
+        if len(self._tile_metadata.filters) == 0:
+            return
+        for filter_index, position in enumerate(self._get_filter_positions()):
+            widget = self._get_filter_widget(self._tile_metadata.filters[filter_index])
             layout = Layout(widget=widget, position=position)
             yield layout
-
-            x_offset += width
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
