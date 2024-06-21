@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import create_autospec
 
 import pytest
+import sqlglot
 import yaml
 from databricks.sdk import WorkspaceClient
 
@@ -409,6 +410,7 @@ SELECT COALESCE(CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%'), 'N/A') AS re
 
     assert "$inventory.objects" not in dataset.query
     assert "development.objects" in dataset.query
+    assert len(dataset.query.split("\n")) != 1  # Without formatting the query transformer results a single line
     ws.assert_not_called()
 
 
@@ -573,7 +575,7 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
 
     dataset = query_tile.get_dataset()
 
-    assert dataset.query == query_transformed
+    assert dataset.query == sqlglot.parse_one(query_transformed).sql(pretty=True)
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
@@ -850,11 +852,7 @@ def test_dashboard_creates_dashboard_based_on_markdown_header(tmp_path):
 def test_dashboard_uses_metadata_above_select_when_query_has_cte(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    query = (
-        "WITH data AS (SELECT 1 AS count)\n"
-        "-- --width 6 --height 6\n"
-        "SELECT count FROM data"
-    )
+    query = "WITH data AS (SELECT 1 AS count)\n" "-- --width 6 --height 6\n" "SELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
@@ -868,11 +866,7 @@ def test_dashboard_uses_metadata_above_select_when_query_has_cte(tmp_path):
 def test_dashboard_ignores_first_line_metadata_when_query_has_cte(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    query = (
-        "-- --width 6 --height 6\n"
-        "WITH data AS (SELECT 1 AS count)\n"
-        "SELECT count FROM data"
-    )
+    query = "-- --width 6 --height 6\n" "WITH data AS (SELECT 1 AS count)\n" "SELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
