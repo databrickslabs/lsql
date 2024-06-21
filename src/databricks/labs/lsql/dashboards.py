@@ -454,7 +454,7 @@ class QueryTile(Tile):
         if len(self._tile_metadata.filters) == 0:
             return
         filters_size = len(self._tile_metadata.filters) * self._FILTER_HEIGHT
-        if filters_size >= self.position.width * (self.position.height - 1):
+        if filters_size > self.position.width * (self.position.height - 1):  # At least one row for the query widget
             raise ValueError(f"Too many filters defined for {self}")
 
         # The bottom row requires bookkeeping to adjust the filters width to fill it completely
