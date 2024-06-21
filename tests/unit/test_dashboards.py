@@ -606,7 +606,7 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
 @pytest.mark.parametrize("height", [4, 6, 10])
 @pytest.mark.parametrize("filters", ["", "a", "ab", "abc", "abcde", "abcdefgh"])
 @pytest.mark.parametrize("axes", ["xy", "yx"])
-def test_query_tile_fills_up_axis(tmp_path, width, height, filters, axes):
+def test_query_tile_fills_up_tile(tmp_path, width, height, filters, axes):
     query_path = tmp_path / "counter.sql"
     query_path.write_text("SELECT 1")
 
@@ -615,15 +615,16 @@ def test_query_tile_fills_up_axis(tmp_path, width, height, filters, axes):
 
     positions = [layout.position for layout in query_tile.get_layouts()]
 
+    assert sum(p.width * p.height for p in positions) == width * height
+
+    # On every row/column the positions should line up without (negative) gaps
     axis, group_axis = axes[0], axes[1]
     dimension = "width" if axis == "x" else "height"
     positions_sorted = sorted(positions, key=lambda p: (getattr(p, group_axis), getattr(p, axis)))
-    for key, g in itertools.groupby(positions_sorted, lambda position: getattr(position, group_axis)):
+    for _, g in itertools.groupby(positions_sorted, lambda p: getattr(p, group_axis)):
         group = list(g)
-        if key == 0:
-            assert sum(getattr(position, dimension) for position in group) == getattr(query_tile.position, dimension)
         for before, after in zip(group[:-1], group[1:]):
-            message = f"Positions do not line up: {before} -> {after}"
+            message = f"Gap between positions: {before} -> {after}"
             assert getattr(before, axis) + getattr(before, dimension) == getattr(after, axis), message
 
 
