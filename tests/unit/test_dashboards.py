@@ -952,12 +952,13 @@ def test_dashboards_deploy_calls_create_without_dashboard_id():
     dashboards = Dashboards(ws)
 
     dashboard = Dashboard([], [Page("test", [])])
-    dashboards.deploy_dashboard(dashboard, parent_path="/non/existing/path")
+    dashboards.deploy_dashboard(dashboard, parent_path="/non/existing/path", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_called_with(
         "test",
         parent_path="/non/existing/path",
         serialized_dashboard=json.dumps({"pages": [{"name": "test"}]}),
+        warehouse_id="warehouse",
     )
     ws.lakeview.update.assert_not_called()
 
@@ -965,11 +966,16 @@ def test_dashboards_deploy_calls_create_without_dashboard_id():
 def test_dashboards_deploy_calls_update_with_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [])
-    dashboards.deploy_dashboard(dashboard, dashboard_id="test")
+
+    dashboard = Dashboard([], [Page("test", [])])
+    dashboards.deploy_dashboard(dashboard, dashboard_id="test", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_not_called()
-    ws.lakeview.update.assert_called_once()
+    ws.lakeview.update.assert_called_with(
+        "test",
+        serialized_dashboard=json.dumps({"pages": [{"name": "test"}]}),
+        warehouse_id="warehouse",
+    )
 
 
 def test_dashboards_save_to_folder_replaces_dataset_names_with_display_names(tmp_path):
