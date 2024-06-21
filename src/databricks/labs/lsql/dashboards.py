@@ -3,6 +3,7 @@ import copy
 import dataclasses
 import json
 import logging
+import math
 import re
 import shlex
 from argparse import ArgumentParser
@@ -415,7 +416,7 @@ class QueryTile(Tile):
         widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
         height = self.position.height
         if len(self._tile_metadata.filters) > 0 and self.position.width > 0:
-            height -= self._FILTER_HEIGHT * (1 + len(self._tile_metadata.filters) // self.position.width)
+            height -= self._FILTER_HEIGHT * math.ceil(len(self._tile_metadata.filters) / self.position.width)
         height = max(height, 0)
         y = self.position.y + self.position.height - height
         position = dataclasses.replace(self.position, y=y, height=height)
