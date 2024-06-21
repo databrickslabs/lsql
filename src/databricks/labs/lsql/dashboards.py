@@ -336,7 +336,14 @@ class QueryTile(Tile):
         syntax_tree = self._get_abstract_syntax_tree()
         if syntax_tree is None:
             return query
-        query_transformed = syntax_tree.transform(self.query_transformer).sql(dialect=self._DIALECT)
+        query_transformed = syntax_tree.transform(self.query_transformer).sql(
+            dialect=self._DIALECT,
+            # A transformer requires to (re)define how to output SQL
+            normalize=True,  # normalize identifiers to lowercase
+            pretty=True,  # format the produced SQL string
+            normalize_functions="upper",  # normalize function names to uppercase
+            max_text_width=80,  # wrap text at 80 characters
+        )
         return query_transformed
 
     def get_dataset(self) -> Dataset:
@@ -455,7 +462,7 @@ class Dashboards:
                     normalize=True,  # normalize identifiers to lowercase
                     pretty=True,  # format the produced SQL string
                     normalize_functions="upper",  # normalize function names to uppercase
-                    max_text_width=80,  # wrap text at 120 characters
+                    max_text_width=80,  # wrap text at 80 characters
                 )
             )
         formatted_query = ";\n".join(statements)
