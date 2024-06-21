@@ -865,6 +865,25 @@ def test_dashboard_creates_dashboard_with_description(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboard_creates_dashboard_with_filter(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    filter_column = "City"
+    query = f"-- --filter {filter_column}\nSELECT Address, City, Province, Country FROM europe"
+    (tmp_path / "table.sql").write_text(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    layouts = lakeview_dashboard.pages[0].layout
+    assert any(f"filter_{filter_column}" in layout.widget.name for layout in layouts)
+    filter_query = [layout.widget for layout in layouts if filter_column in layout.widget.name][0].queries[0]
+    assert filter_query.name == f"filter_{filter_column}"
+    assert len(filter_query.query.fields) == 2
+    assert filter_query.query.fields[0].name == filter_column  # Filter column
+    assert filter_column in filter_query.query.fields[1].name  # Associativity column
+    ws.assert_not_called()
+
+
 def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
