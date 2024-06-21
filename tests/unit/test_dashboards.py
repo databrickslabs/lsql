@@ -1,5 +1,6 @@
 import functools
 import itertools
+import json
 import logging
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -951,9 +952,13 @@ def test_dashboards_deploy_calls_create_without_dashboard_id():
     dashboards = Dashboards(ws)
 
     dashboard = Dashboard([], [Page("test", [])])
-    dashboards.deploy_dashboard(dashboard)
+    dashboards.deploy_dashboard(dashboard, parent_path="/non/existing/path")
 
-    ws.lakeview.create.assert_called_once()
+    ws.lakeview.create.assert_called_with(
+        "test",
+        parent_path="/non/existing/path",
+        serialized_dashboard=json.dumps({"pages": [{"name": "test"}]}),
+    )
     ws.lakeview.update.assert_not_called()
 
 

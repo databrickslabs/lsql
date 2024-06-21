@@ -648,16 +648,23 @@ class Dashboards:
             layouts.extend(tile.get_layouts())
         return layouts
 
-    def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
+    def deploy_dashboard(
+        self,
+        lakeview_dashboard: Dashboard,
+        *,
+        parent_path: str | None = None,
+        dashboard_id: str | None = None,
+    ) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
+        serialized_dashboard = json.dumps(lakeview_dashboard.as_dict())
         if dashboard_id is not None:
-            dashboard = self._ws.lakeview.update(
-                dashboard_id, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
-            )
+            dashboard = self._ws.lakeview.update(dashboard_id, serialized_dashboard=serialized_dashboard)
         else:
             display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
             dashboard = self._ws.lakeview.create(
-                display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
+                display_name,
+                parent_path=parent_path,
+                serialized_dashboard=serialized_dashboard,
             )
         return dashboard
 
