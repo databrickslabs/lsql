@@ -457,20 +457,19 @@ class QueryTile(Tile):
         if filters_size >= self.position.width * (self.position.height - 1):
             raise ValueError(f"Too many filters defined for {self}")
 
-        # The bottom row requires bookkeeping to dynamically fill it with filters
+        # The bottom row requires bookkeeping to adjust the filters width to fill it completely
         bottom_row_index = len(self._tile_metadata.filters) // self.position.width
         bottom_row_filter_count = len(self._tile_metadata.filters) % self.position.width or self.position.width
         bottom_row_filter_width = self.position.width // bottom_row_filter_count
         bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
 
         for filter_index, filter_column in enumerate(self._tile_metadata.filters):
+            widget = self._get_filter_widget(filter_column)
+
             if filter_index % self.position.width == 0:
                 x_offset = 0  # Reset on new row
-
-            widget = self._get_filter_widget(filter_column)
             x = self.position.x + x_offset
             y = self.position.y + self._FILTER_HEIGHT * (filter_index // self.position.width)
-
             width = 1
             if filter_index // self.position.width == bottom_row_index:  # Reached bottom row
                 width = bottom_row_filter_width
