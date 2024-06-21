@@ -1,4 +1,5 @@
 import functools
+import itertools
 import logging
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -16,7 +17,7 @@ from databricks.labs.lsql.dashboards import (
     QueryHandler,
     QueryTile,
     Tile,
-    WidgetMetadata,
+    TileMetadata,
     replace_database_in_query,
 )
 from databricks.labs.lsql.lakeview import (
@@ -74,16 +75,16 @@ def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
     assert dashboard_metadata.display_name == tmp_path.name
 
 
-def test_widget_metadata_is_markdown():
-    widget_metadata = WidgetMetadata(Path("test.md"))
-    assert widget_metadata.is_markdown()
-    assert not widget_metadata.is_query()
+def test_tile_metadata_is_markdown():
+    tile_metadata = TileMetadata(Path("test.md"))
+    assert tile_metadata.is_markdown()
+    assert not tile_metadata.is_query()
 
 
-def test_widget_metadata_is_query():
-    widget_metadata = WidgetMetadata(Path("test.sql"))
-    assert not widget_metadata.is_markdown()
-    assert widget_metadata.is_query()
+def test_tile_metadata_is_query():
+    tile_metadata = TileMetadata(Path("test.sql"))
+    assert not tile_metadata.is_markdown()
+    assert tile_metadata.is_query()
 
 
 def test_base_handler_parses_empty_header(tmp_path):
@@ -248,50 +249,73 @@ def test_markdown_handler_warns_about_open_ended_header(tmp_path, caplog):
     assert content == body
 
 
-def test_widget_metadata_replaces_width_and_height(tmp_path):
+def test_tile_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    widget_metadata = WidgetMetadata(path, 1, 1, 1)
-    updated_metadata = widget_metadata.from_dict(**{"path": path, "width": 10, "height": 10})
+    tile_metadata = TileMetadata(path, 1, 1, 1)
+    updated_metadata = tile_metadata.from_dict(**{"path": path, "width": 10, "height": 10})
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
 
 @pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title", "description"])
-def test_widget_metadata_replaces_attribute(tmp_path, attribute: str):
+def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
-    widget_metadata = WidgetMetadata(path, 1, 1, 1, "1", "1", "1")
-    updated_metadata = widget_metadata.from_dict(**{"path": path, attribute: "10"})
+    tile_metadata = TileMetadata(
+        path,
+        order=1,
+        width=1,
+        height=1,
+        _id="1",
+        title="1",
+        description="1",
+    )
+    updated_metadata = tile_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
 
-def test_widget_metadata_as_dict(tmp_path):
+def test_tile_metadata_replaces_filters(tmp_path):
+    path = tmp_path / "test.sql"
+    path.write_text("SELECT 1")
+    tile_metadata = TileMetadata(
+        path,
+        filters=[
+            "column",
+        ],
+    )
+    updated_metadata = tile_metadata.from_dict(path=path, filters=["a", "b", "c"])
+    assert updated_metadata.filters == ["a", "b", "c"]
+
+
+def test_tile_metadata_as_dict(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     raw = {
         "path": path.as_posix(),
         "id": "test",
-        "order": "-1",
-        "width": "3",
-        "height": "6",
+        "order": -1,
+        "width": 3,
+        "height": 6,
         "title": "Test widget",
         "description": "Longer explanation",
+        "filters": ["column"],
     }
-    widget_metadata = WidgetMetadata(
+    tile_metadata = TileMetadata(
         path,
         order=-1,
         width=3,
         height=6,
         title="Test widget",
         description="Longer explanation",
+        filters=["column"],
     )
-    assert widget_metadata.as_dict() == raw
+    assert tile_metadata.as_dict() == raw
 
 
 def test_tile_places_tile_to_the_right():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
-    tile = Tile(widget_metadata)
+    tile_metadata = TileMetadata(Path("test.sql"), 1, 1, 1)
+    tile = Tile(tile_metadata)
 
     position = Position(0, 4, 3, 4)
     placed_tile = tile.place_after(position)
@@ -301,8 +325,8 @@ def test_tile_places_tile_to_the_right():
 
 
 def test_tile_places_tile_below():
-    widget_metadata = WidgetMetadata(Path("test.sql"), 1, 1, 1)
-    tile = Tile(widget_metadata)
+    tile_metadata = TileMetadata(Path("test.sql"), 1, 1, 1)
+    tile = Tile(tile_metadata)
 
     position = Position(5, 4, 3, 4)
     placed_tile = tile.place_after(position)
@@ -528,8 +552,8 @@ def test_query_tile_finds_fields(tmp_path, query, names):
     query_file = tmp_path / "query.sql"
     query_file.write_text(query)
 
-    widget_metadata = WidgetMetadata(query_file, 1, 1, 1)
-    tile = QueryTile(widget_metadata)
+    tile_metadata = TileMetadata(query_file, 1, 1, 1)
+    tile = QueryTile(tile_metadata)
 
     fields = tile._find_fields()  # pylint: disable=protected-access
 
@@ -541,10 +565,10 @@ def test_query_tile_keeps_original_query(tmp_path):
     query_path = tmp_path / "counter.sql"
     query_path.write_text(query)
 
-    widget_metadata = WidgetMetadata.from_path(query_path)
-    query_tile = QueryTile(widget_metadata)
+    tile_metadata = TileMetadata.from_path(query_path)
+    query_tile = QueryTile(tile_metadata)
 
-    dataset = query_tile.get_dataset()
+    dataset = next(query_tile.get_datasets())
 
     assert dataset.query == query
 
@@ -571,11 +595,37 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
     query_path.write_text(query)
 
     replace_with_development_database = functools.partial(replace_database_in_query, database="development")
-    query_tile = QueryTile(WidgetMetadata.from_path(query_path), query_transformer=replace_with_development_database)
+    query_tile = QueryTile(TileMetadata.from_path(query_path), query_transformer=replace_with_development_database)
 
-    dataset = query_tile.get_dataset()
+    dataset = next(query_tile.get_datasets())
 
     assert dataset.query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+
+
+@pytest.mark.parametrize("width", [5, 8, 13])
+@pytest.mark.parametrize("height", [4, 8, 12])
+@pytest.mark.parametrize("filters", ["", "a", "ab", "abc", "abcde", "abcdefgh"])
+@pytest.mark.parametrize("axes", ["xy", "yx"])
+def test_query_tile_fills_up_size(tmp_path, width, height, filters, axes):
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text("SELECT 1")
+
+    widget_metadata = TileMetadata(query_path, width=width, height=height, filters=list(filters))
+    query_tile = QueryTile(widget_metadata)
+
+    positions = [layout.position for layout in query_tile.get_layouts()]
+
+    assert sum(p.width * p.height for p in positions) == width * height
+
+    # On every row/column the positions should line up without (negative) gaps
+    axis, group_axis = axes[0], axes[1]
+    dimension = "width" if axis == "x" else "height"
+    positions_sorted = sorted(positions, key=lambda p: (getattr(p, group_axis), getattr(p, axis)))
+    for _, g in itertools.groupby(positions_sorted, lambda p: getattr(p, group_axis)):
+        group = list(g)
+        for before, after in zip(group[:-1], group[1:]):
+            message = f"Gap between positions: {before} -> {after}"
+            assert getattr(before, axis) + getattr(before, dimension) == getattr(after, axis), message
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
@@ -812,6 +862,25 @@ def test_dashboard_creates_dashboard_with_description(tmp_path):
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.description == "Only when it counts"
     assert frame.show_description
+    ws.assert_not_called()
+
+
+def test_dashboard_creates_dashboard_with_filter(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    filter_column = "City"
+    query = f"-- --filter {filter_column}\nSELECT Address, City, Province, Country FROM europe"
+    (tmp_path / "table.sql").write_text(query)
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    layouts = lakeview_dashboard.pages[0].layout
+    assert any(f"filter_{filter_column}" in layout.widget.name for layout in layouts)
+    filter_query = [layout.widget for layout in layouts if filter_column in layout.widget.name][0].queries[0]
+    assert filter_query.name == f"filter_{filter_column}"
+    assert len(filter_query.query.fields) == 2
+    assert filter_query.query.fields[0].name == filter_column  # Filter column
+    assert filter_column in filter_query.query.fields[1].name  # Associativity column
     ws.assert_not_called()
 
 
