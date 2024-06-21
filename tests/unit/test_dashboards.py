@@ -1,4 +1,5 @@
 import functools
+import itertools
 import logging
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -599,6 +600,25 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
     dataset = next(query_tile.get_datasets())
 
     assert dataset.query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+
+
+@pytest.mark.parametrize("width", [3, 5, 8])
+@pytest.mark.parametrize("height", [4, 6, 10])
+@pytest.mark.parametrize("filters", ["", "a", "ab", "abc", "abcde", "abcdefgh"])
+def test_query_tile_fills_up_horizontal_axis(tmp_path, width, height, filters):
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text("SELECT 1")
+
+    widget_metadata = TileMetadata(query_path, width=width, height=height, filters=list(filters))
+    query_tile = QueryTile(widget_metadata)
+
+    layouts = query_tile.get_layouts()
+    positions = [layout.position for layout in layouts]
+
+    for _, g in itertools.groupby(positions, lambda position: position.y):
+        group = list(g)
+        assert sum(position.width for position in group) == widget_metadata.width
+        assert all(before.x + before.width == after.x for before, after in zip(group[:-1], group[1:]))
 
 
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
