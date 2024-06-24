@@ -19,6 +19,7 @@ from databricks.labs.lsql.dashboards import (
     QueryTile,
     Tile,
     TileMetadata,
+    QuerySpec,
     replace_database_in_query,
 )
 from databricks.labs.lsql.lakeview import (
@@ -260,6 +261,21 @@ def test_markdown_handler_warns_about_open_ended_header(tmp_path, caplog):
     assert "Missing closing header boundary." in caplog.text
     assert len(header) == 0
     assert content == body
+
+
+def test_query_spec_raises_value_error_when_converting_auto_to_widget_spec():
+    with pytest.raises(ValueError):
+        QuerySpec.AUTO.as_widget_spec()
+
+
+def test_query_spec_converts_all_to_widget_spec_except_auto():
+    for spec in QuerySpec:
+        if spec == QuerySpec.AUTO:
+            continue
+        try:
+            spec.as_widget_spec()
+        except ValueError as e:
+            assert False, e
 
 
 def test_tile_metadata_replaces_width_and_height(tmp_path):
