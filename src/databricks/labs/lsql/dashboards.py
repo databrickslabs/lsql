@@ -134,9 +134,9 @@ class QueryHandler(BaseHandler):
             "--spec",
             type=lambda v: QuerySpec(v.upper()),
             default=QuerySpec.AUTO,
-            description=(
+            help=(
                 "The widget spec to use, see classes with WidgetSpec as parent class in "
-                "databricks.labs.lsql.lakeview.model.",
+                "databricks.labs.lsql.lakeview.model."
             )
         )
         parser.add_argument(
