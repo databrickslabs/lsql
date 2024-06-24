@@ -711,8 +711,7 @@ def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_fi
     ws = create_autospec(WorkspaceClient)
 
     for i in range(2):
-        with (tmp_path / f"counter_{i}.sql").open("w") as f:
-            f.write(f"SELECT {i} AS count")
+        (tmp_path / f"counter_{i}.sql").write_text(f"SELECT {i} AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
