@@ -211,7 +211,17 @@ and the list of tile overrides for cases, that cannot be handled with the [high-
 files. The file requires the `display_name` field, other fields are optional. See below for the configuration schema:
 
 ```yml
-display_name: <display name>
+display_name: <dashboard name>
+
+widgets:
+  <widget id>:
+    order: 1
+    width: 2
+    height: 6
+  <widget id>:
+    order: 0
+  <widget id>:
+    order: 2
 ```
 
 This file may contain extra information about the [widgets](#widget-types), but we aim at mostly [inferring it](#implicit-detection) from the SQL files.
