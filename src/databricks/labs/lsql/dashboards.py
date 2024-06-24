@@ -128,6 +128,7 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-h", "--height", type=int)
         parser.add_argument("-t", "--title", type=str)
         parser.add_argument("-d", "--description", type=str)
+        parser.add_argument("-s", "--style", type=str)
         parser.add_argument(
             "-f",
             "--filter",
