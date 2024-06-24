@@ -116,7 +116,8 @@ def test_query_handler_parses_empty_header(tmp_path):
 
     header = handler.parse_header()
 
-    assert all(value is None for value in header.values())
+    has_default = {"spec"}
+    assert all(value is None for key, value in header.items() if key not in has_default)
 
 
 @pytest.mark.parametrize(
@@ -156,7 +157,8 @@ def test_query_handler_ignores_non_header_comment(tmp_path, query):
 
     header = handler.parse_header()
 
-    assert all(value is None for value in header.values())
+    has_default = {"spec"}
+    assert all(value is None for key, value in header.items() if key not in has_default)
 
 
 @pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description"])
@@ -170,14 +172,14 @@ def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     assert str(header[attribute]) == "10"
 
 
-def test_query_handler_parses_style_attribute_from_header(tmp_path):
+def test_query_handler_parses_spec_attribute_from_header(tmp_path):
     path = tmp_path / "query.sql"
-    path.write_text(f"-- --style COUNTER\nSELECT 1")
+    path.write_text(f"-- --spec COUNTER\nSELECT 1")
     handler = QueryHandler(path)
 
     header = handler.parse_header()
 
-    assert header["style"] == "COUNTER"
+    assert header["spec"] == "COUNTER"
 
 
 @pytest.mark.parametrize(
@@ -269,7 +271,7 @@ def test_tile_metadata_replaces_width_and_height(tmp_path):
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title", "description", "style"])
+@pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title", "description", "spec"])
 def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
@@ -281,7 +283,7 @@ def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
         _id="1",
         title="1",
         description="1",
-        style="auto",
+        spec="auto",
     )
     updated_metadata = tile_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
@@ -311,7 +313,7 @@ def test_tile_metadata_as_dict(tmp_path):
         "height": 6,
         "title": "Test widget",
         "description": "Longer explanation",
-        "style": "auto",
+        "spec": "auto",
         "filters": ["column"],
     }
     tile_metadata = TileMetadata(
@@ -321,7 +323,7 @@ def test_tile_metadata_as_dict(tmp_path):
         height=6,
         title="Test widget",
         description="Longer explanation",
-        style="auto",
+        spec="auto",
         filters=["column"],
     )
     assert tile_metadata.as_dict() == raw
@@ -656,8 +658,28 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
     ws.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "query, spec",
+    [
+        ("SELECT 1", CounterSpec),
+        ("SELECT 1, 2", TableV2Spec),
+        ("-- --spec auto\nSELECT 1, 2", TableV2Spec),
+        ("-- --spec counter\nSELECT 1, 2", CounterSpec),
+    ]
+)
+def test_dashboards_creates_dashboard_with_expected_query_spec(tmp_path, query, spec):
+    (tmp_path / "query.sql").write_text(query)
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    table_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(table_spec, spec)
+    ws.assert_not_called()
+
+
 def test_dashboards_creates_dashboard_with_expected_table_field_encodings(tmp_path):
-    (tmp_path / "query.sql").write_text("SELECT 1 AS first, 2 AS second")
+    (tmp_path / "query.sql").write_text("select 1 as first, 2 as second")
 
     ws = create_autospec(WorkspaceClient)
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)

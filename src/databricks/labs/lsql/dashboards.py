@@ -122,14 +122,14 @@ class QueryHandler(BaseHandler):
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
-        parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
+        parser = ArgumentParser("TileMetadata", add_help=False, exit_on_error=False)
         parser.add_argument("--id", type=str)
         parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
         parser.add_argument("-t", "--title", type=str)
         parser.add_argument("-d", "--description", type=str)
-        parser.add_argument("-s", "--style", type=lambda v: Style(v.upper()))
+        parser.add_argument("-s", "--spec", type=lambda v: QuerySpec(v.upper()), default=QuerySpec.AUTO, )
         parser.add_argument(
             "-f",
             "--filter",
@@ -192,6 +192,24 @@ class MarkdownHandler(BaseHandler):
         return "", self._content
 
 
+@unique
+class QuerySpec(str, Enum):
+    """The query widget spec"""
+
+    AUTO = "AUTO"
+    TABLE = "TABLE"
+    COUNTER = "COUNTER"
+
+    def as_widget_spec(self) -> type[WidgetSpec]:
+        widget_spec_mapping = {
+            "TABLE": TableV2Spec,
+            "COUNTER": CounterSpec,
+        }
+        if self.name not in widget_spec_mapping:
+            raise ValueError(f"Can not convert to widget spec: {self.value}")
+        return widget_spec_mapping[self.name]
+
+
 class TileMetadata:
     def __init__(
         self,
@@ -202,7 +220,7 @@ class TileMetadata:
         _id: str = "",
         title: str = "",
         description: str = "",
-        style: str = "",
+        spec: QuerySpec = QuerySpec.AUTO,
         filters: list[str] | None = None,
     ):
         self._path = path
@@ -212,7 +230,7 @@ class TileMetadata:
         self.id = _id or path.stem
         self.title = title
         self.description = description
-        self.style = style
+        self.spec = spec
         self.filters = filters or []
 
     def is_markdown(self) -> bool:
@@ -261,17 +279,7 @@ class TileMetadata:
         return cls.from_dict(path=path, **header)
 
     def __repr__(self):
-        return f"WidgetMetdata<{self._path}>"
-
-
-@unique
-class Style(str, Enum):
-    """The (main) widget style of a tile"""
-
-    AUTO = "AUTO"
-    MARKDOWN = "MARKDOWN"
-    TABLE = "TABLE"
-    COUNTER = "COUNTER"
+        return f"TileMetadata<{self._path}>"
 
 
 class Tile:
@@ -398,6 +406,8 @@ class QueryTile(Tile):
 
     def infer_spec_type(self) -> type[WidgetSpec] | None:
         """Infer the spec type from the query."""
+        if self._tile_metadata.spec != QuerySpec.AUTO:
+            return self._tile_metadata.spec.as_widget_spec()
         fields = self._find_fields()
         if len(fields) == 0:
             return None
