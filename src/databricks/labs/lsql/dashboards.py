@@ -201,6 +201,7 @@ class TileMetadata:
         _id: str = "",
         title: str = "",
         description: str = "",
+        style: str = "",
         filters: list[str] | None = None,
     ):
         self._path = path
@@ -210,6 +211,7 @@ class TileMetadata:
         self.id = _id or path.stem
         self.title = title
         self.description = description
+        self.style = style
         self.filters = filters or []
 
     def is_markdown(self) -> bool:
