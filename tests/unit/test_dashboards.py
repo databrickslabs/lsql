@@ -16,10 +16,10 @@ from databricks.labs.lsql.dashboards import (
     Dashboards,
     MarkdownHandler,
     QueryHandler,
+    QuerySpec,
     QueryTile,
     Tile,
     TileMetadata,
-    QuerySpec,
     replace_database_in_query,
 )
 from databricks.labs.lsql.lakeview import (
@@ -299,7 +299,7 @@ def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
         _id="1",
         title="1",
         description="1",
-        spec="auto",
+        spec=QuerySpec.AUTO,
     )
     updated_metadata = tile_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"

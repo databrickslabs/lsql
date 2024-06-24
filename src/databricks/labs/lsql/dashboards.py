@@ -137,7 +137,7 @@ class QueryHandler(BaseHandler):
             help=(
                 "The widget spec to use, see classes with WidgetSpec as parent class in "
                 "databricks.labs.lsql.lakeview.model."
-            )
+            ),
         )
         parser.add_argument(
             "-f",
@@ -210,7 +210,7 @@ class QuerySpec(str, Enum):
     COUNTER = "COUNTER"
 
     def as_widget_spec(self) -> type[WidgetSpec]:
-        widget_spec_mapping = {
+        widget_spec_mapping: dict[str, type[WidgetSpec]] = {
             "TABLE": TableV2Spec,
             "COUNTER": CounterSpec,
         }
