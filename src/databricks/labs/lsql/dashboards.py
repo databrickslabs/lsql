@@ -9,7 +9,7 @@ import shlex
 from argparse import ArgumentParser
 from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
-from enum import Enum, auto, unique
+from enum import Enum, unique
 from pathlib import Path
 from typing import TypeVar
 
@@ -129,7 +129,16 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-h", "--height", type=int)
         parser.add_argument("-t", "--title", type=str)
         parser.add_argument("-d", "--description", type=str)
-        parser.add_argument("-s", "--spec", type=lambda v: QuerySpec(v.upper()), default=QuerySpec.AUTO, )
+        parser.add_argument(
+            "-s",
+            "--spec",
+            type=lambda v: QuerySpec(v.upper()),
+            default=QuerySpec.AUTO,
+            description=(
+                "The widget spec to use, see classes with WidgetSpec as parent class in "
+                "databricks.labs.lsql.lakeview.model.",
+            )
+        )
         parser.add_argument(
             "-f",
             "--filter",

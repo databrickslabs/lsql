@@ -174,7 +174,7 @@ def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
 
 def test_query_handler_parses_spec_attribute_from_header(tmp_path):
     path = tmp_path / "query.sql"
-    path.write_text(f"-- --spec COUNTER\nSELECT 1")
+    path.write_text("-- --spec COUNTER\nSELECT 1")
     handler = QueryHandler(path)
 
     header = handler.parse_header()
@@ -665,7 +665,7 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
         ("SELECT 1, 2", TableV2Spec),
         ("-- --spec auto\nSELECT 1, 2", TableV2Spec),
         ("-- --spec counter\nSELECT 1, 2", CounterSpec),
-    ]
+    ],
 )
 def test_dashboards_creates_dashboard_with_expected_query_spec(tmp_path, query, spec):
     (tmp_path / "query.sql").write_text(query)
