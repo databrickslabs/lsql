@@ -214,13 +214,13 @@ files. The file requires the `display_name` field, other fields are optional. Se
 display_name: <dashboard name>
 
 widgets:
-- <widget id>:
+  <widget id>:
     order: 1
     width: 2
     height: 6
-- <widget id>:
+  <widget id>:
     order: 0
-- <widget id>:
+  <widget id>:
     order: 2
 ```
 
