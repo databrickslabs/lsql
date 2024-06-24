@@ -9,6 +9,7 @@ import shlex
 from argparse import ArgumentParser
 from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
+from enum import Enum, auto, unique
 from pathlib import Path
 from typing import TypeVar
 
@@ -128,7 +129,7 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-h", "--height", type=int)
         parser.add_argument("-t", "--title", type=str)
         parser.add_argument("-d", "--description", type=str)
-        parser.add_argument("-s", "--style", type=str)
+        parser.add_argument("-s", "--style", type=lambda v: Style(v.upper()))
         parser.add_argument(
             "-f",
             "--filter",
@@ -261,6 +262,16 @@ class TileMetadata:
 
     def __repr__(self):
         return f"WidgetMetdata<{self._path}>"
+
+
+@unique
+class Style(str, Enum):
+    """The (main) widget style of a tile"""
+
+    AUTO = "AUTO"
+    MARKDOWN = "MARKDOWN"
+    TABLE = "TABLE"
+    COUNTER = "COUNTER"
 
 
 class Tile:

@@ -159,7 +159,7 @@ def test_query_handler_ignores_non_header_comment(tmp_path, query):
     assert all(value is None for value in header.values())
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description", "style"])
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description"])
 def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     path = tmp_path / "query.sql"
     path.write_text(f"-- --{attribute} 10\nSELECT 1")
@@ -168,6 +168,16 @@ def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     header = handler.parse_header()
 
     assert str(header[attribute]) == "10"
+
+
+def test_query_handler_parses_style_attribute_from_header(tmp_path):
+    path = tmp_path / "query.sql"
+    path.write_text(f"-- --style COUNTER\nSELECT 1")
+    handler = QueryHandler(path)
+
+    header = handler.parse_header()
+
+    assert header["style"] == "COUNTER"
 
 
 @pytest.mark.parametrize(
