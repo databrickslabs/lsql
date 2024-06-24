@@ -675,7 +675,7 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
 
 
 @pytest.mark.parametrize(
-    "query, spec",
+    "query, spec_expected",
     [
         ("SELECT 1", CounterSpec),
         ("SELECT 1, 2", TableV2Spec),
@@ -683,14 +683,14 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
         ("-- --spec counter\nSELECT 1, 2", CounterSpec),
     ],
 )
-def test_dashboards_infers_query_spec(tmp_path, query, spec):
+def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
     (tmp_path / "query.sql").write_text(query)
 
     ws = create_autospec(WorkspaceClient)
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
-    table_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
-    assert isinstance(table_spec, spec)
+    spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(spec, spec_expected)
     ws.assert_not_called()
 
 
