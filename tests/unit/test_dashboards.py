@@ -657,8 +657,7 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
 
 
 def test_dashboards_creates_dashboard_with_expected_table_field_encodings(tmp_path):
-    with (tmp_path / "query.sql").open("w") as f:
-        f.write("SELECT 1 AS first, 2 AS second")
+    (tmp_path / "query.sql").write_text("SELECT 1 AS first, 2 AS second")
 
     ws = create_autospec(WorkspaceClient)
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
