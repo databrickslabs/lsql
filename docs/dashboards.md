@@ -94,10 +94,16 @@ using `/* ... */`.
 
 The following widget arguments are supported:
 
-| Flag           | Description                                 | Type | Optional |
-|----------------|---------------------------------------------|------|----------|
-| -w or --width  | The number of columns that the widget spans | int  | Yes      |
-| -h or --height | The number of rows that the widget spans    | int  | Yes      |
+| Flag                | Description                                 | Type  | Optional |
+|---------------------|---------------------------------------------|-------|----------|
+| -id                 | The widget identifier                       | str   | Yes      |
+| -o or --order       | The order of the widget                     | int   | Yes      |
+| -w or --width       | The number of columns that the widget spans | int   | Yes      |
+| -h or --height      | The number of rows that the widget spans    | int   | Yes      |
+| -t or --title       | The widget title                            | str   | Yes      |
+| -d or --description | The widget description                      | str   | Yes      |
+| -s or --spec        | The widget specification                    | str   | Yes      |
+| -f or --filter      | The column(s) used when filtering           | str   | Yes      |
 
 [[back to top](#dashboards-as-code)]
 
@@ -109,15 +115,15 @@ We rely on the SQL parser to infer the metadata from the query itself. We may in
 from the query:
 
 * column names
-* widget types
+* widget specification
 
 [[back to top](#dashboards-as-code)]
 
-### Widget types
+### Widget specification
 
 The aim of this project is to support high-level metadata for a subset of the Databricks Lakeview widgets, while still
-allowing to define the rest of the metadata in the `dashboard.yml` file. The following widget simplified types are 
-supported:
+allowing to define the rest of the metadata in the `dashboard.yml` file. The following widget simplified specifications 
+are supported:
 
 - `counter`
 - `table`
@@ -210,6 +216,19 @@ height: 5
 
 Welcome to our churn dashboard! Let me show you around ...
 ```
+
+### Text widget arguments
+
+The following text widget arguments are supported:
+
+| Flag          | Description                                 | Type       | Optional |
+|---------------|---------------------------------------------|------------|----------|
+| id            | The widget identifier                       | str        | Yes      |
+| order         | The order of the widget                     | int        | Yes      |
+| width         | The number of columns that the widget spans | int        | Yes      |
+| height        | The number of rows that the widget spans    | int        | Yes      |
+| title         | The widget title                            | str        | Yes      |
+| description   | The widget description                      | str        | Yes      |
 
 [[back to top](#dashboards-as-code)]
 
