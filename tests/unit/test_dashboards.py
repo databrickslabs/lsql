@@ -683,7 +683,7 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
         ("-- --spec counter\nSELECT 1, 2", CounterSpec),
     ],
 )
-def test_dashboards_creates_dashboard_with_expected_query_spec(tmp_path, query, spec):
+def test_dashboards_infers_query_spec(tmp_path, query, spec):
     (tmp_path / "query.sql").write_text(query)
 
     ws = create_autospec(WorkspaceClient)
