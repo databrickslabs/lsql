@@ -215,7 +215,7 @@ class QuerySpec(str, Enum):
             "COUNTER": CounterSpec,
         }
         if self.name not in widget_spec_mapping:
-            raise ValueError(f"Can not convert to widget spec: {self.value}")
+            raise ValueError(f"Can not convert to widget spec: {self}")
         return widget_spec_mapping[self.name]
 
 
