@@ -762,6 +762,8 @@ def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
 
 
 def test_dashboards_overwrites_with_overrides(tmp_path):
+    # This override is useless outside unit testing. Changing the widget type also requires changing the encodings to
+    # visualize the column(s). Use the `--type` flag to change the widget type instead.
     query = '-- --overrides \'{"spec": {"widgetType": "table"}}\'\nSELECT 102132 AS count'
     (tmp_path / "query.sql").write_text(query)
 
