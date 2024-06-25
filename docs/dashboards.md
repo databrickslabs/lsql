@@ -96,13 +96,13 @@ The following widget arguments are supported:
 
 | Flag                | Description                                 | Type  | Optional |
 |---------------------|---------------------------------------------|-------|----------|
-| -id                 | The widget identifier                       | str   | Yes      |
+| --id                | The widget identifier                       | str   | Yes      |
 | -o or --order       | The order of the widget                     | int   | Yes      |
 | -w or --width       | The number of columns that the widget spans | int   | Yes      |
 | -h or --height      | The number of rows that the widget spans    | int   | Yes      |
 | -t or --title       | The widget title                            | str   | Yes      |
 | -d or --description | The widget description                      | str   | Yes      |
-| -s or --spec        | The widget specification                    | str   | Yes      |
+| --type              | The widget type                             | str   | Yes      |
 | -f or --filter      | The column(s) used when filtering           | str   | Yes      |
 
 [[back to top](#dashboards-as-code)]
@@ -115,15 +115,15 @@ We rely on the SQL parser to infer the metadata from the query itself. We may in
 from the query:
 
 * column names
-* widget specification
+* widget types
 
 [[back to top](#dashboards-as-code)]
 
-### Widget specification
+### Widget types
 
 The aim of this project is to support high-level metadata for a subset of the Databricks Lakeview widgets, while still
-allowing to define the rest of the metadata in the `dashboard.yml` file. The following widget simplified specifications 
-are supported:
+allowing to define the rest of the metadata in the `dashboard.yml` file. The following widget simplified types are 
+supported:
 
 - `counter`
 - `table`
