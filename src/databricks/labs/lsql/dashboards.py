@@ -130,14 +130,14 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-t", "--title", type=str)
         parser.add_argument("-d", "--description", type=str)
         parser.add_argument(
-            "-s",
-            "--spec",
-            type=lambda v: QuerySpec(v.upper()),
-            default=QuerySpec.AUTO,
+            "--type",
+            type=lambda v: WidgetType(v.upper()),
+            default=WidgetType.AUTO,
             help=(
-                "The widget spec to use, see classes with WidgetSpec as parent class in "
+                "The widget type to use, see classes with WidgetSpec as parent class in "
                 "databricks.labs.lsql.lakeview.model."
             ),
+            dest="widget_type",
         )
         parser.add_argument(
             "-f",
@@ -202,8 +202,8 @@ class MarkdownHandler(BaseHandler):
 
 
 @unique
-class QuerySpec(str, Enum):
-    """The query widget spec"""
+class WidgetType(str, Enum):
+    """The query widget type"""
 
     AUTO = "AUTO"
     TABLE = "TABLE"
@@ -229,7 +229,7 @@ class TileMetadata:
         _id: str = "",
         title: str = "",
         description: str = "",
-        spec: QuerySpec = QuerySpec.AUTO,
+        widget_type: WidgetType = WidgetType.AUTO,
         filters: list[str] | None = None,
     ):
         self._path = path
@@ -239,7 +239,7 @@ class TileMetadata:
         self.id = _id or path.stem
         self.title = title
         self.description = description
-        self.spec = spec
+        self.widget_type = widget_type
         self.filters = filters or []
 
     def is_markdown(self) -> bool:
@@ -417,8 +417,8 @@ class QueryTile(Tile):
 
     def infer_spec_type(self) -> type[WidgetSpec] | None:
         """Infer the spec type from the query."""
-        if self._tile_metadata.spec != QuerySpec.AUTO:
-            return self._tile_metadata.spec.as_widget_spec()
+        if self._tile_metadata.widget_type != WidgetType.AUTO:
+            return self._tile_metadata.widget_type.as_widget_spec()
         fields = self._find_fields()
         if len(fields) == 0:
             return None
