@@ -20,6 +20,7 @@ from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
+    ColumnType,
     ControlEncoding,
     ControlEncodingMap,
     ControlFieldEncoding,
@@ -28,6 +29,7 @@ from databricks.labs.lsql.lakeview import (
     CounterSpec,
     Dashboard,
     Dataset,
+    DisplayType,
     Field,
     Layout,
     MultiSelectSpec,
@@ -35,9 +37,9 @@ from databricks.labs.lsql.lakeview import (
     Page,
     Position,
     Query,
-    RenderFieldEncoding,
-    TableEncodingMap,
-    TableV2Spec,
+    TableV1ColumnEncoding,
+    TableV1EncodingMap,
+    TableV1Spec,
     Widget,
     WidgetFrameSpec,
     WidgetSpec,
@@ -211,7 +213,7 @@ class WidgetType(str, Enum):
 
     def as_widget_spec(self) -> type[WidgetSpec]:
         widget_spec_mapping: dict[str, type[WidgetSpec]] = {
-            "TABLE": TableV2Spec,
+            "TABLE": TableV1Spec,
             "COUNTER": CounterSpec,
         }
         if self.name not in widget_spec_mapping:
@@ -424,7 +426,7 @@ class QueryTile(Tile):
             return None
         if len(fields) == 1:
             return CounterSpec
-        return TableV2Spec
+        return TableV1Spec
 
     def get_datasets(self) -> Iterable[Dataset]:
         """Get the dataset belonging to the query."""
@@ -531,9 +533,25 @@ class QueryTile(Tile):
 
         In most cases, overwriting this method with a Tile specific spec is sufficient for support other widget types.
         """
-        field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
-        table_encodings = TableEncodingMap(field_encodings)
-        spec = TableV2Spec(encodings=table_encodings, frame=frame)
+        column_encodings = []
+        for field in fields:
+            column_encoding = TableV1ColumnEncoding(
+                boolean_values=["false", "true"],
+                display_as=DisplayType.STRING,
+                field_name=field.name,
+                title=field.name,
+                type=ColumnType.STRING,
+            )
+            column_encodings.append(column_encoding)
+        table_encodings = TableV1EncodingMap(column_encodings)
+        spec = TableV1Spec(
+            allow_html_by_default=False,
+            condensed=True,
+            encodings=table_encodings,
+            invisible_columns=[],
+            items_per_page=25,
+            frame=frame,
+        )
         return spec
 
 
