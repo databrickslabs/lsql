@@ -761,6 +761,18 @@ def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
     ws.assert_not_called()
 
 
+def test_dashboards_overwrites_with_overrides(tmp_path):
+    query = '-- --overrides \'{"spec": {"widgetType": "table"}}\'\nSELECT 102132 AS count'
+    (tmp_path / "query.sql").write_text(query)
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(spec, TableV2Spec)
+    ws.assert_not_called()
+
+
 def test_dashboards_creates_dashboard_with_expected_table_field_encodings(tmp_path):
     (tmp_path / "query.sql").write_text("select 1 as first, 2 as second")
 

@@ -499,6 +499,10 @@ class QueryTile(Tile):
 
         The user may provide partial overwrites, therefore, nested dictionaries should not be overwritten completely.
         """
+        if not self._tile_metadata.overrides:
+            return widget
+        raw = widget.as_dict()
+        widget = widget.from_dict(raw)
         return widget
 
     def _get_query_layouts(self) -> Iterable[Layout]:
