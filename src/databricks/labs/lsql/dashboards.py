@@ -494,6 +494,13 @@ class QueryTile(Tile):
         dataset = Dataset(name=self._tile_metadata.id, display_name=self._tile_metadata.id, query=query)
         yield dataset
 
+    def _merge_widget_with_overrides(self, widget: Widget) -> Widget:
+        """Merge the widget with (optional) overrides provided by the user.
+
+        The user may provide partial overwrites, therefore, nested dictionaries should not be overwritten completely.
+        """
+        return widget
+
     def _get_query_layouts(self) -> Iterable[Layout]:
         """Get the layout visualizing the dataset.
 
@@ -511,6 +518,7 @@ class QueryTile(Tile):
         )
         spec = self._get_query_widget_spec(fields, frame=frame)
         widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
+        widget = self._merge_widget_with_overrides(widget)
         height = self.position.height
         if len(self._tile_metadata.filters) > 0 and self.position.width > 0:
             height -= self._FILTER_HEIGHT * math.ceil(len(self._tile_metadata.filters) / self.position.width)
