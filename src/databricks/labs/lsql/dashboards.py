@@ -277,6 +277,8 @@ class TileMetadata:
             value = getattr(self, attribute)
             if value is None or (isinstance(value, Sized) and len(value) == 0):
                 continue
+            if hasattr(value, "value"):  # For Enums
+                value = value.value
             body[attribute] = value
         return body
 
