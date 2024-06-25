@@ -229,7 +229,7 @@ def test_query_handler_ignores_non_header_comment(tmp_path, query):
     assert all(not value for key, value in header.items() if key not in has_default)
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description"])
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description", "overrides"])
 def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     path = tmp_path / "query.sql"
     path.write_text(f"-- --{attribute} 10\nSELECT 1")

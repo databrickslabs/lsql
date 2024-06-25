@@ -118,6 +118,11 @@ class QueryHandler(BaseHandler):
             dest="filters",
             nargs="*",
         )
+        parser.add_argument(
+            "--overrides",
+            type=json.loads,
+            help="Override the low-level Lakeview entities with a json payload.",
+        )
         return parser
 
     def _parse_header(self, header: str) -> dict:
