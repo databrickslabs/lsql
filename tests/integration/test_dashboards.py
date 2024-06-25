@@ -283,7 +283,7 @@ def test_dashboards_deploys_dashboard_with_filters(ws, make_dashboard, tmp_path)
 def test_dashboard_deploys_dashboard_with_overrides_counter_as_table(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard()
 
-    query = '-- --overrides \'{"spec": {"widgetType": "table"}}\'\nSELECT 102132 AS count'
+    query = '-- --overrides \'{"spec": {"frame": {"showTitle": false}}}\'\nSELECT 102132 AS count'
     (tmp_path / "counter.sql").write_text(query)
 
     dashboards = Dashboards(ws)
