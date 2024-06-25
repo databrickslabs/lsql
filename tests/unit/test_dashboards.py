@@ -16,7 +16,7 @@ from databricks.labs.lsql.dashboards import (
     Dashboards,
     MarkdownHandler,
     QueryHandler,
-    QuerySpec,
+    WidgetType,
     QueryTile,
     Tile,
     TileMetadata,
@@ -117,7 +117,7 @@ def test_query_handler_parses_empty_header(tmp_path):
 
     header = handler.parse_header()
 
-    has_default = {"spec"}
+    has_default = {"widget_type"}
     assert all(value is None for key, value in header.items() if key not in has_default)
 
 
@@ -158,7 +158,7 @@ def test_query_handler_ignores_non_header_comment(tmp_path, query):
 
     header = handler.parse_header()
 
-    has_default = {"spec"}
+    has_default = {"widget_type"}
     assert all(value is None for key, value in header.items() if key not in has_default)
 
 
@@ -173,14 +173,14 @@ def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     assert str(header[attribute]) == "10"
 
 
-def test_query_handler_parses_spec_attribute_from_header(tmp_path):
+def test_query_handler_parses_type_attribute_from_header(tmp_path):
     path = tmp_path / "query.sql"
-    path.write_text("-- --spec COUNTER\nSELECT 1")
+    path.write_text("-- --type COUNTER\nSELECT 1")
     handler = QueryHandler(path)
 
     header = handler.parse_header()
 
-    assert header["spec"] == "COUNTER"
+    assert header["widget_type"] == "COUNTER"
 
 
 @pytest.mark.parametrize(
@@ -263,17 +263,17 @@ def test_markdown_handler_warns_about_open_ended_header(tmp_path, caplog):
     assert content == body
 
 
-def test_query_spec_raises_value_error_when_converting_auto_to_widget_spec():
+def test_widget_type_raises_value_error_when_converting_auto_to_widget_spec():
     with pytest.raises(ValueError):
-        QuerySpec.AUTO.as_widget_spec()
+        WidgetType.AUTO.as_widget_spec()
 
 
-def test_query_spec_converts_all_to_widget_spec_except_auto():
-    for spec in QuerySpec:
-        if spec == QuerySpec.AUTO:
+def test_widget_type_converts_all_to_widget_spec_except_auto():
+    for widget_type in WidgetType:
+        if widget_type == WidgetType.AUTO:
             continue
         try:
-            spec.as_widget_spec()
+            widget_type.as_widget_spec()
         except ValueError as e:
             assert False, e
 
@@ -287,7 +287,7 @@ def test_tile_metadata_replaces_width_and_height(tmp_path):
     assert updated_metadata.height == 10
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title", "description", "spec"])
+@pytest.mark.parametrize("attribute", ["id", "order", "width", "height", "title", "description", "widget_type"])
 def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
@@ -299,7 +299,7 @@ def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
         _id="1",
         title="1",
         description="1",
-        spec=QuerySpec.AUTO,
+        widget_type=WidgetType.AUTO,
     )
     updated_metadata = tile_metadata.from_dict(**{"path": path, attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
@@ -329,7 +329,7 @@ def test_tile_metadata_as_dict(tmp_path):
         "height": 6,
         "title": "Test widget",
         "description": "Longer explanation",
-        "spec": "AUTO",
+        "widget_type": "AUTO",
         "filters": ["column"],
     }
     tile_metadata = TileMetadata(
@@ -339,7 +339,7 @@ def test_tile_metadata_as_dict(tmp_path):
         height=6,
         title="Test widget",
         description="Longer explanation",
-        spec=QuerySpec.AUTO,
+        widget_type=WidgetType.AUTO,
         filters=["column"],
     )
     assert tile_metadata.as_dict() == raw
@@ -679,8 +679,8 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
     [
         ("SELECT 1", CounterSpec),
         ("SELECT 1, 2", TableV2Spec),
-        ("-- --spec auto\nSELECT 1, 2", TableV2Spec),
-        ("-- --spec counter\nSELECT 1, 2", CounterSpec),
+        ("-- --type auto\nSELECT 1, 2", TableV2Spec),
+        ("-- --type counter\nSELECT 1, 2", CounterSpec),
     ],
 )
 def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
