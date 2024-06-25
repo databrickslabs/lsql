@@ -196,7 +196,7 @@ class WidgetType(str, Enum):
 
 
 class TileMetadata:
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         path: str | Path | None = None,
         order: int | None = None,
