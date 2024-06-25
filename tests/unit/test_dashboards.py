@@ -339,7 +339,7 @@ def test_tile_metadata_as_dict(tmp_path):
         height=6,
         title="Test widget",
         description="Longer explanation",
-        spec="auto",
+        spec=QuerySpec.AUTO,
         filters=["column"],
     )
     assert tile_metadata.as_dict() == raw
