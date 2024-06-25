@@ -94,10 +94,16 @@ using `/* ... */`.
 
 The following widget arguments are supported:
 
-| Flag           | Description                                 | Type | Optional |
-|----------------|---------------------------------------------|------|----------|
-| -w or --width  | The number of columns that the widget spans | int  | Yes      |
-| -h or --height | The number of rows that the widget spans    | int  | Yes      |
+| Flag                | Description                                 | Type  | Optional |
+|---------------------|---------------------------------------------|-------|----------|
+| --id                | The widget identifier                       | str   | Yes      |
+| -o or --order       | The order of the widget                     | int   | Yes      |
+| -w or --width       | The number of columns that the widget spans | int   | Yes      |
+| -h or --height      | The number of rows that the widget spans    | int   | Yes      |
+| -t or --title       | The widget title                            | str   | Yes      |
+| -d or --description | The widget description                      | str   | Yes      |
+| --type              | The widget type                             | str   | Yes      |
+| -f or --filter      | The column(s) used when filtering           | str   | Yes      |
 
 [[back to top](#dashboards-as-code)]
 
@@ -210,6 +216,19 @@ height: 5
 
 Welcome to our churn dashboard! Let me show you around ...
 ```
+
+### Text widget arguments
+
+The following text widget arguments are supported:
+
+| Flag          | Description                                 | Type       | Optional |
+|---------------|---------------------------------------------|------------|----------|
+| id            | The widget identifier                       | str        | Yes      |
+| order         | The order of the widget                     | int        | Yes      |
+| width         | The number of columns that the widget spans | int        | Yes      |
+| height        | The number of rows that the widget spans    | int        | Yes      |
+| title         | The widget title                            | str        | Yes      |
+| description   | The widget description                      | str        | Yes      |
 
 [[back to top](#dashboards-as-code)]
 
