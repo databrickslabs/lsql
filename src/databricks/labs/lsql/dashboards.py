@@ -207,6 +207,7 @@ class TileMetadata:
         description: str = "",
         widget_type: WidgetType = WidgetType.AUTO,
         filters: list[str] | None = None,
+        overrides: dict | None = None,
     ):
         self._path = Path(path) if path is not None else None
         self.order = order
@@ -219,6 +220,7 @@ class TileMetadata:
         self.description = description
         self.widget_type = widget_type
         self.filters = filters or []
+        self.overrides = overrides or {}
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TileMetadata):
