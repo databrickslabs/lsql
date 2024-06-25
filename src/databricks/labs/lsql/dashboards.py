@@ -7,6 +7,7 @@ import math
 import re
 import shlex
 from argparse import ArgumentParser
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
 from enum import Enum, unique
@@ -494,6 +495,16 @@ class QueryTile(Tile):
         dataset = Dataset(name=self._tile_metadata.id, display_name=self._tile_metadata.id, query=query)
         yield dataset
 
+    def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
+        out: dict = defaultdict(dict)
+        out.update(left)
+        for key, value in right.items():
+            if isinstance(value, dict):
+                out[key].update(self._merge_nested_dictionaries(out[key], value))
+            else:
+                out[key] = value
+        return dict(out)
+
     def _merge_widget_with_overrides(self, widget: Widget) -> Widget:
         """Merge the widget with (optional) overrides provided by the user.
 
@@ -501,8 +512,8 @@ class QueryTile(Tile):
         """
         if not self._tile_metadata.overrides:
             return widget
-        raw = widget.as_dict()
-        widget = widget.from_dict(raw)
+        updated = self._merge_nested_dictionaries(widget.as_dict(), self._tile_metadata.overrides)
+        widget = widget.from_dict(updated)
         return widget
 
     def _get_query_layouts(self) -> Iterable[Layout]:
