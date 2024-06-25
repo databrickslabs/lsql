@@ -32,7 +32,7 @@ from databricks.labs.lsql.lakeview import (
     Page,
     Position,
     Query,
-    TableV2Spec,
+    TableV1Spec,
     Widget,
 )
 
@@ -678,8 +678,8 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
     "query, spec_expected",
     [
         ("SELECT 1", CounterSpec),
-        ("SELECT 1, 2", TableV2Spec),
-        ("-- --type auto\nSELECT 1, 2", TableV2Spec),
+        ("SELECT 1, 2", TableV1Spec),
+        ("-- --type auto\nSELECT 1, 2", TableV1Spec),
         ("-- --type counter\nSELECT 1, 2", CounterSpec),
     ],
 )
@@ -701,7 +701,7 @@ def test_dashboards_creates_dashboard_with_expected_table_field_encodings(tmp_pa
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
     table_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
-    assert isinstance(table_spec, TableV2Spec)
+    assert isinstance(table_spec, TableV1Spec)
     assert table_spec.encodings.columns[0].field_name == "first"
     assert table_spec.encodings.columns[1].field_name == "second"
     ws.assert_not_called()

@@ -37,7 +37,7 @@ from databricks.labs.lsql.lakeview import (
     Query,
     RenderFieldEncoding,
     TableEncodingMap,
-    TableV2Spec,
+    TableV1Spec,
     Widget,
     WidgetFrameSpec,
     WidgetSpec,
@@ -211,7 +211,7 @@ class WidgetType(str, Enum):
 
     def as_widget_spec(self) -> type[WidgetSpec]:
         widget_spec_mapping: dict[str, type[WidgetSpec]] = {
-            "TABLE": TableV2Spec,
+            "TABLE": TableV1Spec,
             "COUNTER": CounterSpec,
         }
         if self.name not in widget_spec_mapping:
@@ -424,7 +424,7 @@ class QueryTile(Tile):
             return None
         if len(fields) == 1:
             return CounterSpec
-        return TableV2Spec
+        return TableV1Spec
 
     def get_datasets(self) -> Iterable[Dataset]:
         """Get the dataset belonging to the query."""
@@ -533,7 +533,7 @@ class QueryTile(Tile):
         """
         field_encodings = [RenderFieldEncoding(field_name=field.name) for field in fields]
         table_encodings = TableEncodingMap(field_encodings)
-        spec = TableV2Spec(encodings=table_encodings, frame=frame)
+        spec = TableV1Spec(encodings=table_encodings, frame=frame)
         return spec
 
 
