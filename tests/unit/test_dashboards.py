@@ -16,10 +16,10 @@ from databricks.labs.lsql.dashboards import (
     Dashboards,
     MarkdownHandler,
     QueryHandler,
-    WidgetType,
     QueryTile,
     Tile,
     TileMetadata,
+    WidgetType,
     replace_database_in_query,
 )
 from databricks.labs.lsql.lakeview import (
