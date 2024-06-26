@@ -100,6 +100,29 @@ def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
     assert dashboard_metadata.display_name == tmp_path.name
 
 
+def test_dashboard_metadata_handles_partial_invalid_yml(tmp_path, caplog):
+    dashboard_content = """
+display_name: name
+
+tiles:
+  correct:
+    order: 1
+  incorrect:
+  - order: 2
+""".lstrip()
+    path = tmp_path / "dashboard.yml"
+    path.write_text(dashboard_content)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        dashboard_metadata = DashboardMetadata.from_path(path)
+
+    assert dashboard_metadata.display_name == "name"
+    assert "correct" in dashboard_metadata.tiles
+    assert "incorrect" not in dashboard_metadata.tiles
+    assert "Parsing invalid tile metadata: incorrect" not in caplog.text
+    assert dashboard_metadata.tiles["correct"].order == 1
+
+
 def test_tile_metadata_is_markdown():
     tile_metadata = TileMetadata(Path("test.md"))
     assert tile_metadata.is_markdown()

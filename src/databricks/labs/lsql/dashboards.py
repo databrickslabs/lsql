@@ -307,6 +307,9 @@ class DashboardMetadata:
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
         tiles, tiles_raw = {}, raw.get("tiles", {})
         for key, value in tiles_raw.items():
+            if not isinstance(value, dict):
+                logger.warning("Parsing invalid tile metadata: {key}: {value}")
+                continue
             value["id"] = value.get("id", key)
             tile = TileMetadata.from_dict(value)
             tiles[tile.id] = tile
@@ -337,7 +340,7 @@ class DashboardMetadata:
             return fallback_metadata
         try:
             return cls.from_dict(raw)
-        except (KeyError, AttributeError) as e:
+        except KeyError as e:
             logger.warning(f"Parsing {path}: {e}")
             return fallback_metadata
 
