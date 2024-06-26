@@ -58,7 +58,7 @@ def make_dashboard(ws, make_random):
 def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
     sdk_dashboard = make_dashboard()
 
-    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.json"
+    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.lvdash.json"
     lakeview_dashboard = Dashboard.from_dict(json.loads(dashboard_file.read_text()))
 
     dashboards = Dashboards(ws)
