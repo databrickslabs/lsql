@@ -64,8 +64,12 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
 
     dashboards = Dashboards(ws)
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
-    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+    assert (
+        dashboards._with_better_names(lakeview_dashboard).as_dict()
+        == dashboards._with_better_names(new_dashboard).as_dict()
+    )
 
 
 def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, make_dashboard, tmp_path):
