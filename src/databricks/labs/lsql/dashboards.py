@@ -50,39 +50,6 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class DashboardMetadata:
-    display_name: str
-
-    @classmethod
-    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
-        return cls(
-            display_name=raw["display_name"],
-        )
-
-    def as_dict(self) -> dict[str, str]:
-        return dataclasses.asdict(self)
-
-    @classmethod
-    def from_path(cls, path: Path) -> "DashboardMetadata":
-        """Export dashboard metadata from a YAML file."""
-        fallback_metadata = cls(display_name=path.parent.name)
-
-        if not path.exists():
-            return fallback_metadata
-
-        try:
-            raw = yaml.safe_load(path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-        try:
-            return cls.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-
 class BaseHandler:
     """Base file handler.
 
@@ -293,6 +260,53 @@ class TileMetadata:
 
     def __repr__(self):
         return f"TileMetadata<{self._path}>"
+
+
+@dataclass
+class DashboardMetadata:
+    display_name: str
+    tiles: list[TileMetadata] = dataclasses.field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
+        tiles_raw = raw.get("tiles", [])
+        tiles = [TileMetadata.from_dict(**tile_raw) for tile_raw in tiles_raw]
+        return cls(
+            display_name=raw["display_name"],
+            tiles=tiles,
+        )
+
+    def as_dict(self) -> dict[str, str]:
+        raw = {}
+        for attribute in dir(self):
+            if attribute.startswith("_") or callable(getattr(self, attribute)):
+                continue
+            value = getattr(self, attribute)
+            if value is None or (isinstance(value, Sized) and len(value) == 0):
+                continue
+            if hasattr(value, "value"):  # For Enums
+                value = value.value
+            raw[attribute] = value
+        return raw
+
+    @classmethod
+    def from_path(cls, path: Path) -> "DashboardMetadata":
+        """Export dashboard metadata from a YAML file."""
+        fallback_metadata = cls(display_name=path.parent.name)
+
+        if not path.exists():
+            return fallback_metadata
+
+        try:
+            raw = yaml.safe_load(path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+        try:
+            return cls.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
 
 
 class Tile:
