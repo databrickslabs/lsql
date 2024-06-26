@@ -59,8 +59,7 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
     sdk_dashboard = make_dashboard()
 
     dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.json"
-    with dashboard_file.open("r") as f:
-        lakeview_dashboard = Dashboard.from_dict(json.load(f))
+    lakeview_dashboard = Dashboard.from_dict(json.loads(dashboard_file.read_text()))
 
     dashboards = Dashboards(ws)
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
