@@ -63,7 +63,8 @@ def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
 
 
 def test_dashboard_metadata_from_raw(tmp_path):
-    raw = {"display_name": "test"}
+    raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
+    raw = {"display_name": "test", "tiles": [raw_tile]}
 
     path = tmp_path / "dashboard.yml"
     with path.open("w") as f:
