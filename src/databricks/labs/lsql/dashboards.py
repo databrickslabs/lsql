@@ -325,8 +325,7 @@ class DashboardMetadata:
     def as_dict(self) -> dict:
         raw: dict = {"display_name": self.display_name}
         if self.tiles:
-            raw_tiles = {tile.id: tile.as_dict() for tile in self.tiles.values()}
-            raw["tiles"] = raw_tiles
+            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tiles.values()}
         return raw
 
     @classmethod
