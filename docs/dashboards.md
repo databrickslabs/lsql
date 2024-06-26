@@ -147,12 +147,12 @@ We recommend using `000_` prefix for the SQL files to keep the order of the tile
 `000_` is the top of the dashboard and `999_` is the bottom. The first two digits would represent a row, and the last digit
 is used to order the tiles within the row.
 
-| Option | Move widget effort | Mix `dashboard.yml` and `.sql` files |
-| --- | --- |--------------------------------------|
-| `x` and `y` coordinates | 🚨 high | ✅ easy                               |
-| `order` key in the SQL file | ✅ low | ✅ easy                               |
-| `tiles` order in the `dashboard.yml` file | ✅ low | ⚠️ collisions possible               |
-| filename prefix | ✅ low | ⚠️ collisions possible               |
+| Option                                     | Move widget effort | Mix `dashboard.yml` and `.sql` files |
+|--------------------------------------------|--------------------|--------------------------------------|
+| `x` and `y` coordinates                    | 🚨 high            | ✅ easy                              |
+| `order` key in the SQL file                | ✅ low             | ✅ easy                              |
+| `tiles` order in the  `dashboard.yml` file | ✅ low             | ⚠️ collisions possible               |
+| filename prefix                            | ✅ low             | ⚠️ collisions possible               |
 
 Order starts with `0` and in case of the `order` field conflict, we use the filename as a tie-breaker.
 
@@ -187,12 +187,12 @@ You can define and test your SQL queries in a separate development database, the
 the source control. We assume that the database name defined in the source control is a development reference database,
 and it would most likely have a different name in the environment where the dashboard is deployed.
 
-| Option | SQL copy-paste | Valid Syntax | Use as library | Use for CI/CD | Lib complexity |
-|--------|---|---|---|---|---------|
-| Rewrite SQL AST | ✅ | ✅ | ✅ | ✅ | 🚨 most | 
-| use a variable (e.g. `$inventory`) | 🚨 manual change required | ⚠️ syntax error | ✅ | ✅ | ⚠️ some |
-| do not replace database | ✅ | ✅ | 🚨 not reusable | ⚠️ no dev/prod | ✅ none  | 
-| use a separate branch | ✅ | ✅ | ✅ | ⚠️ complex setup | ✅ none  |
+| Option                             | SQL copy-paste            | Valid Syntax    | Use as library  | Use for CI/CD    | Lib complexity |
+|------------------------------------|---------------------------|-----------------|-----------------|------------------|----------------|
+| Rewrite SQL AST                    | ✅                         | ✅               | ✅               | ✅                | 🚨 most        | 
+| use a variable (e.g. `$inventory`) | 🚨 manual change required | ⚠️ syntax error | ✅               | ✅                | ⚠️ some        |
+| do not replace database            | ✅                         | ✅               | 🚨 not reusable | ⚠️ no dev/prod   | ✅ none         | 
+| use a separate branch              | ✅                         | ✅               | ✅               | ⚠️ complex setup | ✅ none         |
 
 [[back to top](#dashboards-as-code)]
 
