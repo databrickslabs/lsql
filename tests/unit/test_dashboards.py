@@ -72,8 +72,7 @@ def test_dashboard_metadata_from_raw(tmp_path):
     from_dict = DashboardMetadata.from_dict(raw)
     from_path = DashboardMetadata.from_path(path)
 
-    for dashboard_metadata in from_dict, from_path:
-        assert dashboard_metadata.display_name == "test"
+    assert from_dict == from_path
 
 
 @pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml", ""])
