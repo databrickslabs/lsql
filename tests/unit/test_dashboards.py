@@ -118,7 +118,7 @@ def test_query_handler_parses_empty_header(tmp_path):
     header = handler.parse_header()
 
     has_default = {"widget_type"}
-    assert all(value is None for key, value in header.items() if key not in has_default)
+    assert all(not value for key, value in header.items() if key not in has_default)
 
 
 @pytest.mark.parametrize(
@@ -159,7 +159,7 @@ def test_query_handler_ignores_non_header_comment(tmp_path, query):
     header = handler.parse_header()
 
     has_default = {"widget_type"}
-    assert all(value is None for key, value in header.items() if key not in has_default)
+    assert all(not value for key, value in header.items() if key not in has_default)
 
 
 @pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description"])
@@ -901,6 +901,19 @@ def test_dashboard_creates_dashboard_with_title(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboard_creates_dashboard_without_title(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    (tmp_path / "counter.sql").write_text("SELECT 109")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.title == ""
+    assert not frame.show_title
+    ws.assert_not_called()
+
+
 def test_dashboard_creates_dashboard_with_description(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
@@ -912,6 +925,19 @@ def test_dashboard_creates_dashboard_with_description(tmp_path):
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.description == "Only when it counts"
     assert frame.show_description
+    ws.assert_not_called()
+
+
+def test_dashboard_creates_dashboard_without_description(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    (tmp_path / "counter.sql").write_text("SELECT 190219")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.description == ""
+    assert not frame.show_description
     ws.assert_not_called()
 
 

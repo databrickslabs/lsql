@@ -129,8 +129,8 @@ class QueryHandler(BaseHandler):
         parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
-        parser.add_argument("-t", "--title", type=str)
-        parser.add_argument("-d", "--description", type=str)
+        parser.add_argument("-t", "--title", type=str, default="")
+        parser.add_argument("-d", "--description", type=str, default="")
         parser.add_argument(
             "--type",
             type=lambda v: WidgetType(v.upper()),
@@ -445,9 +445,9 @@ class QueryTile(Tile):
         named_query = NamedQuery(name="main_query", query=query)
         frame = WidgetFrameSpec(
             title=self._tile_metadata.title,
-            show_title=self._tile_metadata is not None,
+            show_title=len(self._tile_metadata.title) > 0,
             description=self._tile_metadata.description,
-            show_description=self._tile_metadata.description is not None,
+            show_description=len(self._tile_metadata.description) > 0,
         )
         spec = self._get_query_widget_spec(fields, frame=frame)
         widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
