@@ -71,8 +71,7 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
 def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard()
 
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write("SELECT 10 AS count")
+    (tmp_path / "counter.sql").write_text("SELECT 10 AS count")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
