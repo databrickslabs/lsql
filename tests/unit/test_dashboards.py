@@ -815,19 +815,17 @@ display_name: Id collisions
 tiles:
   counter:
     width: 10
-  table:
-    id: counter
 """.lstrip()
     (tmp_path / "dashboard.yml").write_text(dashboard_content)
     (tmp_path / "counter.md").write_text("# Description")
     (tmp_path / "counter.sql").write_text("SELECT 100 AS count")
-    (tmp_path / "table.sql").write_text("SELECT a, b FROM table")
     (tmp_path / "header_overwrite.sql").write_text("-- --id counter\nSELECT 100 AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     layout = lakeview_dashboard.pages[0].layout
 
-    assert len(layout) == 4
+    assert len(layout) == 3
+    assert all(l.position.width == 10 for l in layout)
     ws.assert_not_called()
 
 
