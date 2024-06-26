@@ -823,12 +823,9 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite_zero(tmp_pat
 def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
+    (tmp_path / "z.sql").write_text("-- --id a\nSELECT 1 AS count")  # Should be first because id is 'a'
     for query_name in "bcdef":
-        with (tmp_path / f"{query_name}.sql").open("w") as f:
-            f.write("SELECT 1 AS count")
-
-    with (tmp_path / "z.sql").open("w") as f:
-        f.write("-- --id a\nSELECT 1 AS count")  # Should be first because id is 'a'
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
