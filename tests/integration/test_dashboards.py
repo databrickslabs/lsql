@@ -145,13 +145,11 @@ def test_dashboards_deploys_dashboard_with_order_overwrite(ws, make_dashboard, t
     sdk_dashboard = make_dashboard()
 
     for query_name in range(6):
-        with (tmp_path / f"{query_name}.sql").open("w") as f:
-            f.write(f"SELECT {query_name} AS count")
+        (tmp_path / f"{query_name}.sql").write_text(f"SELECT {query_name} AS count")
 
     # Move the '4' inbetween '1' and '2' query. Note that the order 1 puts '4' on the same position as '1', but with an
     # order tiebreaker the query name decides the final order.
-    with (tmp_path / "4.sql").open("w") as f:
-        f.write("-- --order 1\nSELECT 4 AS count")
+    (tmp_path / "4.sql").write_text("-- --order 1\nSELECT 4 AS count")
 
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
