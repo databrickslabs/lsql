@@ -55,10 +55,16 @@ def test_dashboard_metadata_sets_tiles_from_dict():
     assert dashboard_metadata.tiles["test"] == tile_metadata
 
 
-def test_dashboard_metadata_handles_tile_with_id_overwrite():
+def test_dashboard_metadata_ignores_id_overwrite(caplog):
     raw = {"display_name": "test", "tiles": {"test": {"id": "not_test"}}}
-    dashboard_metadata = DashboardMetadata.from_dict(raw)
-    assert dashboard_metadata.tiles["not_test"].id == "not_test"
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        dashboard_metadata = DashboardMetadata.from_dict(raw)
+
+    assert "test" in dashboard_metadata.tiles
+    assert "not_test" not in dashboard_metadata.tiles
+    assert dashboard_metadata.tiles["test"].id == "test"
+    assert "Tile id field not supported in dashboard.yml: test" in caplog.text
 
 
 def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():

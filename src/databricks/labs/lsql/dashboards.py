@@ -310,7 +310,9 @@ class DashboardMetadata:
             if not isinstance(value, dict):
                 logger.warning(f"Parsing invalid tile metadata {{'{key}': {value}}}")
                 continue
-            value["id"] = value.get("id", key)
+            if "id" in value.keys():
+                logger.warning(f"Tile id field not supported in dashboard.yml: {key}")
+            value["id"] = key
             try:
                 tile = TileMetadata.from_dict(value)
             except TypeError as e:
