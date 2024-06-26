@@ -305,8 +305,7 @@ class DashboardMetadata:
 
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
-        tiles_raw = raw.get("tiles", {})
-        tiles = {}
+        tiles, tiles_raw = {}, raw.get("tiles", {})
         for key, value in tiles_raw.items():
             value["id"] = value.get("id", key)
             tile = TileMetadata.from_dict(value)
