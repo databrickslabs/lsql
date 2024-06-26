@@ -224,18 +224,18 @@ class TileMetadata:
         if not isinstance(other, TileMetadata):
             raise TypeError(f"Can not merge with {other}")
 
-        new = copy.deepcopy(self)
-        exclude_attributes = {
-            "handler",  # Handler is inferred from file extension
-        }
-        for attribute in dir(self):
-            if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
-                continue
-            other_value = getattr(other, attribute)
-            if not other_value:
-                setattr(new, attribute, getattr(self, attribute))
-            else:
-                setattr(new, attribute, other_value)
+        widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
+        new = TileMetadata(
+            path=other._path or self._path,
+            order=other.order or self.order,
+            width=other.width or self.width,
+            height=other.height or self.height,
+            _id=other.id or self.id,
+            title=other.title or self.title,
+            description=other.description or self.description,
+            widget_type=widget_type,
+            filters=other.filters or self.filters,
+        )
         return new
 
     def is_markdown(self) -> bool:
