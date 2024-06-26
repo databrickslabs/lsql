@@ -317,7 +317,7 @@ class DashboardMetadata:
 
     def as_dict(self) -> dict:
         raw: dict = {"display_name": self.display_name}
-        if len(self.tiles) > 0:
+        if self.tiles:
             raw_tiles = {tile.id: tile.as_dict() for tile in self.tiles.values()}
             raw["tiles"] = raw_tiles
         return raw
