@@ -308,10 +308,14 @@ class DashboardMetadata:
         tiles, tiles_raw = {}, raw.get("tiles", {})
         for key, value in tiles_raw.items():
             if not isinstance(value, dict):
-                logger.warning("Parsing invalid tile metadata: {key}: {value}")
+                logger.warning(f"Parsing invalid tile metadata {{'{key}': {value}}}")
                 continue
             value["id"] = value.get("id", key)
-            tile = TileMetadata.from_dict(value)
+            try:
+                tile = TileMetadata.from_dict(value)
+            except TypeError as e:
+                logger.warning(f"Parsing invalid tile metadata {{'{key}': {value}}}: {e}")
+                continue
             tiles[tile.id] = tile
         return cls(
             display_name=raw["display_name"],

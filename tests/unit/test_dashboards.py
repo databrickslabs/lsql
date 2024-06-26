@@ -88,7 +88,6 @@ def test_dashboard_metadata_from_raw(tmp_path):
         "missing_display_name: true",
         "invalid:\nyml",
         "",
-        "display_name: name\ntiles:\n  test:\n  - order: 1",
     ],
 )
 def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
@@ -109,6 +108,9 @@ tiles:
     order: 1
   incorrect:
   - order: 2
+  incorrect_as_well:
+    order: 3
+    non_existing_key: value 
 """.lstrip()
     path = tmp_path / "dashboard.yml"
     path.write_text(dashboard_content)
