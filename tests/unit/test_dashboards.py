@@ -56,7 +56,8 @@ def test_dashboard_metadata_sets_tiles_from_dict():
 
 
 def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
-    raw = {"display_name": "test"}
+    raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
+    raw = {"display_name": "test", "tiles": [raw_tile]}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
     assert dashboard_metadata.as_dict() == raw
 

@@ -282,16 +282,10 @@ class DashboardMetadata:
         )
 
     def as_dict(self) -> dict[str, str | dict[str, str | int]]:
-        raw = {}
-        for attribute in dir(self):
-            if attribute.startswith("_") or callable(getattr(self, attribute)):
-                continue
-            value = getattr(self, attribute)
-            if value is None or (isinstance(value, Sized) and len(value) == 0):
-                continue
-            if hasattr(value, "value"):  # For Enums
-                value = value.value
-            raw[attribute] = value
+        raw = {"display_name": self.display_name}
+        raw_tiles = [tile.as_dict() for tile in self.tiles]
+        if len(raw_tiles) > 0:
+            raw["tiles"] = raw_tiles
         return raw
 
     @classmethod
