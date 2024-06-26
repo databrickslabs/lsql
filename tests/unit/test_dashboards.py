@@ -127,7 +127,7 @@ tiles:
     assert dashboard_metadata.display_name == "name"
     assert "correct" in dashboard_metadata.tiles
     assert "incorrect" not in dashboard_metadata.tiles
-    assert "Parsing invalid tile metadata: incorrect" not in caplog.text
+    assert "Parsing invalid tile metadata {'incorrect': " in caplog.text
     assert dashboard_metadata.tiles["correct"].order == 1
 
 
