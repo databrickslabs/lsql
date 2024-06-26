@@ -98,6 +98,16 @@ def test_tile_metadata_is_query():
     assert tile_metadata.is_query()
 
 
+def test_tile_metadata_merges():
+    left = TileMetadata(Path("left.sql"), filters=["a"], width=10, widget_type=WidgetType.TABLE)
+    right = TileMetadata(Path("right.sql"), widget_type=WidgetType.COUNTER)
+    new = left | right
+    assert new.id == "right"
+    assert new.width == 10
+    assert new.filters == ["a"]
+    assert new.widget_type == WidgetType.COUNTER
+
+
 def test_base_handler_parses_empty_header(tmp_path):
     path = tmp_path / "file.txt"
     path.write_text("Hello")
