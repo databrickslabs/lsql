@@ -69,12 +69,12 @@ class BaseHandler:
             return ""
         return self._path.read_text()
 
-    def parse_header(self) -> dict[str, str]:
+    def parse_header(self) -> dict:
         """Parse the header of the file."""
         header, _ = self.split()
         return self._parse_header(header)
 
-    def _parse_header(self, header: str) -> dict[str, str]:
+    def _parse_header(self, header: str) -> dict:
         _ = self, header
         return {}
 
@@ -120,7 +120,7 @@ class QueryHandler(BaseHandler):
         )
         return parser
 
-    def _parse_header(self, header: str) -> dict[str, str]:
+    def _parse_header(self, header: str) -> dict:
         """Header is an argparse string."""
         header_split = shlex.split(header)
         parser = self._get_arguments_parser()
@@ -153,7 +153,7 @@ class MarkdownHandler(BaseHandler):
 
     _FRONT_MATTER_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
 
-    def _parse_header(self, header: str) -> dict[str, str]:
+    def _parse_header(self, header: str) -> dict:
         """Markdown configuration header is a YAML."""
         _ = self
         return yaml.safe_load(header) or {}
@@ -215,7 +215,7 @@ class TileMetadata:
         self.widget_type = widget_type
         self.filters = filters or []
 
-    def __eq__(self, other: "TileMetadata") -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, TileMetadata):
             return False
         return self.as_dict() == other.as_dict()
@@ -261,12 +261,14 @@ class TileMetadata:
             del raw["id"]
         return cls(**raw)
 
-    def as_dict(self) -> dict[str, str | int]:
+    def as_dict(self) -> dict:
         exclude_attributes = {
             "handler",  # Handler is inferred from file extension
             "path",  # Path is set explicitly below
         }
-        body = {"path": self._path.as_posix()}
+        body = {}
+        if self._path is not None:
+            body["path"] = self._path.as_posix()
         for attribute in dir(self):
             if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
                 continue
@@ -307,8 +309,8 @@ class DashboardMetadata:
             tiles=tiles,
         )
 
-    def as_dict(self) -> dict[str, str | dict[str, str | int]]:
-        raw = {"display_name": self.display_name}
+    def as_dict(self) -> dict:
+        raw: dict = {"display_name": self.display_name}
         if len(self.tiles) > 0:
             raw_tiles = {tile.id: tile.as_dict() for tile in self.tiles.values()}
             raw["tiles"] = raw_tiles
