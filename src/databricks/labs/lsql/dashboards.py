@@ -60,11 +60,13 @@ class BaseHandler:
         https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
     """
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path | None) -> None:
         self._path = path
 
     @property
     def _content(self) -> str:
+        if self._path is None:
+            return ""
         return self._path.read_text()
 
     def parse_header(self) -> dict[str, str]:
@@ -191,7 +193,7 @@ class WidgetType(str, Enum):
 class TileMetadata:
     def __init__(
         self,
-        path: Path,
+        path: str | Path | None = None,
         order: int | None = None,
         width: int = 0,
         height: int = 0,
@@ -201,11 +203,13 @@ class TileMetadata:
         widget_type: WidgetType = WidgetType.AUTO,
         filters: list[str] | None = None,
     ):
-        self._path = path
+        self._path = Path(path) if path is not None else None
         self.order = order
         self.width = width
         self.height = height
-        self.id = _id or path.stem
+        self.id = _id
+        if not self.id:
+            self.id = self._path.stem if self._path is not None else ""
         self.title = title
         self.description = description
         self.widget_type = widget_type
@@ -235,10 +239,10 @@ class TileMetadata:
         return new
 
     def is_markdown(self) -> bool:
-        return self._path.suffix == ".md"
+        return self._path is not None and self._path.suffix == ".md"
 
     def is_query(self) -> bool:
-        return self._path.suffix == ".sql"
+        return self._path is not None and self._path.suffix == ".sql"
 
     @property
     def handler(self) -> BaseHandler:
@@ -250,12 +254,12 @@ class TileMetadata:
         return handler(self._path)
 
     @classmethod
-    def from_dict(cls, *, path: str | Path, **optionals) -> "TileMetadata":
-        path = Path(path)
-        if "id" in optionals:
-            optionals["_id"] = optionals["id"]
-            del optionals["id"]
-        return cls(path, **optionals)
+    def from_dict(cls, raw: dict) -> "TileMetadata":
+        if "id" in raw:
+            raw = copy.deepcopy(raw)
+            raw["_id"] = raw["id"]
+            del raw["id"]
+        return cls(**raw)
 
     def as_dict(self) -> dict[str, str | int]:
         exclude_attributes = {
@@ -278,8 +282,8 @@ class TileMetadata:
     def from_path(cls, path: Path) -> "TileMetadata":
         tile_metadata = cls(path=path)
         header = tile_metadata.handler.parse_header()
-        header.pop("path", None)
-        return cls.from_dict(path=path, **header)
+        header["path"] = path
+        return cls.from_dict(header)
 
     def __repr__(self):
         return f"TileMetadata<{self._path}>"
@@ -291,12 +295,12 @@ class DashboardMetadata:
     tiles: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
+    def from_dict(cls, raw: dict) -> "DashboardMetadata":
         tiles_raw = raw.get("tiles", {})
         tiles = {}
         for key, value in tiles_raw.items():
             value["id"] = value.get("id", key)
-            tile = TileMetadata.from_dict(**value)
+            tile = TileMetadata.from_dict(value)
             tiles[tile.id] = tile
         return cls(
             display_name=raw["display_name"],

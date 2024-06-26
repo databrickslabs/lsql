@@ -55,6 +55,12 @@ def test_dashboard_metadata_sets_tiles_from_dict():
     assert dashboard_metadata.tiles["test"] == tile_metadata
 
 
+def test_dashboard_metadata_handles_tile_with_id_overwrite():
+    raw = {"display_name": "test", "tiles": {"test": {"id": "not_test"}}}
+    dashboard_metadata = DashboardMetadata.from_dict(raw)
+    assert dashboard_metadata.tiles["not_test"].id == "not_test"
+
+
 def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
     raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
     raw = {"display_name": "test", "tiles": {"test": raw_tile}}
@@ -301,7 +307,7 @@ def test_tile_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     tile_metadata = TileMetadata(path, 1, 1, 1)
-    updated_metadata = tile_metadata.from_dict(**{"path": path, "width": 10, "height": 10})
+    updated_metadata = tile_metadata.from_dict({"width": 10, "height": 10})
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
@@ -320,7 +326,7 @@ def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
         description="1",
         widget_type=WidgetType.AUTO,
     )
-    updated_metadata = tile_metadata.from_dict(**{"path": path, attribute: "10"})
+    updated_metadata = tile_metadata.from_dict({attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
 
@@ -333,7 +339,7 @@ def test_tile_metadata_replaces_filters(tmp_path):
             "column",
         ],
     )
-    updated_metadata = tile_metadata.from_dict(path=path, filters=["a", "b", "c"])
+    updated_metadata = tile_metadata.from_dict({"filters": ["a", "b", "c"]})
     assert updated_metadata.filters == ["a", "b", "c"]
 
 
