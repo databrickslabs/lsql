@@ -308,7 +308,7 @@ class DashboardMetadata:
         tiles, tiles_raw = {}, raw.get("tiles", {})
         for key, value in tiles_raw.items():
             if not isinstance(value, dict):
-                logger.warning(f"Parsing invalid tile metadata {{'{key}': {value}}}")
+                logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{key}.{ value }")
                 continue
             if "id" in value.keys():
                 logger.warning(f"Tile id field not supported in dashboard.yml: {key}")
