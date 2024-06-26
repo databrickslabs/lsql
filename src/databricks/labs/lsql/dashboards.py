@@ -225,7 +225,7 @@ class TileMetadata:
 
         Precendence
         - The other takes precendences, similar to merging dictionairies.
-        - Unless the others value is a default, then the self value is taken.
+        - Unless the others value is a default, then the value from self is taken.
         """
         if not isinstance(other, TileMetadata):
             raise TypeError(f"Can not merge with {other}")
