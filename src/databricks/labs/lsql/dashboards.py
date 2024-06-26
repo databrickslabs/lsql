@@ -234,7 +234,7 @@ class TileMetadata:
             del optionals["id"]
         return cls(path, **optionals)
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, str | int]:
         exclude_attributes = {
             "handler",  # Handler is inferred from file extension
             "path",  # Path is set explicitly below
@@ -276,7 +276,7 @@ class DashboardMetadata:
             tiles=tiles,
         )
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, str | dict[str, str | int]]:
         raw = {}
         for attribute in dir(self):
             if attribute.startswith("_") or callable(getattr(self, attribute)):
