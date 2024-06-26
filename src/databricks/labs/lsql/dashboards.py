@@ -337,7 +337,7 @@ class DashboardMetadata:
             return fallback_metadata
         try:
             return cls.from_dict(raw)
-        except KeyError as e:
+        except (KeyError, AttributeError) as e:
             logger.warning(f"Parsing {path}: {e}")
             return fallback_metadata
 

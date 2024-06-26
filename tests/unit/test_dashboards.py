@@ -82,7 +82,15 @@ def test_dashboard_metadata_from_raw(tmp_path):
     assert from_dict == from_path
 
 
-@pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml", ""])
+@pytest.mark.parametrize(
+    "dashboard_content",
+    [
+        "missing_display_name: true",
+        "invalid:\nyml",
+        "",
+        "display_name: name\ntiles:\n  test:\n  - order: 1",
+    ],
+)
 def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
     path = tmp_path / "dashboard.yml"
     if len(dashboard_content) > 0:
