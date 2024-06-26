@@ -424,8 +424,7 @@ def test_dashboards_creates_dashboard_with_first_page_name_after_folder():
 
 
 def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
-    with (tmp_path / "dashboard.yml").open("w") as f:
-        f.write("display_name: Custom")
+    (tmp_path / "dashboard.yml").write_text("display_name: Custom")
 
     ws = create_autospec(WorkspaceClient)
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
@@ -439,8 +438,7 @@ def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
 def test_dashboards_handles_invalid_dashboard_yml(tmp_path, dashboard_content):
     queries_path = tmp_path / "queries"
     queries_path.mkdir()
-    with (queries_path / "dashboard.yml").open("w") as f:
-        f.write(dashboard_content)
+    (queries_path / "dashboard.yml").write_text(dashboard_content)
 
     ws = create_autospec(WorkspaceClient)
     lakeview_dashboard = Dashboards(ws).create_dashboard(queries_path)
@@ -532,8 +530,7 @@ def test_dashboards_creates_text_widget_for_invalid_query(tmp_path, caplog):
 def test_dashboards_does_not_create_widget_for_yml_file(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
-    with (tmp_path / "dashboard.yml").open("w") as f:
-        f.write("display_name: Git based dashboard")
+    (tmp_path / "dashboard.yml").write_text("display_name: Git based dashboard")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     assert len(lakeview_dashboard.pages[0].layout) == 0
