@@ -674,7 +674,7 @@ class Dashboards:
             https://sqlglot.com/sqlglot/transforms.html
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
-        tiles_metadata = self._parse_tiles_metadata(dashboard_folder)
+        tiles_metadata = self._parse_tiles_metadata(dashboard_folder, dashboard_metadata)
         tiles = self._get_tiles(tiles_metadata, query_transformer=query_transformer)
         datasets = self._get_datasets(tiles)
         layouts = self._get_layouts(tiles)
@@ -687,12 +687,14 @@ class Dashboards:
         return lakeview_dashboard
 
     @staticmethod
-    def _parse_tiles_metadata(dashboard_folder: Path) -> list[TileMetadata]:
+    def _parse_tiles_metadata(dashboard_folder: Path, dashboard_metadata: DashboardMetadata) -> list[TileMetadata]:
         """Parse the tile metadata from each (optional) header."""
         tiles_metadata = []
         for path in dashboard_folder.iterdir():
             if path.suffix in {".sql", ".md"}:
                 tile_metadata = TileMetadata.from_path(path)
+                if tile_metadata.id in dashboard_metadata.tiles:
+                    tile_metadata = dashboard_metadata.tiles[tile_metadata.id] | tile_metadata
                 tiles_metadata.append(tile_metadata)
         return tiles_metadata
 
