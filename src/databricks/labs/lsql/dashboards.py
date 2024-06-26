@@ -219,6 +219,12 @@ class TileMetadata:
         return self.as_dict() == other.as_dict()
 
     def __or__(self, other: "TileMetadata") -> "TileMetadata":
+        """Supports `self | other`.
+
+        Precendence
+        - The other takes precendences, similar to merging dictionairies.
+        - Unless the others value is a default, then the self value is taken.
+        """
         if not isinstance(other, TileMetadata):
             raise TypeError(f"Can not merge with {other}")
 
