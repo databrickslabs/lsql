@@ -236,15 +236,30 @@ The following text widget arguments are supported:
 
 ## `dashboard.yml` file
 
-The `dashboard.yml` file is used to define a top-level metadata for the dashboard, such as the display name, warehouse,
-and the list of tile overrides for cases, that cannot be handled with the [high-level metadata](#metadata) in the SQL
-files. The file requires the `display_name` field, other fields are optional. See below for the configuration schema:
+The `dashboard.yml` file is used to define a top-level metadata for the dashboard, such as the display name. Also,
+this file may contain overrides for the [widgets](#widget-types), but we aim at mostly
+[inferring it](#implicit-detection) from the SQL files. The file requires the `display_name` field, other fields are
+optional. See below for the configuration schema:
 
 ```yml
 display_name: <display name>
+
+tiles:
+  <tile id>:
+    order: <order>
+    width: <width>
+    height: <height>
+    title: <title>
+    description: <description>
+    type: <type>
+    filter: 
+      - <column>
+      - <column>
+  <tile id>:
+    ...
+  ...
 ```
 
-This file may contain extra information about the [widgets](#widget-types), but we aim at mostly [inferring it](#implicit-detection) from the SQL files.
 
 [[back to top](#dashboards-as-code)]
 
