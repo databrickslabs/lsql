@@ -168,12 +168,12 @@ def test_dashboards_deploys_dashboard_with_order_overwrite_in_dashboard_yaml(ws,
 display_name: Counters
 
 tiles:
-  4:
+  query_4:
     order: 1
 """.lstrip()
     (tmp_path / "dashboard.yml").write_text(content)
     for query_name in range(6):
-        (tmp_path / f"{query_name}.sql").write_text(f"SELECT {query_name} AS count")
+        (tmp_path / f"query_{query_name}.sql").write_text(f"SELECT {query_name} AS count")
 
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
