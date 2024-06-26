@@ -806,6 +806,31 @@ def test_dashboards_creates_dashboard_with_widget_below_text_widget(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboard_with_id_collisions(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    dashboard_content = """
+display_name: Id collisions
+
+tiles:
+  counter:
+    width: 10
+  table:
+    id: counter
+""".lstrip()
+    (tmp_path / "dashboard.yml").write_text(dashboard_content)
+    (tmp_path / "counter.md").write_text("# Description")
+    (tmp_path / "counter.sql").write_text("SELECT 100 AS count")
+    (tmp_path / "table.sql").write_text("SELECT a, b FROM table")
+    (tmp_path / "header_overwrite.sql").write_text("-- --id counter\nSELECT 100 AS count")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    layout = lakeview_dashboard.pages[0].layout
+
+    assert len(layout) == 4
+    ws.assert_not_called()
+
+
 @pytest.mark.parametrize("query_names", [["a", "b", "c"], ["01", "02", "10"]])
 def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_path, query_names):
     ws = create_autospec(WorkspaceClient)
