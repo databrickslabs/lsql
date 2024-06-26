@@ -856,6 +856,26 @@ tiles:
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboard_where_widget_order_in_header_takes_precedence(tmp_path):
+    content = """
+display_name: Ordering
+
+tiles:
+  query_1:
+    order: -1  # Does not matter because order is defined in query header as well
+"""
+    (tmp_path / "dashboard.yml").write_text(content)
+    for index in range(3):
+        (tmp_path / f"query_{index}.sql").write_text(f"-- --order {index}\nSELECT {index} AS count")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
+    assert widget_names == ["query_0", "query_1", "query_2"]
+    ws.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "query, width, height",
     [
