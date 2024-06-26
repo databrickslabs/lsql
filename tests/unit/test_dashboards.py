@@ -834,6 +834,28 @@ def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboard_with_widget_order_overwrite_from_dashboard_yaml(tmp_path):
+    content = """
+display_name: Ordering
+
+tiles:
+  e:
+    order: -1
+  non_existing_tile:
+    order: -2
+"""
+    (tmp_path / "dashboard.yml").write_text(content)
+    for query_name in "abcdef":
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
+    assert "".join(widget_names) == "eabcdf"
+    ws.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "query, width, height",
     [
