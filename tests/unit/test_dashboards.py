@@ -47,6 +47,14 @@ def test_dashboard_metadata_sets_display_name_from_dict():
     assert dashboard_metadata.display_name == "test"
 
 
+def test_dashboard_metadata_sets_tiles_from_dict():
+    tile_metadata = TileMetadata(Path("test.sql"))
+    raw = {"display_name": "test", "tiles": [{"path": "test.sql"}]}
+    dashboard_metadata = DashboardMetadata.from_dict(raw)
+    assert len(dashboard_metadata.tiles) == 1
+    assert dashboard_metadata.tiles[0] == tile_metadata
+
+
 def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
     raw = {"display_name": "test"}
     dashboard_metadata = DashboardMetadata.from_dict(raw)

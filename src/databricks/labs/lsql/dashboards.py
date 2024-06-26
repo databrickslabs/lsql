@@ -211,6 +211,11 @@ class TileMetadata:
         self.widget_type = widget_type
         self.filters = filters or []
 
+    def __eq__(self, other: "TileMetadata") -> bool:
+        if not isinstance(other, TileMetadata):
+            return False
+        return self.as_dict() == other.as_dict()
+
     def is_markdown(self) -> bool:
         return self._path.suffix == ".md"
 
