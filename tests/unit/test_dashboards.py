@@ -49,22 +49,22 @@ def test_dashboard_metadata_sets_display_name_from_dict():
 
 def test_dashboard_metadata_sets_tiles_from_dict():
     tile_metadata = TileMetadata(Path("test.sql"))
-    raw = {"display_name": "test", "tiles": [{"path": "test.sql"}]}
+    raw = {"display_name": "test", "tiles": {"test": {"path": "test.sql"}}}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
-    assert len(dashboard_metadata.tiles) == 1
-    assert dashboard_metadata.tiles[0] == tile_metadata
+    assert len(dashboard_metadata.tiles.keys()) == 1
+    assert dashboard_metadata.tiles["test"] == tile_metadata
 
 
 def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
     raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
-    raw = {"display_name": "test", "tiles": [raw_tile]}
+    raw = {"display_name": "test", "tiles": {"test": raw_tile}}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
     assert dashboard_metadata.as_dict() == raw
 
 
 def test_dashboard_metadata_from_raw(tmp_path):
     raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
-    raw = {"display_name": "test", "tiles": [raw_tile]}
+    raw = {"display_name": "test", "tiles": {"test": raw_tile}}
 
     path = tmp_path / "dashboard.yml"
     with path.open("w") as f:

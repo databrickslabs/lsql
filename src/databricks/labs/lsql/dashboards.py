@@ -288,12 +288,16 @@ class TileMetadata:
 @dataclass
 class DashboardMetadata:
     display_name: str
-    tiles: list[TileMetadata] = dataclasses.field(default_factory=list)
+    tiles: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
-        tiles_raw = raw.get("tiles", [])
-        tiles = [TileMetadata.from_dict(**tile_raw) for tile_raw in tiles_raw]
+        tiles_raw = raw.get("tiles", {})
+        tiles = {}
+        for key, value in tiles_raw.items():
+            value["id"] = value.get("id", key)
+            tile = TileMetadata.from_dict(**value)
+            tiles[tile.id] = tile
         return cls(
             display_name=raw["display_name"],
             tiles=tiles,
@@ -301,8 +305,8 @@ class DashboardMetadata:
 
     def as_dict(self) -> dict[str, str | dict[str, str | int]]:
         raw = {"display_name": self.display_name}
-        raw_tiles = [tile.as_dict() for tile in self.tiles]
-        if len(raw_tiles) > 0:
+        if len(self.tiles) > 0:
+            raw_tiles = {tile.id: tile.as_dict() for tile in self.tiles.values()}
             raw["tiles"] = raw_tiles
         return raw
 
