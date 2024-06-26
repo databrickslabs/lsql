@@ -232,6 +232,7 @@ class TileMetadata:
 
         widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
         new = TileMetadata(
+            # Allow private access to other._path here as it is part of the class implementation
             path=other._path or self._path,
             order=other.order or self.order,
             width=other.width or self.width,
