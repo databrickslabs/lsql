@@ -60,11 +60,13 @@ class BaseHandler:
         https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
     """
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path | None) -> None:
         self._path = path
 
     @property
     def _content(self) -> str:
+        if self._path is None:
+            return ""
         return self._path.read_text()
 
     def parse_header(self) -> dict:
