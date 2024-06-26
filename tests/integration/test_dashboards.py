@@ -89,8 +89,7 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_p
     sdk_dashboard = make_dashboard()
 
     for i in range(10):
-        with (tmp_path / f"counter_{i}.sql").open("w") as f:
-            f.write(f"SELECT {i} AS count")
+        (tmp_path / f"counter_{i}.sql").write_text(f"SELECT {i} AS count")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
