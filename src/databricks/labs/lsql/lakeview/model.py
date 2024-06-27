@@ -1681,6 +1681,7 @@ class TableV1Spec(WidgetSpec):
         body: Json = {
             "version": 1,
             "widgetType": "table",
+            "invisibleColumns": [v.as_dict() for v in self.invisible_columns],
         }
         if self.allow_html_by_default is not None:
             body["allowHTMLByDefault"] = self.allow_html_by_default
@@ -1690,8 +1691,6 @@ class TableV1Spec(WidgetSpec):
             body["encodings"] = self.encodings.as_dict()
         if self.frame:
             body["frame"] = self.frame.as_dict()
-        if self.invisible_columns:
-            body["invisibleColumns"] = [v.as_dict() for v in self.invisible_columns]
         if self.items_per_page is not None:
             body["itemsPerPage"] = self.items_per_page
         if self.pagination_size is not None:

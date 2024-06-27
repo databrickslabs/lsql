@@ -58,21 +58,23 @@ def make_dashboard(ws, make_random):
 def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
     sdk_dashboard = make_dashboard()
 
-    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.json"
-    with dashboard_file.open("r") as f:
-        lakeview_dashboard = Dashboard.from_dict(json.load(f))
+    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.lvdash.json"
+    lakeview_dashboard = Dashboard.from_dict(json.loads(dashboard_file.read_text()))
 
     dashboards = Dashboards(ws)
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
-    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+    assert (
+        dashboards._with_better_names(lakeview_dashboard).as_dict()
+        == dashboards._with_better_names(new_dashboard).as_dict()
+    )
 
 
 def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard()
 
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write("SELECT 10 AS count")
+    (tmp_path / "counter.sql").write_text("SELECT 10 AS count")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
