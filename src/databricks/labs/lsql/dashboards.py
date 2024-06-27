@@ -410,6 +410,8 @@ class Tile:
             return CounterTile(tile_metadata)
         return TableTile(tile_metadata)
 
+    def __repr__(self):
+        return f"Tile<{self._tile_metadata}>"
 
 class MarkdownTile(Tile):
     def _default_size(self) -> tuple[int, int]:
