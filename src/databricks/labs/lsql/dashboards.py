@@ -476,6 +476,8 @@ class QueryTile(Tile):
                 continue
             for named_select in projection.named_selects:
                 field = Field(name=named_select, expression=f"`{named_select}`")
+                if named_select == "*":
+                    raise NotImplementedError(f"Select with `*`, please define column explicitly: {self}")
                 fields.append(field)
         return fields
 
