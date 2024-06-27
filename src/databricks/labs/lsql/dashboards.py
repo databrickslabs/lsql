@@ -306,19 +306,19 @@ class DashboardMetadata:
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
         tiles, tiles_raw = {}, raw.get("tiles", {})
-        for key, value in tiles_raw.items():
-            if not isinstance(value, dict):
-                logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{key}.{ value }")
+        for tile_id, tile_raw in tiles_raw.items():
+            if not isinstance(tile_raw, dict):
+                logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{ tile_raw }")
                 continue
-            tile = TileMetadata(_id=key)
-            for tile_key, tile_value in value.items():
+            tile = TileMetadata(_id=tile_id)
+            for tile_key, tile_value in tile_raw.items():
                 if tile_key == "id":
-                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{key}.id")
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
                     continue
                 try:
                     tile |= TileMetadata.from_dict({tile_key: tile_value})
                 except TypeError as e:
-                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{key}.{tile_key}")
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
             tiles[tile.id] = tile
         return cls(
