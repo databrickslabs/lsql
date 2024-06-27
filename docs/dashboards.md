@@ -199,7 +199,20 @@ and it would most likely have a different name in the environment where the dash
 ### Overrides
 
 Overrides are used to augment the metadata that is defined in the SQL files with the lower-level Databricks Lakeview
-entities.
+entities. lsql supports overrides on the widget visualizing the query, other Lakeview entities can only be altered
+through the [arguments in the SQL file headers](#sql-header-argument).
+
+| Level    | Unambiguous | Coverage  | Easy of use | Code complexity |
+| -------- |-------------|-----------|-------------|-----------------|
+| Top      | Yes         | Dashboard | Low         | Medium          |
+| Widget   | No          | Widgets   | High        | Low             |
+| Column   | Yes         | Columns   | Very high   | High*           |
+
+Overrides on widgets are ambiguous, as one query may result in multiple widgets if filters are applied, however,
+the benefits of straightforwardly altering the widget that visualizes the query with the lowest code complexity
+outweighs the ambiguity. Moreover, the ambiguity is resolved with this section in the documentation.
+
+> *Code complexity for column overrides is high, as it introduces more query comment parsing.
 
 [[back to top](#dashboards-as-code)]
 

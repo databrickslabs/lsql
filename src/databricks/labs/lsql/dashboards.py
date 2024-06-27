@@ -7,6 +7,7 @@ import math
 import re
 import shlex
 from argparse import ArgumentParser
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
 from enum import Enum, unique
@@ -118,6 +119,11 @@ class QueryHandler(BaseHandler):
             dest="filters",
             nargs="*",
         )
+        parser.add_argument(
+            "--overrides",
+            type=json.loads,
+            help="Override the low-level Lakeview entities with a json payload.",
+        )
         return parser
 
     def _parse_header(self, header: str) -> dict:
@@ -191,7 +197,7 @@ class WidgetType(str, Enum):
 
 
 class TileMetadata:
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         path: str | Path | None = None,
         order: int | None = None,
@@ -202,6 +208,7 @@ class TileMetadata:
         description: str = "",
         widget_type: WidgetType = WidgetType.AUTO,
         filters: list[str] | None = None,
+        overrides: dict | None = None,
     ):
         self._path = Path(path) if path is not None else None
         self.order = order
@@ -214,6 +221,7 @@ class TileMetadata:
         self.description = description
         self.widget_type = widget_type
         self.filters = filters or []
+        self.overrides = overrides or {}
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TileMetadata):
@@ -242,6 +250,7 @@ class TileMetadata:
             description=other.description or self.description,
             widget_type=widget_type,
             filters=other.filters or self.filters,
+            overrides=other.overrides or self.overrides,
         )
         return new
 
@@ -487,6 +496,26 @@ class QueryTile(Tile):
         dataset = Dataset(name=self._tile_metadata.id, display_name=self._tile_metadata.id, query=query)
         yield dataset
 
+    def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
+        """Merge nested dictionairies."""
+        out: dict = defaultdict(dict)
+        out.update(left)
+        for key, value in right.items():
+            if isinstance(value, dict):
+                value_merged = self._merge_nested_dictionaries(out[key], value)
+                out[key].update(value_merged)
+            else:
+                out[key] = value
+        return dict(out)
+
+    def _merge_widget_with_overrides(self, widget: Widget) -> Widget:
+        """Merge the widget with (optional) overrides."""
+        if not self._tile_metadata.overrides:
+            return widget
+        updated = self._merge_nested_dictionaries(widget.as_dict(), self._tile_metadata.overrides)
+        widget = widget.from_dict(updated)
+        return widget
+
     def _get_query_layouts(self) -> Iterable[Layout]:
         """Get the layout visualizing the dataset.
 
@@ -504,6 +533,7 @@ class QueryTile(Tile):
         )
         spec = self._get_query_widget_spec(fields, frame=frame)
         widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
+        widget = self._merge_widget_with_overrides(widget)
         height = self.position.height
         if len(self._tile_metadata.filters) > 0 and self.position.width > 0:
             height -= self._FILTER_HEIGHT * math.ceil(len(self._tile_metadata.filters) / self.position.width)

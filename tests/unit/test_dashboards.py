@@ -229,7 +229,7 @@ def test_query_handler_ignores_non_header_comment(tmp_path, query):
     assert all(not value for key, value in header.items() if key not in has_default)
 
 
-@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description"])
+@pytest.mark.parametrize("attribute", ["id", "order", "height", "width", "title", "description", "overrides"])
 def test_query_handler_parses_attribute_from_header(tmp_path, attribute):
     path = tmp_path / "query.sql"
     path.write_text(f"-- --{attribute} 10\nSELECT 1")
@@ -367,6 +367,7 @@ def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
         title="1",
         description="1",
         widget_type=WidgetType.AUTO,
+        overrides={"spec": {"frame": {"showTitle": True}}},
     )
     updated_metadata = tile_metadata.from_dict({attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
@@ -398,6 +399,7 @@ def test_tile_metadata_as_dict(tmp_path):
         "description": "Longer explanation",
         "widget_type": "AUTO",
         "filters": ["column"],
+        "overrides": {"spec": {"frame": {"showTitle": True}}},
     }
     tile_metadata = TileMetadata(
         path,
@@ -408,6 +410,7 @@ def test_tile_metadata_as_dict(tmp_path):
         description="Longer explanation",
         widget_type=WidgetType.AUTO,
         filters=["column"],
+        overrides={"spec": {"frame": {"showTitle": True}}},
     )
     assert tile_metadata.as_dict() == raw
 
@@ -755,6 +758,43 @@ def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
 
     spec = lakeview_dashboard.pages[0].layout[0].widget.spec
     assert isinstance(spec, spec_expected)
+    ws.assert_not_called()
+
+
+def test_dashboards_overrides_show_empty_title_in_query_header(tmp_path):
+    query = '-- --overrides \'{"spec": {"frame": {"showTitle": true}}}\'\nSELECT 102132 AS count'
+    (tmp_path / "query.sql").write_text(query)
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.show_title
+    assert len(frame.title) == 0
+    ws.assert_not_called()
+
+
+def test_dashboards_overrides_show_empty_title_in_dashboard_yml(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    dashboard_content = """
+display_name: Show empty title
+
+tiles:
+  query:
+    overrides:
+      spec:
+        frame:
+          showTitle: true
+    """.strip()
+    (tmp_path / "dashboard.yml").write_text(dashboard_content)
+    (tmp_path / "query.sql").write_text("SELECT 20")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.show_title
+    assert len(frame.title) == 0
     ws.assert_not_called()
 
 
