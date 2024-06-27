@@ -208,9 +208,9 @@ through the [arguments in the SQL file headers](#sql-header-argument).
 | Widget   | No          | Widgets   | High        | Low             |
 | Column   | Yes         | Columns   | Very high   | High*           |
 
-Overrides on widgets are ambiguous, as one query may result in multiple widgets if filters are applied, however, 
-the benefits of straightforwardly altering the widgets with the lowest code complexity outweighs the ambiguity. 
-Moreover, the ambiguity is resolved with this section in the documentation.
+Overrides on widgets are ambiguous, as one query may result in multiple widgets if filters are applied, however,
+the benefits of straightforwardly altering the widget that visualizes the query with the lowest code complexity
+outweighs the ambiguity. Moreover, the ambiguity is resolved with this section in the documentation.
 
 > *Code complexity for column overrides is high, as it introduces more query comment parsing.
 
