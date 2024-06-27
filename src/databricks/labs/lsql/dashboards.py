@@ -410,6 +410,8 @@ class Tile:
             return CounterTile(tile_metadata)
         return TableTile(tile_metadata)
 
+    def __repr__(self):
+        return f"Tile<{self._tile_metadata}>"
 
 class MarkdownTile(Tile):
     def _default_size(self) -> tuple[int, int]:
@@ -476,6 +478,8 @@ class QueryTile(Tile):
                 continue
             for named_select in projection.named_selects:
                 field = Field(name=named_select, expression=f"`{named_select}`")
+                if named_select == "*":
+                    raise NotImplementedError(f"Select with `*`, please define column explicitly: {self}")
                 fields.append(field)
         return fields
 

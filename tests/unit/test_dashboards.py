@@ -1144,6 +1144,19 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     ws.assert_not_called()
 
 
+def test_create_dashboard_raises_not_implemented_error_for_select_star(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    query_path = (tmp_path / "star.sql")
+    query_path.write_text("SELECT * FROM table")
+
+    with pytest.raises(NotImplementedError) as e:
+        Dashboards(ws).create_dashboard(tmp_path)
+
+    assert query_path.as_posix() in str(e)
+    ws.assert_not_called()
+
+
 def test_dashboard_creates_dashboard_based_on_markdown_header(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
