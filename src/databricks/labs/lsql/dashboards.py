@@ -708,6 +708,7 @@ class Dashboards:
             if path.suffix in {".sql", ".md"}:
                 tile_metadata = TileMetadata.from_path(path)
                 if tile_metadata.id in dashboard_metadata.tiles:
+                    # The line below implements the precedence for metadata in the file header over dashboard.yml
                     tile_metadata = dashboard_metadata.tiles[tile_metadata.id] | tile_metadata
                 tiles_metadata.append(tile_metadata)
         return tiles_metadata
