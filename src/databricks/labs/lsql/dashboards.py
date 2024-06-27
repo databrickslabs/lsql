@@ -413,6 +413,7 @@ class Tile:
     def __repr__(self):
         return f"Tile<{self._tile_metadata}>"
 
+
 class MarkdownTile(Tile):
     def _default_size(self) -> tuple[int, int]:
         return _MAXIMUM_DASHBOARD_WIDTH, 3
