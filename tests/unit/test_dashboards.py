@@ -761,17 +761,16 @@ def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
     ws.assert_not_called()
 
 
-def test_dashboards_overwrites_with_overrides(tmp_path):
-    # This override is useless outside unit testing. Changing the widget type also requires changing the encodings to
-    # visualize the column(s). Use the `--type` flag to change the widget type instead.
-    query = '-- --overrides \'{"spec": {"widgetType": "table"}}\'\nSELECT 102132 AS count'
+def test_dashboards_overrides_show_empty_title(tmp_path):
+    query = '-- --overrides \'{"spec": {"frame": {"showTitle": true}}}\'\nSELECT 102132 AS count'
     (tmp_path / "query.sql").write_text(query)
 
     ws = create_autospec(WorkspaceClient)
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
-    spec = lakeview_dashboard.pages[0].layout[0].widget.spec
-    assert isinstance(spec, TableV2Spec)
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.show_title
+    assert len(frame.title) == 0
     ws.assert_not_called()
 
 
