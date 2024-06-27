@@ -47,14 +47,36 @@ def test_dashboard_metadata_sets_display_name_from_dict():
     assert dashboard_metadata.display_name == "test"
 
 
+def test_dashboard_metadata_sets_tiles_from_dict():
+    tile_metadata = TileMetadata(Path("test.sql"))
+    raw = {"display_name": "test", "tiles": {"test": {"path": "test.sql"}}}
+    dashboard_metadata = DashboardMetadata.from_dict(raw)
+    assert len(dashboard_metadata.tiles) == 1
+    assert dashboard_metadata.tiles["test"] == tile_metadata
+
+
+def test_dashboard_metadata_ignores_id_overwrite(caplog):
+    raw = {"display_name": "test", "tiles": {"test": {"id": "not_test"}}}
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        dashboard_metadata = DashboardMetadata.from_dict(raw)
+
+    assert "test" in dashboard_metadata.tiles
+    assert "not_test" not in dashboard_metadata.tiles
+    assert dashboard_metadata.tiles["test"].id == "test"
+    assert "Parsing unsupported field in dashboard.yml: tiles.test.id" in caplog.text
+
+
 def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
-    raw = {"display_name": "test"}
+    raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
+    raw = {"display_name": "test", "tiles": {"test": raw_tile}}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
     assert dashboard_metadata.as_dict() == raw
 
 
 def test_dashboard_metadata_from_raw(tmp_path):
-    raw = {"display_name": "test"}
+    raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
+    raw = {"display_name": "test", "tiles": {"test": raw_tile}}
 
     path = tmp_path / "dashboard.yml"
     with path.open("w") as f:
@@ -63,11 +85,17 @@ def test_dashboard_metadata_from_raw(tmp_path):
     from_dict = DashboardMetadata.from_dict(raw)
     from_path = DashboardMetadata.from_path(path)
 
-    for dashboard_metadata in from_dict, from_path:
-        assert dashboard_metadata.display_name == "test"
+    assert from_dict == from_path
 
 
-@pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml", ""])
+@pytest.mark.parametrize(
+    "dashboard_content",
+    [
+        "missing_display_name: true",
+        "invalid:\nyml",
+        "",
+    ],
+)
 def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
     path = tmp_path / "dashboard.yml"
     if len(dashboard_content) > 0:
@@ -75,6 +103,35 @@ def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
 
     dashboard_metadata = DashboardMetadata.from_path(path)
     assert dashboard_metadata.display_name == tmp_path.name
+
+
+def test_dashboard_metadata_handles_partial_invalid_yml(tmp_path, caplog):
+    dashboard_content = """
+display_name: name
+
+tiles:
+  correct:
+    order: 1
+  incorrect:
+  - order: 2
+  partial_correct:
+    order: 3
+    non_existing_key: value 
+""".lstrip()
+    path = tmp_path / "dashboard.yml"
+    path.write_text(dashboard_content)
+
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        dashboard_metadata = DashboardMetadata.from_path(path)
+
+    assert dashboard_metadata.display_name == "name"
+    assert "correct" in dashboard_metadata.tiles
+    assert "partial_correct" in dashboard_metadata.tiles
+    assert "incorrect" not in dashboard_metadata.tiles
+    assert "Parsing invalid tile metadata in dashboard.yml: tiles.incorrect.[{'order': 2}]" in caplog.text
+    assert "Parsing unsupported field in dashboard.yml: tiles.partial_correct.non_existing_key" in caplog.text
+    assert dashboard_metadata.tiles["correct"].order == 1
+    assert dashboard_metadata.tiles["partial_correct"].order == 3
 
 
 def test_tile_metadata_is_markdown():
@@ -87,6 +144,16 @@ def test_tile_metadata_is_query():
     tile_metadata = TileMetadata(Path("test.sql"))
     assert not tile_metadata.is_markdown()
     assert tile_metadata.is_query()
+
+
+def test_tile_metadata_merges():
+    left = TileMetadata(Path("left.sql"), filters=["a"], width=10, widget_type=WidgetType.TABLE)
+    right = TileMetadata(Path("right.sql"), widget_type=WidgetType.COUNTER)
+    new = left | right
+    assert new.id == "right"
+    assert new.width == 10
+    assert new.filters == ["a"]
+    assert new.widget_type == WidgetType.COUNTER
 
 
 def test_base_handler_parses_empty_header(tmp_path):
@@ -282,7 +349,7 @@ def test_tile_metadata_replaces_width_and_height(tmp_path):
     path = tmp_path / "test.sql"
     path.write_text("SELECT 1")
     tile_metadata = TileMetadata(path, 1, 1, 1)
-    updated_metadata = tile_metadata.from_dict(**{"path": path, "width": 10, "height": 10})
+    updated_metadata = tile_metadata.from_dict({"width": 10, "height": 10})
     assert updated_metadata.width == 10
     assert updated_metadata.height == 10
 
@@ -301,7 +368,7 @@ def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
         description="1",
         widget_type=WidgetType.AUTO,
     )
-    updated_metadata = tile_metadata.from_dict(**{"path": path, attribute: "10"})
+    updated_metadata = tile_metadata.from_dict({attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
 
 
@@ -314,7 +381,7 @@ def test_tile_metadata_replaces_filters(tmp_path):
             "column",
         ],
     )
-    updated_metadata = tile_metadata.from_dict(path=path, filters=["a", "b", "c"])
+    updated_metadata = tile_metadata.from_dict({"filters": ["a", "b", "c"]})
     assert updated_metadata.filters == ["a", "b", "c"]
 
 
@@ -399,8 +466,7 @@ def test_dashboards_creates_dashboard_with_first_page_name_after_folder():
 
 
 def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
-    with (tmp_path / "dashboard.yml").open("w") as f:
-        f.write("display_name: Custom")
+    (tmp_path / "dashboard.yml").write_text("display_name: Custom")
 
     ws = create_autospec(WorkspaceClient)
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
@@ -414,8 +480,7 @@ def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
 def test_dashboards_handles_invalid_dashboard_yml(tmp_path, dashboard_content):
     queries_path = tmp_path / "queries"
     queries_path.mkdir()
-    with (queries_path / "dashboard.yml").open("w") as f:
-        f.write(dashboard_content)
+    (queries_path / "dashboard.yml").write_text(dashboard_content)
 
     ws = create_autospec(WorkspaceClient)
     lakeview_dashboard = Dashboards(ws).create_dashboard(queries_path)
@@ -507,8 +572,7 @@ def test_dashboards_creates_text_widget_for_invalid_query(tmp_path, caplog):
 def test_dashboards_does_not_create_widget_for_yml_file(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
 
-    with (tmp_path / "dashboard.yml").open("w") as f:
-        f.write("display_name: Git based dashboard")
+    (tmp_path / "dashboard.yml").write_text("display_name: Git based dashboard")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     assert len(lakeview_dashboard.pages[0].layout) == 0
@@ -751,6 +815,29 @@ def test_dashboards_creates_dashboard_with_widget_below_text_widget(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboards_creates_dashboard_with_id_collisions(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    dashboard_content = """
+display_name: Id collisions
+
+tiles:
+  counter:
+    width: 10
+""".lstrip()
+    (tmp_path / "dashboard.yml").write_text(dashboard_content)
+    (tmp_path / "counter.md").write_text("# Description")
+    (tmp_path / "counter.sql").write_text("SELECT 100 AS count")
+    (tmp_path / "header_overwrite.sql").write_text("-- --id counter\nSELECT 100 AS count")
+
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+    layouts = lakeview_dashboard.pages[0].layout
+
+    assert len(layouts) == 3
+    assert all(layout.position.width == 10 for layout in layouts)
+    ws.assert_not_called()
+
+
 @pytest.mark.parametrize("query_names", [["a", "b", "c"], ["01", "02", "10"]])
 def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_path, query_names):
     ws = create_autospec(WorkspaceClient)
@@ -801,17 +888,56 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite_zero(tmp_pat
 def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
+    (tmp_path / "z.sql").write_text("-- --id a\nSELECT 1 AS count")  # Should be first because id is 'a'
     for query_name in "bcdef":
-        with (tmp_path / f"{query_name}.sql").open("w") as f:
-            f.write("SELECT 1 AS count")
-
-    with (tmp_path / "z.sql").open("w") as f:
-        f.write("-- --id a\nSELECT 1 AS count")  # Should be first because id is 'a'
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
 
     assert "".join(widget_names) == "abcdef"
+    ws.assert_not_called()
+
+
+def test_dashboards_creates_dashboard_with_widget_order_overwrite_from_dashboard_yaml(tmp_path):
+    content = """
+display_name: Ordering
+
+tiles:
+  e:
+    order: -1
+  non_existing_tile:
+    order: -2
+"""
+    (tmp_path / "dashboard.yml").write_text(content)
+    for query_name in "abcdef":
+        (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
+    assert "".join(widget_names) == "eabcdf"
+    ws.assert_not_called()
+
+
+def test_dashboards_creates_dashboard_where_widget_order_in_header_takes_precedence(tmp_path):
+    content = """
+display_name: Ordering
+
+tiles:
+  query_1:
+    order: -1  # Does not matter because order is defined in query header as well
+"""
+    (tmp_path / "dashboard.yml").write_text(content)
+    for index in range(3):
+        (tmp_path / f"query_{index}.sql").write_text(f"-- --order {index}\nSELECT {index} AS count")
+
+    ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
+    assert widget_names == ["query_0", "query_1", "query_2"]
     ws.assert_not_called()
 
 

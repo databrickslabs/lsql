@@ -50,39 +50,6 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class DashboardMetadata:
-    display_name: str
-
-    @classmethod
-    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
-        return cls(
-            display_name=raw["display_name"],
-        )
-
-    def as_dict(self) -> dict[str, str]:
-        return dataclasses.asdict(self)
-
-    @classmethod
-    def from_path(cls, path: Path) -> "DashboardMetadata":
-        """Export dashboard metadata from a YAML file."""
-        fallback_metadata = cls(display_name=path.parent.name)
-
-        if not path.exists():
-            return fallback_metadata
-
-        try:
-            raw = yaml.safe_load(path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-        try:
-            return cls.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-
 class BaseHandler:
     """Base file handler.
 
@@ -93,19 +60,21 @@ class BaseHandler:
         https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
     """
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path | None) -> None:
         self._path = path
 
     @property
     def _content(self) -> str:
+        if self._path is None:
+            return ""
         return self._path.read_text()
 
-    def parse_header(self) -> dict[str, str]:
+    def parse_header(self) -> dict:
         """Parse the header of the file."""
         header, _ = self.split()
         return self._parse_header(header)
 
-    def _parse_header(self, header: str) -> dict[str, str]:
+    def _parse_header(self, header: str) -> dict:
         _ = self, header
         return {}
 
@@ -151,7 +120,7 @@ class QueryHandler(BaseHandler):
         )
         return parser
 
-    def _parse_header(self, header: str) -> dict[str, str]:
+    def _parse_header(self, header: str) -> dict:
         """Header is an argparse string."""
         header_split = shlex.split(header)
         parser = self._get_arguments_parser()
@@ -184,7 +153,7 @@ class MarkdownHandler(BaseHandler):
 
     _FRONT_MATTER_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
 
-    def _parse_header(self, header: str) -> dict[str, str]:
+    def _parse_header(self, header: str) -> dict:
         """Markdown configuration header is a YAML."""
         _ = self
         return yaml.safe_load(header) or {}
@@ -224,7 +193,7 @@ class WidgetType(str, Enum):
 class TileMetadata:
     def __init__(
         self,
-        path: Path,
+        path: str | Path | None = None,
         order: int | None = None,
         width: int = 0,
         height: int = 0,
@@ -234,21 +203,53 @@ class TileMetadata:
         widget_type: WidgetType = WidgetType.AUTO,
         filters: list[str] | None = None,
     ):
-        self._path = path
+        self._path = Path(path) if path is not None else None
         self.order = order
         self.width = width
         self.height = height
-        self.id = _id or path.stem
+        self.id = _id
+        if not self.id:
+            self.id = self._path.stem if self._path is not None else ""
         self.title = title
         self.description = description
         self.widget_type = widget_type
         self.filters = filters or []
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TileMetadata):
+            return False
+        return self.as_dict() == other.as_dict()
+
+    def __or__(self, other: "TileMetadata") -> "TileMetadata":
+        """Supports `self | other`.
+
+        Precendence
+        - The other takes precendences, similar to merging dictionairies.
+        - Unless the others value is a default, then the value from self is taken.
+        """
+        if not isinstance(other, TileMetadata):
+            raise TypeError(f"Can not merge with {other}")
+
+        widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
+        new = TileMetadata(
+            # Allow private access to other._path here as it is part of the class implementation
+            path=other._path or self._path,
+            order=other.order or self.order,
+            width=other.width or self.width,
+            height=other.height or self.height,
+            _id=other.id or self.id,
+            title=other.title or self.title,
+            description=other.description or self.description,
+            widget_type=widget_type,
+            filters=other.filters or self.filters,
+        )
+        return new
+
     def is_markdown(self) -> bool:
-        return self._path.suffix == ".md"
+        return self._path is not None and self._path.suffix == ".md"
 
     def is_query(self) -> bool:
-        return self._path.suffix == ".sql"
+        return self._path is not None and self._path.suffix == ".sql"
 
     @property
     def handler(self) -> BaseHandler:
@@ -260,19 +261,21 @@ class TileMetadata:
         return handler(self._path)
 
     @classmethod
-    def from_dict(cls, *, path: str | Path, **optionals) -> "TileMetadata":
-        path = Path(path)
-        if "id" in optionals:
-            optionals["_id"] = optionals["id"]
-            del optionals["id"]
-        return cls(path, **optionals)
+    def from_dict(cls, raw: dict) -> "TileMetadata":
+        if "id" in raw:
+            raw = copy.deepcopy(raw)
+            raw["_id"] = raw["id"]
+            del raw["id"]
+        return cls(**raw)
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict:
         exclude_attributes = {
             "handler",  # Handler is inferred from file extension
             "path",  # Path is set explicitly below
         }
-        body = {"path": self._path.as_posix()}
+        body = {}
+        if self._path is not None:
+            body["path"] = self._path.as_posix()
         for attribute in dir(self):
             if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
                 continue
@@ -288,11 +291,61 @@ class TileMetadata:
     def from_path(cls, path: Path) -> "TileMetadata":
         tile_metadata = cls(path=path)
         header = tile_metadata.handler.parse_header()
-        header.pop("path", None)
-        return cls.from_dict(path=path, **header)
+        header["path"] = path
+        return cls.from_dict(header)
 
     def __repr__(self):
         return f"TileMetadata<{self._path}>"
+
+
+@dataclass
+class DashboardMetadata:
+    display_name: str
+    tiles: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, raw: dict) -> "DashboardMetadata":
+        display_name = raw["display_name"]  # Fail early if missing
+        tiles, tiles_raw = {}, raw.get("tiles", {})
+        for tile_id, tile_raw in tiles_raw.items():
+            if not isinstance(tile_raw, dict):
+                logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
+                continue
+            tile = TileMetadata(_id=tile_id)
+            for tile_key, tile_value in tile_raw.items():
+                if tile_key == "id":
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
+                    continue
+                try:
+                    tile |= TileMetadata.from_dict({tile_key: tile_value})
+                except TypeError:
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
+                    continue
+            tiles[tile.id] = tile
+        return cls(display_name=display_name, tiles=tiles)
+
+    def as_dict(self) -> dict:
+        raw: dict = {"display_name": self.display_name}
+        if self.tiles:
+            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tiles.values()}
+        return raw
+
+    @classmethod
+    def from_path(cls, path: Path) -> "DashboardMetadata":
+        """Export dashboard metadata from a YAML file."""
+        fallback_metadata = cls(display_name=path.parent.name)
+        if not path.exists():
+            return fallback_metadata
+        try:
+            raw = yaml.safe_load(path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+        try:
+            return cls.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
 
 
 class Tile:
@@ -635,7 +688,7 @@ class Dashboards:
             https://sqlglot.com/sqlglot/transforms.html
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
-        tiles_metadata = self._parse_tiles_metadata(dashboard_folder)
+        tiles_metadata = self._parse_tiles_metadata(dashboard_folder, dashboard_metadata)
         tiles = self._get_tiles(tiles_metadata, query_transformer=query_transformer)
         datasets = self._get_datasets(tiles)
         layouts = self._get_layouts(tiles)
@@ -648,12 +701,15 @@ class Dashboards:
         return lakeview_dashboard
 
     @staticmethod
-    def _parse_tiles_metadata(dashboard_folder: Path) -> list[TileMetadata]:
+    def _parse_tiles_metadata(dashboard_folder: Path, dashboard_metadata: DashboardMetadata) -> list[TileMetadata]:
         """Parse the tile metadata from each (optional) header."""
         tiles_metadata = []
         for path in dashboard_folder.iterdir():
             if path.suffix in {".sql", ".md"}:
                 tile_metadata = TileMetadata.from_path(path)
+                if tile_metadata.id in dashboard_metadata.tiles:
+                    # The line below implements the precedence for metadata in the file header over dashboard.yml
+                    tile_metadata = dashboard_metadata.tiles[tile_metadata.id] | tile_metadata
                 tiles_metadata.append(tile_metadata)
         return tiles_metadata
 

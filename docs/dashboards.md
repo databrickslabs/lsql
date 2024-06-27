@@ -6,13 +6,15 @@
   * [`.sql` files](#sql-files)
     * [Metadata](#metadata)
     * [Headers of SQL files](#headers-of-sql-files)
+      * [SQL header arguments](#sql-header-arguments)
     * [Implicit detection](#implicit-detection)
     * [Widget types](#widget-types)
-    * [Widget ordering](#widget-ordering)
+    * [Tile ordering](#tile-ordering)
     * [Widget identifiers](#widget-identifiers)
     * [Database name replacement](#database-name-replacement)
     * [Overrides](#overrides)
   * [`.md` files](#md-files)
+    * [Markdown header arguments](#markdown-header-arguments)
   * [`dashboard.yml` file](#dashboardyml-file)
   * [Using as library](#using-as-library)
   * [Configuration precedence](#configuration-precedence)
@@ -90,9 +92,9 @@ using `/* ... */`.
 | `argparse`   | ?           | lowest    |
 | Query string | ? | ? |
 
-#### Widget arguments
+#### SQL header arguments
 
-The following widget arguments are supported:
+The following arguments are supported in the SQL header:
 
 | Flag                | Description                                 | Type  | Optional |
 |---------------------|---------------------------------------------|-------|----------|
@@ -131,12 +133,12 @@ supported:
 
 [[back to top](#dashboards-as-code)]
 
-### Widget ordering
+### Tile ordering
 
 The order of the tiles in the dashboard is determined by the order of the SQL files in the folder, order of `tiles` 
 in the [`dashboard.yml` file](#dashboardyml-file), or by the `order` key in the [SQL file metadata](#metadata).
 
-The ordering would also be based on the width and height of the widget, that _could be_ explicitly specified by 
+The ordering would also be based on the width and height of the tile, that _could be_ explicitly specified by 
 the user, but most of the times they may be inferred from the [widget types](#widget-types).
 
 This is done to avoid updating `x` and `y` coordinates in the SQL files when you want to change the order of the tiles.
@@ -145,12 +147,12 @@ We recommend using `000_` prefix for the SQL files to keep the order of the tile
 `000_` is the top of the dashboard and `999_` is the bottom. The first two digits would represent a row, and the last digit
 is used to order the tiles within the row.
 
-| Option | Move widget effort | Mix `dashboard.yml` and `.sql` files |
-| --- | --- |--------------------------------------|
-| `x` and `y` coordinates | 🚨 high | ✅ easy                               |
-| `order` key in the SQL file | ✅ low | ✅ easy                               |
-| `tiles` order in the `dashboard.yml` file | ✅ low | ⚠️ collisions possible               |
-| filename prefix | ✅ low | ⚠️ collisions possible               |
+| Option                                     | Move tile effort | Mix `dashboard.yml` and `.sql` files |
+|--------------------------------------------|------------------|--------------------------------------|
+| `x` and `y` coordinates                    | 🚨 high          | ✅ easy                              |
+| `order` key in the SQL file                | ✅ low            | ✅ easy                              |
+| `tiles` order in the  `dashboard.yml` file | ✅ low            | ⚠️ collisions possible               |
+| filename prefix                            | ✅ low            | ⚠️ collisions possible               |
 
 Order starts with `0` and in case of the `order` field conflict, we use the filename as a tie-breaker.
 
@@ -174,7 +176,7 @@ The order of the tiles from left-to-right and top-to-bottom in the dashboard wou
 
 ### Widget identifiers
 
-By default, we'll use the filename as the widget identifier, but you can override it by specifying the `id` key in the
+By default, we'll use the filename as the tile identifier, but you can override it by specifying the `id` key in the
 [SQL file metadata](#metadata).
 
 [[back to top](#dashboards-as-code)]
@@ -185,12 +187,12 @@ You can define and test your SQL queries in a separate development database, the
 the source control. We assume that the database name defined in the source control is a development reference database,
 and it would most likely have a different name in the environment where the dashboard is deployed.
 
-| Option | SQL copy-paste | Valid Syntax | Use as library | Use for CI/CD | Lib complexity |
-|--------|---|---|---|---|---------|
-| Rewrite SQL AST | ✅ | ✅ | ✅ | ✅ | 🚨 most | 
-| use a variable (e.g. `$inventory`) | 🚨 manual change required | ⚠️ syntax error | ✅ | ✅ | ⚠️ some |
-| do not replace database | ✅ | ✅ | 🚨 not reusable | ⚠️ no dev/prod | ✅ none  | 
-| use a separate branch | ✅ | ✅ | ✅ | ⚠️ complex setup | ✅ none  |
+| Option                             | SQL copy-paste            | Valid Syntax    | Use as library  | Use for CI/CD    | Lib complexity |
+|------------------------------------|---------------------------|-----------------|-----------------|------------------|----------------|
+| Rewrite SQL AST                    | ✅                         | ✅               | ✅               | ✅                | 🚨 most        | 
+| use a variable (e.g. `$inventory`) | 🚨 manual change required | ⚠️ syntax error | ✅               | ✅                | ⚠️ some        |
+| do not replace database            | ✅                         | ✅               | 🚨 not reusable | ⚠️ no dev/prod   | ✅ none         | 
+| use a separate branch              | ✅                         | ✅               | ✅               | ⚠️ complex setup | ✅ none         |
 
 [[back to top](#dashboards-as-code)]
 
@@ -217,9 +219,9 @@ height: 5
 Welcome to our churn dashboard! Let me show you around ...
 ```
 
-### Text widget arguments
+### Markdown header arguments
 
-The following text widget arguments are supported:
+The following text tile arguments are supported:
 
 | Flag          | Description                                 | Type       | Optional |
 |---------------|---------------------------------------------|------------|----------|
@@ -234,15 +236,28 @@ The following text widget arguments are supported:
 
 ## `dashboard.yml` file
 
-The `dashboard.yml` file is used to define a top-level metadata for the dashboard, such as the display name, warehouse,
-and the list of tile overrides for cases, that cannot be handled with the [high-level metadata](#metadata) in the SQL
-files. The file requires the `display_name` field, other fields are optional. See below for the configuration schema:
+The `dashboard.yml` file is used to define a top-level metadata for the dashboard, such as the display name. Also,
+this file may contain arguments for the tiles. The file requires the `display_name` field, other fields are
+optional. See below for the configuration schema:
 
 ```yml
 display_name: <display name>
-```
 
-This file may contain extra information about the [widgets](#widget-types), but we aim at mostly [inferring it](#implicit-detection) from the SQL files.
+tiles:
+  <tile id>:
+    order: <order>
+    width: <width>
+    height: <height>
+    title: <title>
+    description: <description>
+    type: <type>
+    filter: 
+      - <column>
+      - <column>
+  <tile id>:
+    ...
+  ...
+```
 
 [[back to top](#dashboards-as-code)]
 
