@@ -250,6 +250,7 @@ class TileMetadata:
             description=other.description or self.description,
             widget_type=widget_type,
             filters=other.filters or self.filters,
+            overrides=other.overrides or self.overrides,
         )
         return new
 

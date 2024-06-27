@@ -761,11 +761,35 @@ def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
     ws.assert_not_called()
 
 
-def test_dashboards_overrides_show_empty_title(tmp_path):
+def test_dashboards_overrides_show_empty_title_in_query_header(tmp_path):
     query = '-- --overrides \'{"spec": {"frame": {"showTitle": true}}}\'\nSELECT 102132 AS count'
     (tmp_path / "query.sql").write_text(query)
 
     ws = create_autospec(WorkspaceClient)
+    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
+
+    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.show_title
+    assert len(frame.title) == 0
+    ws.assert_not_called()
+
+
+def test_dashboards_overrides_show_empty_title_in_dashboard_yml(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+
+    dashboard_content = """
+display_name: Id collisions
+
+tiles:
+  query:
+    overrides:
+      spec:
+        frame:
+          showTitle: true
+    """.lstrip()
+    (tmp_path / "dashboard.yml").write_text(dashboard_content)
+    (tmp_path / "query.sql").write_text("SELECT 20")
+
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
 
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
