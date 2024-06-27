@@ -64,7 +64,7 @@ def test_dashboard_metadata_ignores_id_overwrite(caplog):
     assert "test" in dashboard_metadata.tiles
     assert "not_test" not in dashboard_metadata.tiles
     assert dashboard_metadata.tiles["test"].id == "test"
-    assert "Tile id field not supported in dashboard.yml: test" in caplog.text
+    assert "Parsing unsupported field in dashboard.yml: tiles.test.id" in caplog.text
 
 
 def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
@@ -114,7 +114,7 @@ tiles:
     order: 1
   incorrect:
   - order: 2
-  incorrect_as_well:
+  partial_correct:
     order: 3
     non_existing_key: value 
 """.lstrip()
@@ -126,9 +126,11 @@ tiles:
 
     assert dashboard_metadata.display_name == "name"
     assert "correct" in dashboard_metadata.tiles
+    assert "partial_correct" in dashboard_metadata.tiles
     assert "incorrect" not in dashboard_metadata.tiles
-    assert "Parsing invalid tile metadata {'incorrect': " in caplog.text
+    assert "Parsing invalid tile metadata in dashboard.yml: tiles.incorrect.[{'order': 2}]" in caplog.text
     assert dashboard_metadata.tiles["correct"].order == 1
+    assert dashboard_metadata.tiles["partial_correct"].order == 3
 
 
 def test_tile_metadata_is_markdown():

@@ -310,14 +310,16 @@ class DashboardMetadata:
             if not isinstance(value, dict):
                 logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{key}.{ value }")
                 continue
-            if "id" in value.keys():
-                logger.warning(f"Tile id field not supported in dashboard.yml: {key}")
-            value["id"] = key
-            try:
-                tile = TileMetadata.from_dict(value)
-            except TypeError as e:
-                logger.warning(f"Parsing invalid tile metadata {{'{key}': {value}}}: {e}")
-                continue
+            tile = TileMetadata(_id=key)
+            for tile_key, tile_value in value.items():
+                if tile_key == "id":
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{key}.id")
+                    continue
+                try:
+                    tile |= TileMetadata.from_dict({tile_key: tile_value})
+                except TypeError as e:
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{key}.{tile_key}")
+                    continue
             tiles[tile.id] = tile
         return cls(
             display_name=raw["display_name"],
