@@ -200,7 +200,7 @@ and it would most likely have a different name in the environment where the dash
 
 Overrides are used to augment the metadata that is defined in the SQL files with the lower-level Databricks Lakeview
 entities. lsql supports overrides on the widget visualizing the query, other Lakeview entities can only be altered
-through the [arguments](#widget-arguments) in the SQL file headers.
+through the [arguments in the SQL file headers](#sql-header-argument).
 
 | Level    | Unambiguous | Coverage  | Easy of use | Code complexity |
 | -------- |-------------|-----------|-------------|-----------------|
