@@ -20,7 +20,6 @@ from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
-    Alignment,
     ColumnType,
     ControlEncoding,
     ControlEncodingMap,
@@ -36,7 +35,6 @@ from databricks.labs.lsql.lakeview import (
     MultiSelectSpec,
     NamedQuery,
     Page,
-    PaginationSize,
     Position,
     Query,
     TableV1ColumnEncoding,
@@ -536,30 +534,13 @@ class QueryTile(Tile):
         In most cases, overwriting this method with a Tile specific spec is sufficient for support other widget types.
         """
         column_encodings = []
-        for index, field in enumerate(fields):
+        for field in fields:
             column_encoding = TableV1ColumnEncoding(
                 boolean_values=["false", "true"],
                 display_as=DisplayType.STRING,
                 field_name=field.name,
                 title=field.name,
                 type=ColumnType.STRING,
-                align_content=Alignment.LEFT,
-                allow_html=False,
-                allow_search=False,
-                display_name=field.name,
-                highlight_links=False,
-                image_height="",
-                image_title_template="{{ @ }}",
-                image_url_template="{{ @ }}",
-                image_width="",
-                link_open_in_new_tab=True,
-                link_text_template="https://www.databricks.com/",
-                link_title_template="https://www.databricks.com/",
-                link_url_template="https://www.databricks.com/",
-                order=100000 + index,
-                preserve_whitespace=False,
-                # use_monospace_font=False,
-                # visible=True,
             )
             column_encodings.append(column_encoding)
         table_encodings = TableV1EncodingMap(column_encodings)
@@ -570,8 +551,6 @@ class QueryTile(Tile):
             invisible_columns=[],
             items_per_page=25,
             frame=frame,
-            pagination_size=PaginationSize.DEFAULT,
-            with_row_number=False,
         )
         return spec
 
