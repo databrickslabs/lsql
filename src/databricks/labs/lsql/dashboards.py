@@ -334,10 +334,8 @@ class DashboardMetadata:
     def from_path(cls, path: Path) -> "DashboardMetadata":
         """Export dashboard metadata from a YAML file."""
         fallback_metadata = cls(display_name=path.parent.name)
-
         if not path.exists():
             return fallback_metadata
-
         try:
             raw = yaml.safe_load(path.read_text())
         except yaml.YAMLError as e:
