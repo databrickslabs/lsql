@@ -1147,7 +1147,7 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
 def test_create_dashboard_raises_not_implemented_error_for_select_star(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
-    query_path = (tmp_path / "star.sql")
+    query_path = tmp_path / "star.sql"
     query_path.write_text("SELECT * FROM table")
 
     with pytest.raises(NotImplementedError) as e:
