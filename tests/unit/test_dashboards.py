@@ -786,7 +786,7 @@ tiles:
       spec:
         frame:
           showTitle: true
-    """.lstrip()
+    """.strip()
     (tmp_path / "dashboard.yml").write_text(dashboard_content)
     (tmp_path / "query.sql").write_text("SELECT 20")
 
