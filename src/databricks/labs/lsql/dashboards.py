@@ -497,7 +497,7 @@ class QueryTile(Tile):
         yield dataset
 
     def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
-        """Nested dictionaries are merged."""
+        """Merge nested dictionairies."""
         out: dict = defaultdict(dict)
         out.update(left)
         for key, value in right.items():
