@@ -500,7 +500,8 @@ class QueryTile(Tile):
         out.update(left)
         for key, value in right.items():
             if isinstance(value, dict):
-                out[key].update(self._merge_nested_dictionaries(out[key], value))
+                value_merged = self._merge_nested_dictionaries(out[key], value)
+                out[key].update(value_merged)
             else:
                 out[key] = value
         return dict(out)
