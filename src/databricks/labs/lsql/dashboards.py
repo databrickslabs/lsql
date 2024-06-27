@@ -305,6 +305,7 @@ class DashboardMetadata:
 
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
+        display_name = raw["display_name"]  # Fail early if missing
         tiles, tiles_raw = {}, raw.get("tiles", {})
         for tile_id, tile_raw in tiles_raw.items():
             if not isinstance(tile_raw, dict):
@@ -321,10 +322,7 @@ class DashboardMetadata:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
             tiles[tile.id] = tile
-        return cls(
-            display_name=raw["display_name"],
-            tiles=tiles,
-        )
+        return cls(display_name=display_name, tiles=tiles)
 
     def as_dict(self) -> dict:
         raw: dict = {"display_name": self.display_name}
