@@ -778,7 +778,7 @@ def test_dashboards_overrides_show_empty_title_in_dashboard_yml(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
     dashboard_content = """
-display_name: Id collisions
+display_name: Show empty title
 
 tiles:
   query:
