@@ -51,7 +51,7 @@ def test_dashboard_metadata_sets_tiles_from_dict():
     tile_metadata = TileMetadata(Path("test.sql"))
     raw = {"display_name": "test", "tiles": {"test": {"path": "test.sql"}}}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
-    assert len(dashboard_metadata.tiles.keys()) == 1
+    assert len(dashboard_metadata.tiles) == 1
     assert dashboard_metadata.tiles["test"] == tile_metadata
 
 
