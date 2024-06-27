@@ -831,10 +831,10 @@ tiles:
     (tmp_path / "header_overwrite.sql").write_text("-- --id counter\nSELECT 100 AS count")
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    layout = lakeview_dashboard.pages[0].layout
+    layouts = lakeview_dashboard.pages[0].layout
 
-    assert len(layout) == 3
-    assert all(l.position.width == 10 for l in layout)
+    assert len(layouts) == 3
+    assert all(layout.position.width == 10 for layout in layouts)
     ws.assert_not_called()
 
 

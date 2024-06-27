@@ -318,7 +318,7 @@ class DashboardMetadata:
                     continue
                 try:
                     tile |= TileMetadata.from_dict({tile_key: tile_value})
-                except TypeError as e:
+                except TypeError:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
             tiles[tile.id] = tile
