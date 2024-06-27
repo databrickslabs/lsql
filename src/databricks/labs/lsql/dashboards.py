@@ -497,6 +497,7 @@ class QueryTile(Tile):
         yield dataset
 
     def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
+        """Nested dictionaries are merged."""
         out: dict = defaultdict(dict)
         out.update(left)
         for key, value in right.items():
@@ -508,10 +509,7 @@ class QueryTile(Tile):
         return dict(out)
 
     def _merge_widget_with_overrides(self, widget: Widget) -> Widget:
-        """Merge the widget with (optional) overrides provided by the user.
-
-        The user may provide partial overwrites, therefore, nested dictionaries should not be overwritten completely.
-        """
+        """Merge the widget with (optional) overrides."""
         if not self._tile_metadata.overrides:
             return widget
         updated = self._merge_nested_dictionaries(widget.as_dict(), self._tile_metadata.overrides)
