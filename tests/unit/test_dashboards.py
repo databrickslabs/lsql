@@ -129,6 +129,7 @@ tiles:
     assert "partial_correct" in dashboard_metadata.tiles
     assert "incorrect" not in dashboard_metadata.tiles
     assert "Parsing invalid tile metadata in dashboard.yml: tiles.incorrect.[{'order': 2}]" in caplog.text
+    assert "Parsing unsupported field in dashboard.yml: tiles.partial_correct.non_existing_key" in caplog.text
     assert dashboard_metadata.tiles["correct"].order == 1
     assert dashboard_metadata.tiles["partial_correct"].order == 3
 
