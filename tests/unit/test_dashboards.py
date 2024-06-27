@@ -367,7 +367,7 @@ def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
         title="1",
         description="1",
         widget_type=WidgetType.AUTO,
-        overrides={"spec": {"widgetType": "table"}},
+        overrides={"spec": {"frame": {"showTitle": True}}},
     )
     updated_metadata = tile_metadata.from_dict({attribute: "10"})
     assert str(getattr(updated_metadata, attribute)) == "10"
@@ -399,7 +399,7 @@ def test_tile_metadata_as_dict(tmp_path):
         "description": "Longer explanation",
         "widget_type": "AUTO",
         "filters": ["column"],
-        "overrides": {"spec": {"widgetType": "table"}},
+        "overrides": {"spec": {"frame": {"showTitle": True}}},
     }
     tile_metadata = TileMetadata(
         path,
@@ -410,7 +410,7 @@ def test_tile_metadata_as_dict(tmp_path):
         description="Longer explanation",
         widget_type=WidgetType.AUTO,
         filters=["column"],
-        overrides={"spec": {"widgetType": "table"}},
+        overrides={"spec": {"frame": {"showTitle": True}}},
     )
     assert tile_metadata.as_dict() == raw
 
