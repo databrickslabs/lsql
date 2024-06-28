@@ -119,8 +119,7 @@ def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_p
 def test_dashboard_deploys_dashboard_with_counter_variation(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard()
 
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write("SELECT 10 AS something_else_than_count")
+    (tmp_path / "counter.sql").write_text("SELECT 10 AS `Something Else Than Count`")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
