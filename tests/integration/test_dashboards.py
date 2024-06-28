@@ -55,24 +55,41 @@ def make_dashboard(ws, make_random):
     yield from factory("dashboard", create, delete)
 
 
+@pytest.fixture
+def tmp_path(tmp_path, make_random):
+    """Adds a random subfolder name.
+
+    The folder name becomes the dashboard name, which then becomes the Lakeview file name with the
+    `.lvdash.json` extension. `tmp_path` last subfolder contains the test name cut off at thirty characters plus a
+    number starting at zero indicating the test run. `tmp_path` adds randomness in the parent folders. Because most test
+    start with `test_dashboards_deploys_dashboard_`, the dashboard name for most tests ends up being
+    `test_dashboard_deploys_dashboa0.lvdash.json`, causing collisions. This is solved by adding a random subfolder name.
+    """
+    folder = tmp_path / f"created_by_lsql_{make_random()}"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
 def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
     sdk_dashboard = make_dashboard()
 
-    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.json"
-    with dashboard_file.open("r") as f:
-        lakeview_dashboard = Dashboard.from_dict(json.load(f))
+    dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.lvdash.json"
+    lakeview_dashboard = Dashboard.from_dict(json.loads(dashboard_file.read_text()))
 
     dashboards = Dashboards(ws)
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
-    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+    assert (
+        dashboards._with_better_names(lakeview_dashboard).as_dict()
+        == dashboards._with_better_names(new_dashboard).as_dict()
+    )
 
 
 def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard()
 
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write("SELECT 10 AS count")
+    (tmp_path / "counter.sql").write_text("SELECT 10 AS count")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
@@ -89,8 +106,7 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_p
     sdk_dashboard = make_dashboard()
 
     for i in range(10):
-        with (tmp_path / f"counter_{i}.sql").open("w") as f:
-            f.write(f"SELECT {i} AS count")
+        (tmp_path / f"counter_{i}.sql").write_text(f"SELECT {i} AS count")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
@@ -118,8 +134,7 @@ def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_p
 def test_dashboard_deploys_dashboard_with_counter_variation(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard()
 
-    with (tmp_path / "counter.sql").open("w") as f:
-        f.write("SELECT 10 AS something_else_than_count")
+    (tmp_path / "counter.sql").write_text("SELECT 10 AS `Something Else Than Count`")
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
 
@@ -142,17 +157,148 @@ def test_dashboard_deploys_dashboard_with_big_widget(ws, make_dashboard, tmp_pat
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboards_deploys_dashboard_with_order_overwrite(ws, make_dashboard, tmp_path):
+def test_dashboards_deploys_dashboard_with_order_overwrite_in_query_header(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    for query_name in range(6):
+        (tmp_path / f"{query_name}.sql").write_text(f"SELECT {query_name} AS count")
+
+    # Move the '4' inbetween '1' and '2' query. Note that the order 1 puts '4' on the same position as '1', but with an
+    # order tiebreaker the query name decides the final order.
+    (tmp_path / "4.sql").write_text("-- --order 1\nSELECT 4 AS count")
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_order_overwrite_in_dashboard_yaml(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    # Move the '4' inbetween '1' and '2' query. Note that the order 1 puts '4' on the same position as '1', but with an
+    # order tiebreaker the query name decides the final order.
+    content = """
+display_name: Counters
+
+tiles:
+  query_4:
+    order: 1
+""".lstrip()
+    (tmp_path / "dashboard.yml").write_text(content)
+    for query_name in range(6):
+        (tmp_path / f"query_{query_name}.sql").write_text(f"SELECT {query_name} AS count")
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_table(ws, make_dashboard):
+    sdk_dashboard = make_dashboard()
+
+    dashboard_folder = Path(__file__).parent / "dashboards" / "one_table"
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(dashboard_folder)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_invalid_query(ws, make_dashboard, tmp_path):
     sdk_dashboard = make_dashboard()
 
     for query_name in range(6):
         with (tmp_path / f"{query_name}.sql").open("w") as f:
             f.write(f"SELECT {query_name} AS count")
-
-    # Move the '4' inbetween '1' and '2' query. Note that the order 1 puts '4' on the same position as '1', but with an
-    # order tiebreaker the query name decides the final order.
     with (tmp_path / "4.sql").open("w") as f:
-        f.write("-- --order 1\nSELECT 4 AS count")
+        f.write("SELECT COUNT(* AS invalid_column")
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_markdown_header(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    for count, query_name in enumerate("abcdef"):
+        (tmp_path / f"{query_name}.sql").write_text(f"SELECT {count} AS count")
+
+    description = "---\norder: -1\n---\nBelow you see counters."
+    (tmp_path / "z_description.md").write_text(description)
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_widget_title_and_description(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    description = "-- --title 'Counting' --description 'The answer to life'\nSELECT 42"
+    (tmp_path / "counter.sql").write_text(description)
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_from_query_with_cte(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    table_query_path = Path(__file__).parent / "dashboards/one_table/databricks_office_locations.sql"
+    office_locations = table_query_path.read_text()
+    query_with_cte = (
+        f"WITH data AS ({office_locations})\n"
+        "-- --title 'Databricks Office Locations'\n"
+        "SELECT Address, State, Country FROM data"
+    )
+    (tmp_path / "table.sql").write_text(query_with_cte)
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_deploys_dashboard_with_filters(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    table_query_path = Path(__file__).parent / "dashboards/one_table/databricks_office_locations.sql"
+    office_locations = table_query_path.read_text()
+    (tmp_path / "table.sql").write_text(f"-- --width 2 --filter City State Country\n{office_locations}")
+
+    dashboards = Dashboards(ws)
+    lakeview_dashboard = dashboards.create_dashboard(tmp_path)
+
+    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_empty_title(ws, make_dashboard, tmp_path):
+    sdk_dashboard = make_dashboard()
+
+    query = '-- --overrides \'{"spec": {"frame": {"showTitle": true}}}\'\nSELECT 102132 AS count'
+    (tmp_path / "counter.sql").write_text(query)
 
     dashboards = Dashboards(ws)
     lakeview_dashboard = dashboards.create_dashboard(tmp_path)
