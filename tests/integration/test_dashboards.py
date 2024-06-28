@@ -55,6 +55,21 @@ def make_dashboard(ws, make_random):
     yield from factory("dashboard", create, delete)
 
 
+@pytest.fixture
+def tmp_path(tmp_path, make_random):
+    """Adds a random subfolder name.
+
+    The folder name becomes the dashboard name, which then becomes the Lakeview file name with the
+    `.lvdash.json` extension. `tmp_path` last subfolder contains the test name cut off at thirty characters plus a
+    number starting at zero indicating the test run. `tmp_path` adds randomness in the parent folders. Because most test
+    start with `test_dashboards_deploys_dashboard_`, the dashboard name for most tests ends up being
+    `test_dashboard_deploys_dashboa0.lvdash.json`, causing collisions. This is solved by adding a random subfolder name.
+    """
+    folder = tmp_path / f"created_by_lsql_{make_random()}"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
 def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
     sdk_dashboard = make_dashboard()
 
