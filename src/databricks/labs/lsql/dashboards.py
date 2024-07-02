@@ -310,16 +310,16 @@ class TileMetadata:
 @dataclass
 class DashboardMetadata:
     display_name: str
-    tile_metadatas: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
+    tiles: list[TileMetadata] = dataclasses.field(default_factory=list)
 
     @property
-    def tiles(self) -> list[TileMetadata]:
-        return list(self.tile_metadatas.values())
+    def tile_metadatas(self) -> dict[str, TileMetadata]:
+        return {tile.id: tile for tile in self.tiles}
 
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
         display_name = raw["display_name"]  # Fail early if missing
-        tiles, tiles_raw = {}, raw.get("tiles", {})
+        tiles, tiles_raw = [], raw.get("tiles", {})
         for tile_id, tile_raw in tiles_raw.items():
             if not isinstance(tile_raw, dict):
                 logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
@@ -335,13 +335,13 @@ class DashboardMetadata:
                 except TypeError:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
-            tiles[tile.id] = tile
-        return cls(display_name=display_name, tile_metadatas=tiles)
+            tiles.append(tile)
+        return cls(display_name=display_name, tiles=tiles)
 
     def as_dict(self) -> dict:
         raw: dict = {"display_name": self.display_name}
-        if self.tile_metadatas:
-            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tile_metadatas.values()}
+        if self.tiles:
+            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tiles}
         return raw
 
     @classmethod
