@@ -6,13 +6,15 @@
   * [`.sql` files](#sql-files)
     * [Metadata](#metadata)
     * [Headers of SQL files](#headers-of-sql-files)
+      * [SQL header arguments](#sql-header-arguments)
     * [Implicit detection](#implicit-detection)
     * [Widget types](#widget-types)
-    * [Widget ordering](#widget-ordering)
+    * [Tile ordering](#tile-ordering)
     * [Widget identifiers](#widget-identifiers)
     * [Database name replacement](#database-name-replacement)
     * [Overrides](#overrides)
   * [`.md` files](#md-files)
+    * [Markdown header arguments](#markdown-header-arguments)
   * [`dashboard.yml` file](#dashboardyml-file)
   * [Using as library](#using-as-library)
   * [Configuration precedence](#configuration-precedence)
@@ -90,14 +92,20 @@ using `/* ... */`.
 | `argparse`   | ?           | lowest    |
 | Query string | ? | ? |
 
-#### Widget arguments
+#### SQL header arguments
 
-The following widget arguments are supported:
+The following arguments are supported in the SQL header:
 
-| Flag           | Description                                 | Type | Optional |
-|----------------|---------------------------------------------|------|----------|
-| -w or --width  | The number of columns that the widget spans | int  | Yes      |
-| -h or --height | The number of rows that the widget spans    | int  | Yes      |
+| Flag                | Description                                 | Type  | Optional |
+|---------------------|---------------------------------------------|-------|----------|
+| --id                | The widget identifier                       | str   | Yes      |
+| -o or --order       | The order of the widget                     | int   | Yes      |
+| -w or --width       | The number of columns that the widget spans | int   | Yes      |
+| -h or --height      | The number of rows that the widget spans    | int   | Yes      |
+| -t or --title       | The widget title                            | str   | Yes      |
+| -d or --description | The widget description                      | str   | Yes      |
+| --type              | The widget type                             | str   | Yes      |
+| -f or --filter      | The column(s) used when filtering           | str   | Yes      |
 
 [[back to top](#dashboards-as-code)]
 
@@ -125,12 +133,12 @@ supported:
 
 [[back to top](#dashboards-as-code)]
 
-### Widget ordering
+### Tile ordering
 
 The order of the tiles in the dashboard is determined by the order of the SQL files in the folder, order of `tiles` 
 in the [`dashboard.yml` file](#dashboardyml-file), or by the `order` key in the [SQL file metadata](#metadata).
 
-The ordering would also be based on the width and height of the widget, that _could be_ explicitly specified by 
+The ordering would also be based on the width and height of the tile, that _could be_ explicitly specified by 
 the user, but most of the times they may be inferred from the [widget types](#widget-types).
 
 This is done to avoid updating `x` and `y` coordinates in the SQL files when you want to change the order of the tiles.
@@ -139,12 +147,12 @@ We recommend using `000_` prefix for the SQL files to keep the order of the tile
 `000_` is the top of the dashboard and `999_` is the bottom. The first two digits would represent a row, and the last digit
 is used to order the tiles within the row.
 
-| Option | Move widget effort | Mix `dashboard.yml` and `.sql` files |
-| --- | --- |--------------------------------------|
-| `x` and `y` coordinates | 🚨 high | ✅ easy                               |
-| `order` key in the SQL file | ✅ low | ✅ easy                               |
-| `tiles` order in the `dashboard.yml` file | ✅ low | ⚠️ collisions possible               |
-| filename prefix | ✅ low | ⚠️ collisions possible               |
+| Option                                     | Move tile effort | Mix `dashboard.yml` and `.sql` files |
+|--------------------------------------------|------------------|--------------------------------------|
+| `x` and `y` coordinates                    | 🚨 high          | ✅ easy                              |
+| `order` key in the SQL file                | ✅ low            | ✅ easy                              |
+| `tiles` order in the  `dashboard.yml` file | ✅ low            | ⚠️ collisions possible               |
+| filename prefix                            | ✅ low            | ⚠️ collisions possible               |
 
 Order starts with `0` and in case of the `order` field conflict, we use the filename as a tie-breaker.
 
@@ -168,7 +176,7 @@ The order of the tiles from left-to-right and top-to-bottom in the dashboard wou
 
 ### Widget identifiers
 
-By default, we'll use the filename as the widget identifier, but you can override it by specifying the `id` key in the
+By default, we'll use the filename as the tile identifier, but you can override it by specifying the `id` key in the
 [SQL file metadata](#metadata).
 
 [[back to top](#dashboards-as-code)]
@@ -179,42 +187,90 @@ You can define and test your SQL queries in a separate development database, the
 the source control. We assume that the database name defined in the source control is a development reference database,
 and it would most likely have a different name in the environment where the dashboard is deployed.
 
-| Option | SQL copy-paste | Valid Syntax | Use as library | Use for CI/CD | Lib complexity |
-|--------|---|---|---|---|---------|
-| Rewrite SQL AST | ✅ | ✅ | ✅ | ✅ | 🚨 most | 
-| use a variable (e.g. `$inventory`) | 🚨 manual change required | ⚠️ syntax error | ✅ | ✅ | ⚠️ some |
-| do not replace database | ✅ | ✅ | 🚨 not reusable | ⚠️ no dev/prod | ✅ none  | 
-| use a separate branch | ✅ | ✅ | ✅ | ⚠️ complex setup | ✅ none  |
+| Option                             | SQL copy-paste            | Valid Syntax    | Use as library  | Use for CI/CD    | Lib complexity |
+|------------------------------------|---------------------------|-----------------|-----------------|------------------|----------------|
+| Rewrite SQL AST                    | ✅                         | ✅               | ✅               | ✅                | 🚨 most        | 
+| use a variable (e.g. `$inventory`) | 🚨 manual change required | ⚠️ syntax error | ✅               | ✅                | ⚠️ some        |
+| do not replace database            | ✅                         | ✅               | 🚨 not reusable | ⚠️ no dev/prod   | ✅ none         | 
+| use a separate branch              | ✅                         | ✅               | ✅               | ⚠️ complex setup | ✅ none         |
 
 [[back to top](#dashboards-as-code)]
 
 ### Overrides
 
 Overrides are used to augment the metadata that is defined in the SQL files with the lower-level Databricks Lakeview
-entities.
+entities. lsql supports overrides on the widget visualizing the query, other Lakeview entities can only be altered
+through the [arguments in the SQL file headers](#sql-header-argument).
+
+| Level    | Unambiguous | Coverage  | Easy of use | Code complexity |
+| -------- |-------------|-----------|-------------|-----------------|
+| Top      | Yes         | Dashboard | Low         | Medium          |
+| Widget   | No          | Widgets   | High        | Low             |
+| Column   | Yes         | Columns   | Very high   | High*           |
+
+Overrides on widgets are ambiguous, as one query may result in multiple widgets if filters are applied, however,
+the benefits of straightforwardly altering the widget that visualizes the query with the lowest code complexity
+outweighs the ambiguity. Moreover, the ambiguity is resolved with this section in the documentation.
+
+> *Code complexity for column overrides is high, as it introduces more query comment parsing.
 
 [[back to top](#dashboards-as-code)]
 
 ## `.md` files
 
-Markdown files are used to define text widgets that can populate a dashboard. 
+Markdown files are used to define text widgets that can populate a dashboard.
+[Front matter](https://gohugo.io/content-management/front-matter/) adds configuration at the top of the file. i.e. 
+YAML enclosed by two horizontal rules marked with dashes (---):
 
-The configuration file is written in YAML, and is structured in a way that is easy to read and 
-write.
+``` md
+---
+order: -1
+height: 5
+---
+# Churn dashboard
+
+Welcome to our churn dashboard! Let me show you around ...
+```
+
+### Markdown header arguments
+
+The following text tile arguments are supported:
+
+| Flag          | Description                                 | Type       | Optional |
+|---------------|---------------------------------------------|------------|----------|
+| id            | The widget identifier                       | str        | Yes      |
+| order         | The order of the widget                     | int        | Yes      |
+| width         | The number of columns that the widget spans | int        | Yes      |
+| height        | The number of rows that the widget spans    | int        | Yes      |
+| title         | The widget title                            | str        | Yes      |
+| description   | The widget description                      | str        | Yes      |
 
 [[back to top](#dashboards-as-code)]
 
 ## `dashboard.yml` file
 
-The `dashboard.yml` file is used to define a top-level metadata for the dashboard, such as the display name, warehouse,
-and the list of tile overrides for cases, that cannot be handled with the [high-level metadata](#metadata) in the SQL
-files. The file requires the `display_name` field, other fields are optional. See below for the configuration schema:
+The `dashboard.yml` file is used to define a top-level metadata for the dashboard, such as the display name. Also,
+this file may contain arguments for the tiles. The file requires the `display_name` field, other fields are
+optional. See below for the configuration schema:
 
 ```yml
 display_name: <display name>
-```
 
-This file may contain extra information about the [widgets](#widget-types), but we aim at mostly [inferring it](#implicit-detection) from the SQL files.
+tiles:
+  <tile id>:
+    order: <order>
+    width: <width>
+    height: <height>
+    title: <title>
+    description: <description>
+    type: <type>
+    filter: 
+      - <column>
+      - <column>
+  <tile id>:
+    ...
+  ...
+```
 
 [[back to top](#dashboards-as-code)]
 
