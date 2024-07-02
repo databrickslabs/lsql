@@ -282,7 +282,12 @@ class TileMetadata:
         if self._path is not None:
             body["path"] = self._path.as_posix()
         for attribute in dir(self):
-            if attribute.startswith("_") or callable(getattr(self, attribute)) or attribute in exclude_attributes:
+            if attribute.startswith("_"):
+              continue
+            if callable(getattr(self, attribute)):
+              continue
+            if attribute in exclude_attributes:
+              continue
                 continue
             value = getattr(self, attribute)
             if value is None or (isinstance(value, Sized) and len(value) == 0):
