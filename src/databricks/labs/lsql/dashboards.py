@@ -3,9 +3,14 @@ import copy
 import dataclasses
 import json
 import logging
+import math
+import re
 import shlex
 from argparse import ArgumentParser
+from collections import defaultdict
+from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
+from enum import Enum, unique
 from pathlib import Path
 from typing import TypeVar
 
@@ -16,19 +21,28 @@ from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
 from databricks.labs.lsql.lakeview import (
+    ColumnType,
+    ControlEncoding,
+    ControlEncodingMap,
     ControlFieldEncoding,
     CounterEncodingMap,
     CounterFieldEncoding,
     CounterSpec,
     Dashboard,
     Dataset,
+    DisplayType,
     Field,
     Layout,
+    MultiSelectSpec,
     NamedQuery,
     Page,
     Position,
     Query,
+    TableV1ColumnEncoding,
+    TableV1EncodingMap,
+    TableV1Spec,
     Widget,
+    WidgetFrameSpec,
     WidgetSpec,
 )
 
@@ -37,111 +51,613 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class DashboardMetadata:
-    display_name: str
+class BaseHandler:
+    """Base file handler.
 
-    @classmethod
-    def from_dict(cls, raw: dict[str, str]) -> "DashboardMetadata":
-        return cls(
-            display_name=raw["display_name"],
-        )
+    Handlers are based on a Python implementation for FrontMatter.
 
-    def as_dict(self) -> dict[str, str]:
-        return dataclasses.asdict(self)
+    Sources:
+        https://frontmatter.codes/docs/markdown
+        https://github.com/eyeseast/python-frontmatter/blob/main/frontmatter/default_handlers.py
+    """
 
-
-class WidgetMetadata:
-    def __init__(
-        self,
-        path: Path,
-        order: int = 0,
-        width: int = 0,
-        height: int = 0,
-        _id: str = "",
-    ):
-        self.path = path
-        self.order = order
-        self.width = width
-        self.height = height
-        self.id = _id
-
-        size = self._size
-        self.width = self.width or size[0]
-        self.height = self.height or size[1]
-        self.id = self.id or path.stem
-
-    def is_markdown(self) -> bool:
-        return self.path.suffix == ".md"
+    def __init__(self, path: Path | None) -> None:
+        self._path = path
 
     @property
-    def spec_type(self) -> type[WidgetSpec]:
-        # TODO: When supporting more specs, infer spec from query
-        return CounterSpec
+    def _content(self) -> str:
+        if self._path is None:
+            return ""
+        return self._path.read_text()
 
-    @property
-    def _size(self) -> tuple[int, int]:
-        """Get the width and height for a widget.
+    def parse_header(self) -> dict:
+        """Parse the header of the file."""
+        header, _ = self.split()
+        return self._parse_header(header)
 
-        The tiling logic works if:
-        - width < _MAXIMUM_DASHBOARD_WIDTH : heights for widgets on the same row should be equal
-        - width == _MAXIMUM_DASHBOARD_WIDTH : any height
+    def _parse_header(self, header: str) -> dict:
+        _ = self, header
+        return {}
+
+    def split(self) -> tuple[str, str]:
+        """Split the file header from the content.
+
+        Returns :
+            str : The file header possibly containing arguments.
+            str : The file contents.
         """
-        if self.is_markdown():
-            return _MAXIMUM_DASHBOARD_WIDTH, 2
-        if self.spec_type == CounterSpec:
-            return 1, 3
-        return 0, 0
+        return "", self._content
 
-    def as_dict(self) -> dict[str, str]:
-        body = {"path": self.path.as_posix()}
-        for attribute in "order", "width", "height", "id":
-            if attribute in body:
-                continue
-            value = getattr(self, attribute)
-            if value is not None:
-                body[attribute] = str(value)
-        return body
+
+class QueryHandler(BaseHandler):
+    """Handle query files."""
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
-        parser = ArgumentParser("WidgetMetadata", add_help=False, exit_on_error=False)
+        parser = ArgumentParser("TileMetadata", add_help=False, exit_on_error=False)
         parser.add_argument("--id", type=str)
         parser.add_argument("-o", "--order", type=int)
         parser.add_argument("-w", "--width", type=int)
         parser.add_argument("-h", "--height", type=int)
+        parser.add_argument("-t", "--title", type=str, default="")
+        parser.add_argument("-d", "--description", type=str, default="")
+        parser.add_argument(
+            "--type",
+            type=lambda v: WidgetType(v.upper()),
+            default=WidgetType.AUTO,
+            help=(
+                "The widget type to use, see classes with WidgetSpec as parent class in "
+                "databricks.labs.lsql.lakeview.model."
+            ),
+            dest="widget_type",
+        )
+        parser.add_argument(
+            "-f",
+            "--filter",
+            type=str,
+            action="extend",
+            dest="filters",
+            nargs="*",
+        )
+        parser.add_argument(
+            "--overrides",
+            type=json.loads,
+            help="Override the low-level Lakeview entities with a json payload.",
+        )
         return parser
 
-    def replace_from_arguments(self, arguments: list[str]) -> "WidgetMetadata":
-        replica = copy.deepcopy(self)
+    def _parse_header(self, header: str) -> dict:
+        """Header is an argparse string."""
+        header_split = shlex.split(header)
         parser = self._get_arguments_parser()
         try:
-            args = parser.parse_args(arguments)
+            return vars(parser.parse_args(header_split))
         except (argparse.ArgumentError, SystemExit) as e:
-            logger.warning(f"Parsing {arguments}: {e}")
-            return replica
+            logger.warning(f"Parsing {self._path}: {e}")
+            return vars(parser.parse_known_args(header_split)[0])
 
-        replica.order = args.order or self.order
-        replica.width = args.width or self.width
-        replica.height = args.height or self.height
-        replica.id = args.id or self.id
-        return replica
+    def split(self) -> tuple[str, str]:
+        """Split the query file header from the contents.
+
+        The optional header is the first comment at the top of the file.
+        """
+        try:
+            parsed_query = sqlglot.parse_one(self._content, dialect=sqlglot.dialects.Databricks)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {self._path}: {e}")
+            return "", self._content
+
+        if parsed_query.comments is None or len(parsed_query.comments) == 0:
+            return "", self._content
+
+        first_comment = parsed_query.comments[0]
+        return first_comment.strip(), self._content
+
+
+class MarkdownHandler(BaseHandler):
+    """Handle Markdown files."""
+
+    _FRONT_MATTER_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
+
+    def _parse_header(self, header: str) -> dict:
+        """Markdown configuration header is a YAML."""
+        _ = self
+        return yaml.safe_load(header) or {}
+
+    def split(self) -> tuple[str, str]:
+        """Split the markdown file header from the contents.
+
+        The header is enclosed by a horizontal line marked with three dashes '---'.
+        """
+        splits = self._FRONT_MATTER_BOUNDARY.split(self._content, 2)
+        if len(splits) == 3:
+            _, header, content = splits
+            return header.strip(), content.lstrip()
+        if len(splits) == 2:
+            logger.warning(f"Parsing {self._path}: Missing closing header boundary.")
+        return "", self._content
+
+
+@unique
+class WidgetType(str, Enum):
+    """The query widget type"""
+
+    AUTO = "AUTO"
+    TABLE = "TABLE"
+    COUNTER = "COUNTER"
+
+    def as_widget_spec(self) -> type[WidgetSpec]:
+        widget_spec_mapping: dict[str, type[WidgetSpec]] = {
+            "TABLE": TableV1Spec,
+            "COUNTER": CounterSpec,
+        }
+        if self.name not in widget_spec_mapping:
+            raise ValueError(f"Can not convert to widget spec: {self}")
+        return widget_spec_mapping[self.name]
+
+
+class TileMetadata:
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        path: str | Path | None = None,
+        order: int | None = None,
+        width: int = 0,
+        height: int = 0,
+        id: str = "",  # pylint: disable=redefined-builtin
+        title: str = "",
+        description: str = "",
+        widget_type: WidgetType = WidgetType.AUTO,
+        filters: list[str] | None = None,
+        overrides: dict | None = None,
+    ):
+        self._path = Path(path) if path is not None else None
+        self.order = order
+        self.width = width
+        self.height = height
+        self.id = id
+        if not self.id:
+            self.id = self._path.stem if self._path is not None else ""
+        self.title = title
+        self.description = description
+        self.widget_type = widget_type
+        self.filters = filters or []
+        self.overrides = overrides or {}
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TileMetadata):
+            return False
+        return self.as_dict() == other.as_dict()
+
+    def update(self, other: "TileMetadata") -> None:
+        """Update the tile metadata with another tile metadata.
+
+        Precendence:
+        - The other takes precendences, similar to merging dictionairies.
+        - Unless the others value is a default, then the value from self is taken.
+
+        Resources:
+        - https://docs.python.org/3/library/stdtypes.html#dict.update : Similar to the update method of a dictionary.
+        """
+        if not isinstance(other, TileMetadata):
+            raise TypeError(f"Can not merge with {other}")
+
+        widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
+
+        self._path = other._path or self._path
+        self.order = other.order or self.order
+        self.width = other.width or self.width
+        self.height = other.height or self.height
+        self.id = other.id or self.id
+        self.title = other.title or self.title
+        self.description = other.description or self.description
+        self.widget_type = widget_type
+        self.filters = other.filters or self.filters
+        self.overrides = other.overrides or self.overrides
+
+    def is_markdown(self) -> bool:
+        return self._path is not None and self._path.suffix == ".md"
+
+    def is_query(self) -> bool:
+        return self._path is not None and self._path.suffix == ".sql"
+
+    @property
+    def handler(self) -> BaseHandler:
+        handler = BaseHandler
+        if self.is_markdown():
+            handler = MarkdownHandler
+        elif self.is_query():
+            handler = QueryHandler
+        return handler(self._path)
 
     @classmethod
-    def from_path(cls, path: Path) -> "WidgetMetadata":
-        fallback_metadata = cls(path=path)
+    def from_dict(cls, raw: dict) -> "TileMetadata":
+        return cls(**raw)
 
+    def as_dict(self) -> dict:
+        exclude_attributes = {
+            "handler",  # Handler is inferred from file extension
+            "path",  # Path is set explicitly below
+        }
+        body = {}
+        if self._path is not None:
+            body["path"] = self._path.as_posix()
+        for attribute in dir(self):
+            if attribute.startswith("_"):
+                continue
+            if callable(getattr(self, attribute)):
+                continue
+            if attribute in exclude_attributes:
+                continue
+            value = getattr(self, attribute)
+            if value is None or (isinstance(value, Sized) and len(value) == 0):
+                continue
+            if hasattr(value, "value"):  # For Enums
+                value = value.value
+            body[attribute] = value
+        return body
+
+    @classmethod
+    def from_path(cls, path: Path) -> "TileMetadata":
+        tile_metadata = cls(path=path)
+        header = tile_metadata.handler.parse_header()
+        header["path"] = path
+        return cls.from_dict(header)
+
+    def __repr__(self):
+        return f"TileMetadata<{self._path}>"
+
+
+@dataclass
+class DashboardMetadata:
+    display_name: str
+    tiles: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, raw: dict) -> "DashboardMetadata":
+        display_name = raw["display_name"]  # Fail early if missing
+        tiles, tiles_raw = {}, raw.get("tiles", {})
+        for tile_id, tile_raw in tiles_raw.items():
+            if not isinstance(tile_raw, dict):
+                logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
+                continue
+            tile = TileMetadata(id=tile_id)
+            for tile_key, tile_value in tile_raw.items():
+                if tile_key == "id":
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
+                    continue
+                try:
+                    tile_new = TileMetadata.from_dict({tile_key: tile_value})
+                    tile.update(tile_new)
+                except TypeError:
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
+                    continue
+            tiles[tile.id] = tile
+        return cls(display_name=display_name, tiles=tiles)
+
+    def as_dict(self) -> dict:
+        raw: dict = {"display_name": self.display_name}
+        if self.tiles:
+            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tiles.values()}
+        return raw
+
+    @classmethod
+    def from_path(cls, path: Path) -> "DashboardMetadata":
+        """Export dashboard metadata from a YAML file."""
+        fallback_metadata = cls(display_name=path.parent.name)
+        if not path.exists():
+            return fallback_metadata
         try:
-            parsed_query = sqlglot.parse_one(path.read_text(), dialect=sqlglot.dialects.Databricks)
-        except sqlglot.ParseError as e:
+            raw = yaml.safe_load(path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+        try:
+            return cls.from_dict(raw)
+        except KeyError as e:
             logger.warning(f"Parsing {path}: {e}")
             return fallback_metadata
 
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return fallback_metadata
 
-        first_comment = parsed_query.comments[0]
-        return fallback_metadata.replace_from_arguments(shlex.split(first_comment))
+class Tile:
+    """A dashboard tile."""
+
+    def __init__(self, tile_metadata: TileMetadata) -> None:
+        self._metadata = tile_metadata
+
+        default_width, default_height = self._default_size()
+        width = self._metadata.width or default_width
+        height = self._metadata.height or default_height
+        self.position = Position(0, 0, width, height)
+
+    def _default_size(self) -> tuple[int, int]:
+        return 0, 0
+
+    def get_layouts(self) -> Iterable[Layout]:
+        """Get the layout(s) reflecting this tile in the dashboard."""
+        _, text = self._metadata.handler.split()
+        widget = Widget(name=self._metadata.id, textbox_spec=text)
+        layout = Layout(widget=widget, position=self.position)
+        yield layout
+
+    def place_after(self, position: Position) -> "Tile":
+        """Place the tile after another tile:
+
+        The tiling logic works if:
+        - `position.width < _MAXIMUM_DASHBOARD_WIDTH` : tiles in a single row should have the same size
+        - `position.width == _MAXIMUM_DASHBOARD_WIDTH` : any height
+        """
+        x = position.x + position.width
+        if x + self.position.width > _MAXIMUM_DASHBOARD_WIDTH:
+            x = 0
+            y = position.y + position.height
+        else:
+            y = position.y
+        new_position = dataclasses.replace(self.position, x=x, y=y)
+
+        replica = copy.deepcopy(self)
+        replica.position = new_position
+        return replica
+
+    @classmethod
+    def from_tile_metadata(cls, tile_metadata: TileMetadata) -> "Tile":
+        """Create a tile given the tile metadata."""
+        if tile_metadata.is_markdown():
+            return MarkdownTile(tile_metadata)
+        query_tile = QueryTile(tile_metadata)
+        spec_type = query_tile.infer_spec_type()
+        if spec_type is None:
+            return MarkdownTile(tile_metadata)
+        if spec_type == CounterSpec:
+            return CounterTile(tile_metadata)
+        return TableTile(tile_metadata)
+
+    def __repr__(self):
+        return f"Tile<{self._metadata}>"
+
+
+class MarkdownTile(Tile):
+    def _default_size(self) -> tuple[int, int]:
+        return _MAXIMUM_DASHBOARD_WIDTH, 3
+
+
+def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sqlglot.Expression:
+    """Replace the database in a query."""
+    if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
+        node.args["db"].set("this", database)
+    return node
+
+
+class QueryTile(Tile):
+    _DIALECT = sqlglot.dialects.Databricks
+    _FILTER_HEIGHT = 1
+
+    def __init__(
+        self,
+        tile_metadata: TileMetadata,
+        *,
+        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
+    ) -> None:
+        super().__init__(tile_metadata)
+        self.query_transformer = query_transformer
+
+    def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
+        _, query = self._metadata.handler.split()
+        try:
+            return sqlglot.parse_one(query, dialect=self._DIALECT)
+        except sqlglot.ParseError as e:
+            logger.warning(f"Parsing {query}: {e}")
+            return None
+
+    def _get_query(self) -> str:
+        _, query = self._metadata.handler.split()
+        if self.query_transformer is None:
+            return query
+        syntax_tree = self._get_abstract_syntax_tree()
+        if syntax_tree is None:
+            return query
+        query_transformed = syntax_tree.transform(self.query_transformer).sql(
+            dialect=self._DIALECT,
+            # A transformer requires to (re)define how to output SQL
+            normalize=True,  # normalize identifiers to lowercase
+            pretty=True,  # format the produced SQL string
+            normalize_functions="upper",  # normalize function names to uppercase
+            max_text_width=80,  # wrap text at 80 characters
+        )
+        return query_transformed
+
+    def _find_fields(self) -> list[Field]:
+        """Find the fields in a query.
+
+        The fields are the projections in the query's top level SELECT.
+        """
+        abstract_syntax_tree = self._get_abstract_syntax_tree()
+        if abstract_syntax_tree is None:
+            return []
+
+        fields = []
+        for projection in abstract_syntax_tree.find_all(sqlglot.exp.Select):
+            if projection.depth > 0:
+                continue
+            for named_select in projection.named_selects:
+                field = Field(name=named_select, expression=f"`{named_select}`")
+                if named_select == "*":
+                    raise NotImplementedError(f"Select with `*`, please define column explicitly: {self}")
+                fields.append(field)
+        return fields
+
+    def infer_spec_type(self) -> type[WidgetSpec] | None:
+        """Infer the spec type from the query."""
+        if self._metadata.widget_type != WidgetType.AUTO:
+            return self._metadata.widget_type.as_widget_spec()
+        fields = self._find_fields()
+        if len(fields) == 0:
+            return None
+        if len(fields) == 1:
+            return CounterSpec
+        return TableV1Spec
+
+    def get_datasets(self) -> Iterable[Dataset]:
+        """Get the dataset belonging to the query."""
+        query = self._get_query()
+        dataset = Dataset(name=self._metadata.id, display_name=self._metadata.id, query=query)
+        yield dataset
+
+    def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
+        """Merge nested dictionairies."""
+        out: dict = defaultdict(dict)
+        out.update(left)
+        for key, value in right.items():
+            if isinstance(value, dict):
+                value_merged = self._merge_nested_dictionaries(out[key], value)
+                out[key].update(value_merged)
+            else:
+                out[key] = value
+        return dict(out)
+
+    def _merge_widget_with_overrides(self, widget: Widget) -> Widget:
+        """Merge the widget with (optional) overrides."""
+        if not self._metadata.overrides:
+            return widget
+        updated = self._merge_nested_dictionaries(widget.as_dict(), self._metadata.overrides)
+        widget = widget.from_dict(updated)
+        return widget
+
+    def _get_query_layouts(self) -> Iterable[Layout]:
+        """Get the layout visualizing the dataset.
+
+        This is the main layout within the tile as it visualizes the dataset.
+        """
+        fields = self._find_fields()
+        query = Query(dataset_name=self._metadata.id, fields=fields, disaggregated=True)
+        # As far as testing went, a NamedQuery should always have "main_query" as name
+        named_query = NamedQuery(name="main_query", query=query)
+        frame = WidgetFrameSpec(
+            title=self._metadata.title,
+            show_title=len(self._metadata.title) > 0,
+            description=self._metadata.description,
+            show_description=len(self._metadata.description) > 0,
+        )
+        spec = self._get_query_widget_spec(fields, frame=frame)
+        widget = Widget(name=self._metadata.id, queries=[named_query], spec=spec)
+        widget = self._merge_widget_with_overrides(widget)
+        height = self.position.height
+        if len(self._metadata.filters) > 0 and self.position.width > 0:
+            height -= self._FILTER_HEIGHT * math.ceil(len(self._metadata.filters) / self.position.width)
+        height = max(height, 0)
+        y = self.position.y + self.position.height - height
+        position = dataclasses.replace(self.position, y=y, height=height)
+        layout = Layout(widget=widget, position=position)
+        yield layout
+
+    def _get_filter_widget(self, column: str) -> Widget:
+        """Get the widget for visualizing the (optional) filter.
+
+        For a filter, an additional query column implements the filter (see _associativity below). Note that this column
+        does not need to be encoded.
+        """
+        fields = [
+            Field(name=column, expression=f"`{column}`"),
+            Field(name=f"{column}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
+        ]
+        query = Query(dataset_name=self._metadata.id, fields=fields, disaggregated=False)
+        named_query = NamedQuery(name=f"filter_{column}", query=query)
+        control_encodings: list[ControlEncoding] = [ControlFieldEncoding(column, named_query.name, display_name=column)]
+        control_encoding_map = ControlEncodingMap(control_encodings)
+        spec = MultiSelectSpec(encodings=control_encoding_map)
+        widget = Widget(name=f"{self._metadata.id}_filter_{column}", queries=[named_query], spec=spec)
+        return widget
+
+    def _get_filter_positions(self) -> Iterable[Position]:
+        """Get the filter positions.
+
+        The positioning of filters works as follows:
+        0) Filters fit **within** the tile
+        1) Filters are placed above the query widget
+        2) Many filters:
+           i) fill up a row first, by adjusting their width so that the total width of the filters in a row match the
+              width of the tile whilst having a minimum filter width of one
+           ii) occupy an additional row if the previous one is filled completely.
+        """
+        filters_size = len(self._metadata.filters) * self._FILTER_HEIGHT
+        if filters_size > self.position.width * (self.position.height - 1):  # At least one row for the query widget
+            raise ValueError(f"Too many filters defined for {self}")
+
+        # The bottom row requires bookkeeping to adjust the filters width to fill it completely
+        bottom_row_index = len(self._metadata.filters) // self.position.width
+        bottom_row_filter_count = len(self._metadata.filters) % self.position.width or self.position.width
+        bottom_row_filter_width = self.position.width // bottom_row_filter_count
+        bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
+
+        for filter_index in range(len(self._metadata.filters)):
+            if filter_index % self.position.width == 0:
+                x_offset = 0  # Reset on new row
+            x = self.position.x + x_offset
+            y = self.position.y + self._FILTER_HEIGHT * (filter_index // self.position.width)
+            width = 1
+            if filter_index // self.position.width == bottom_row_index:  # Reached bottom row
+                width = bottom_row_filter_width
+                if filter_index % self.position.width < bottom_row_remainder_width:
+                    width += 1  # Fills up the remainder width if self.position.width % bottom_row_filter_count != 0
+            position = Position(x, y, width, self._FILTER_HEIGHT)
+            yield position
+            x_offset += width
+
+    def _get_filters_layouts(self) -> Iterable[Layout]:
+        """Get the layout visualizing the (optional) filters."""
+        if len(self._metadata.filters) == 0:
+            return
+        for filter_index, position in enumerate(self._get_filter_positions()):
+            widget = self._get_filter_widget(self._metadata.filters[filter_index])
+            layout = Layout(widget=widget, position=position)
+            yield layout
+
+    def get_layouts(self) -> Iterable[Layout]:
+        """Get the layout(s) reflecting this tile in the dashboard."""
+        yield from self._get_query_layouts()
+        yield from self._get_filters_layouts()
+
+    @staticmethod
+    def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> WidgetSpec:
+        """Get the query widget spec.
+
+        In most cases, overwriting this method with a Tile specific spec is sufficient for support other widget types.
+        """
+        column_encodings = []
+        for field in fields:
+            column_encoding = TableV1ColumnEncoding(
+                boolean_values=["false", "true"],
+                display_as=DisplayType.STRING,
+                field_name=field.name,
+                title=field.name,
+                type=ColumnType.STRING,
+            )
+            column_encodings.append(column_encoding)
+        table_encodings = TableV1EncodingMap(column_encodings)
+        spec = TableV1Spec(
+            allow_html_by_default=False,
+            condensed=True,
+            encodings=table_encodings,
+            invisible_columns=[],
+            items_per_page=25,
+            frame=frame,
+        )
+        return spec
+
+
+class TableTile(QueryTile):
+    def _default_size(self) -> tuple[int, int]:
+        return 6, 6
+
+
+class CounterTile(QueryTile):
+    def _default_size(self) -> tuple[int, int]:
+        return 1, 3
+
+    @staticmethod
+    def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
+        counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
+        spec = CounterSpec(CounterEncodingMap(value=counter_encodings), frame=frame)
+        return spec
 
 
 class Dashboards:
@@ -183,19 +699,35 @@ class Dashboards:
                     normalize=True,  # normalize identifiers to lowercase
                     pretty=True,  # format the produced SQL string
                     normalize_functions="upper",  # normalize function names to uppercase
-                    max_text_width=80,  # wrap text at 120 characters
+                    max_text_width=80,  # wrap text at 80 characters
                 )
             )
         formatted_query = ";\n".join(statements)
         return formatted_query
 
-    def create_dashboard(self, dashboard_folder: Path) -> Dashboard:
-        """Create a dashboard from code, i.e. configuration and queries."""
-        dashboard_metadata = self._parse_dashboard_metadata(dashboard_folder)
-        widgets_metadata = self._get_widgets_metadata(dashboard_folder)
-        datasets = self._get_datasets(dashboard_folder)
-        widgets = self._get_widgets(widgets_metadata)
-        layouts = self._get_layouts(widgets, widgets_metadata)
+    def create_dashboard(
+        self,
+        dashboard_folder: Path,
+        *,
+        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
+    ) -> Dashboard:
+        """Create a dashboard from code, i.e. configuration and queries.
+
+        Parameters :
+            dashboard_folder : Path
+                The path to the folder with dashboard files.
+            query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default | None)
+                A sqlglot transformer applied on the queries (SQL files) before creating the dashboard. If None, no
+                transformation will be applied.
+
+        Source :
+            https://sqlglot.com/sqlglot/transforms.html
+        """
+        dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
+        tiles_metadata = self._parse_tiles_metadata(dashboard_folder, dashboard_metadata)
+        tiles = self._get_tiles(tiles_metadata, query_transformer=query_transformer)
+        datasets = self._get_datasets(tiles)
+        layouts = self._get_layouts(tiles)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -205,131 +737,87 @@ class Dashboards:
         return lakeview_dashboard
 
     @staticmethod
-    def _get_datasets(dashboard_folder: Path) -> list[Dataset]:
-        datasets = []
-        for query_path in sorted(dashboard_folder.glob("*.sql")):
-            with query_path.open("r") as query_file:
-                raw_query = query_file.read()
-            dataset = Dataset(name=query_path.stem, display_name=query_path.stem, query=raw_query)
-            datasets.append(dataset)
+    def _parse_tiles_metadata(dashboard_folder: Path, dashboard_metadata: DashboardMetadata) -> list[TileMetadata]:
+        """Parse the tile metadata from each (optional) header."""
+        tiles_metadata = []
+        for path in dashboard_folder.iterdir():
+            if path.suffix in {".sql", ".md"}:
+                tile_metadata = TileMetadata.from_path(path)
+                if tile_metadata.id in dashboard_metadata.tiles:
+                    # The line below implements the precedence for metadata in the file header over dashboard.yml
+                    dashboard_metadata.tiles[tile_metadata.id].update(tile_metadata)
+                    tile_metadata = dashboard_metadata.tiles[tile_metadata.id]
+                tiles_metadata.append(tile_metadata)
+        return tiles_metadata
+
+    @staticmethod
+    def _get_tiles(
+        tiles_metadata: list[TileMetadata],
+        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
+    ) -> list[Tile]:
+        """Create tiles from the tiles metadata.
+
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the multiple loops to get:
+        i) set the order when not specified;
+        ii) sort the tiles using the order field.
+        """
+        tiles_metadata_with_order = []
+        for order, tile_metadata in enumerate(sorted(tiles_metadata, key=lambda wm: wm.id)):
+            replica = copy.deepcopy(tile_metadata)
+            replica.order = tile_metadata.order if tile_metadata.order is not None else order
+            tiles_metadata_with_order.append(replica)
+
+        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        for tile_metadata in sorted(tiles_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
+            tile = Tile.from_tile_metadata(tile_metadata)
+            if isinstance(tile, QueryTile):
+                tile.query_transformer = query_transformer
+            placed_tile = tile.place_after(position)
+            tiles.append(placed_tile)
+            position = placed_tile.position
+        return tiles
+
+    @staticmethod
+    def _get_datasets(tiles: list[Tile]) -> list[Dataset]:
+        datasets: list[Dataset] = []
+        for tile in tiles:
+            if isinstance(tile, QueryTile):
+                datasets.extend(tile.get_datasets())
         return datasets
 
     @staticmethod
-    def _get_widgets_metadata(dashboard_folder: Path) -> list[WidgetMetadata]:
-        """Read and parse the widget metadata from each (optional) header.
-
-        The order is by default the alphanumerically sorted files, however, the order may be overwritten in the file
-        header with the `order` key. Hence, the multiple loops to get:
-        i) the optional order from the file header;
-        ii) set the order when not specified;
-        iii) sort the widgets using the order field.
-        """
-        widgets_metadata = []
-        for path in sorted(dashboard_folder.iterdir()):
-            if path.suffix not in {".sql", ".md"}:
-                continue
-            widget_metadata = WidgetMetadata.from_path(path)
-            widgets_metadata.append(widget_metadata)
-        widgets_metadata_with_order = []
-        for order, widget_metadata in enumerate(sorted(widgets_metadata, key=lambda wm: wm.id)):
-            replica = copy.deepcopy(widget_metadata)
-            replica.order = widget_metadata.order or order
-            widgets_metadata_with_order.append(replica)
-        widgets_metadata_sorted = list(sorted(widgets_metadata_with_order, key=lambda wm: (wm.order, wm.id)))
-        return widgets_metadata_sorted
-
-    def _get_widgets(self, widgets_metadata: list[WidgetMetadata]) -> list[Widget]:
-        widgets = []
-        for widget_metadata in widgets_metadata:
-            try:
-                widget = self._get_widget(widget_metadata)
-            except sqlglot.ParseError as e:
-                logger.warning(f"Parsing {widget_metadata.path}: {e}")
-                continue
-            widgets.append(widget)
-        return widgets
-
-    def _get_layouts(self, widgets: list[Widget], widgets_metadata: list[WidgetMetadata]) -> list[Layout]:
-        layouts, position = [], Position(0, 0, 0, 0)  # First widget position
-        for widget, widget_metadata in zip(widgets, widgets_metadata):
-            position = self._get_position(position, widget_metadata)
-            layout = Layout(widget=widget, position=position)
-            layouts.append(layout)
+    def _get_layouts(tiles: list[Tile]) -> list[Layout]:
+        """Create layouts from the tiles."""
+        layouts: list[Layout] = []
+        for tile in tiles:
+            layouts.extend(tile.get_layouts())
         return layouts
 
-    @staticmethod
-    def _parse_dashboard_metadata(dashboard_folder: Path) -> DashboardMetadata:
-        fallback_metadata = DashboardMetadata(display_name=dashboard_folder.name)
-
-        dashboard_metadata_path = dashboard_folder / "dashboard.yml"
-        if not dashboard_metadata_path.exists():
-            return fallback_metadata
-
-        try:
-            raw = yaml.safe_load(dashboard_metadata_path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
-        try:
-            return DashboardMetadata.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {dashboard_metadata_path}: {e}")
-            return fallback_metadata
-
-    def _get_widget(self, widget_metadata: WidgetMetadata) -> Widget:
-        if widget_metadata.is_markdown():
-            return self._get_text_widget(widget_metadata)
-        return self._get_counter_widget(widget_metadata)
-
-    @staticmethod
-    def _get_text_widget(widget_metadata: WidgetMetadata) -> Widget:
-        widget = Widget(name=widget_metadata.id, textbox_spec=widget_metadata.path.read_text())
-        return widget
-
-    def _get_counter_widget(self, widget_metadata: WidgetMetadata) -> Widget:
-        fields = self._get_fields(widget_metadata.path.read_text())
-        query = Query(dataset_name=widget_metadata.id, fields=fields, disaggregated=True)
-        # As far as testing went, a NamedQuery should always have "main_query" as name
-        named_query = NamedQuery(name="main_query", query=query)
-        # Counters are expected to have one field
-        counter_field_encoding = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
-        counter_spec = CounterSpec(CounterEncodingMap(value=counter_field_encoding))
-        widget = Widget(name=widget_metadata.id, queries=[named_query], spec=counter_spec)
-        return widget
-
-    @staticmethod
-    def _get_fields(query: str) -> list[Field]:
-        parsed_query = sqlglot.parse_one(query, dialect=sqlglot.dialects.Databricks)
-        fields = []
-        for projection in parsed_query.find_all(sqlglot.exp.Select):
-            if projection.depth > 0:
-                continue
-            for named_select in projection.named_selects:
-                field = Field(name=named_select, expression=f"`{named_select}`")
-                fields.append(field)
-        return fields
-
-    @staticmethod
-    def _get_position(previous_position: Position, widget_metadata: WidgetMetadata) -> Position:
-        x = previous_position.x + previous_position.width
-        if x + widget_metadata.width > _MAXIMUM_DASHBOARD_WIDTH:
-            x = 0
-            y = previous_position.y + previous_position.height
-        else:
-            y = previous_position.y
-        position = Position(x=x, y=y, width=widget_metadata.width, height=widget_metadata.height)
-        return position
-
-    def deploy_dashboard(self, lakeview_dashboard: Dashboard, *, dashboard_id: str | None = None) -> SDKDashboard:
+    def deploy_dashboard(
+        self,
+        lakeview_dashboard: Dashboard,
+        *,
+        parent_path: str | None = None,
+        dashboard_id: str | None = None,
+        warehouse_id: str | None = None,
+    ) -> SDKDashboard:
         """Deploy a lakeview dashboard."""
+        serialized_dashboard = json.dumps(lakeview_dashboard.as_dict())
+        display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
         if dashboard_id is not None:
             dashboard = self._ws.lakeview.update(
-                dashboard_id, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
+                dashboard_id,
+                display_name=display_name,
+                serialized_dashboard=serialized_dashboard,
+                warehouse_id=warehouse_id,
             )
         else:
-            display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
             dashboard = self._ws.lakeview.create(
-                display_name, serialized_dashboard=json.dumps(lakeview_dashboard.as_dict())
+                display_name,
+                parent_path=parent_path,
+                serialized_dashboard=serialized_dashboard,
+                warehouse_id=warehouse_id,
             )
         return dashboard
 
