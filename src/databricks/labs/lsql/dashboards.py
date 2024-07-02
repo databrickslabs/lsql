@@ -310,7 +310,7 @@ class TileMetadata:
 @dataclass
 class DashboardMetadata:
     display_name: str
-    tiles: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
+    tile_metadatas: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
@@ -332,12 +332,12 @@ class DashboardMetadata:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
             tiles[tile.id] = tile
-        return cls(display_name=display_name, tiles=tiles)
+        return cls(display_name=display_name, tile_metadatas=tiles)
 
     def as_dict(self) -> dict:
         raw: dict = {"display_name": self.display_name}
-        if self.tiles:
-            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tiles.values()}
+        if self.tile_metadatas:
+            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tile_metadatas.values()}
         return raw
 
     @classmethod
@@ -743,10 +743,10 @@ class Dashboards:
         for path in dashboard_folder.iterdir():
             if path.suffix in {".sql", ".md"}:
                 tile_metadata = TileMetadata.from_path(path)
-                if tile_metadata.id in dashboard_metadata.tiles:
+                if tile_metadata.id in dashboard_metadata.tile_metadatas:
                     # The line below implements the precedence for metadata in the file header over dashboard.yml
-                    dashboard_metadata.tiles[tile_metadata.id].update(tile_metadata)
-                    tile_metadata = dashboard_metadata.tiles[tile_metadata.id]
+                    dashboard_metadata.tile_metadatas[tile_metadata.id].update(tile_metadata)
+                    tile_metadata = dashboard_metadata.tile_metadatas[tile_metadata.id]
                 tiles_metadata.append(tile_metadata)
         return tiles_metadata
 

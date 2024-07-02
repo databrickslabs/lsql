@@ -51,8 +51,8 @@ def test_dashboard_metadata_sets_tiles_from_dict():
     tile_metadata = TileMetadata(Path("test.sql"))
     raw = {"display_name": "test", "tiles": {"test": {"path": "test.sql"}}}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
-    assert len(dashboard_metadata.tiles) == 1
-    assert dashboard_metadata.tiles["test"] == tile_metadata
+    assert len(dashboard_metadata.tile_metadatas) == 1
+    assert dashboard_metadata.tile_metadatas["test"] == tile_metadata
 
 
 def test_dashboard_metadata_ignores_id_overwrite(caplog):
@@ -61,9 +61,9 @@ def test_dashboard_metadata_ignores_id_overwrite(caplog):
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
         dashboard_metadata = DashboardMetadata.from_dict(raw)
 
-    assert "test" in dashboard_metadata.tiles
-    assert "not_test" not in dashboard_metadata.tiles
-    assert dashboard_metadata.tiles["test"].id == "test"
+    assert "test" in dashboard_metadata.tile_metadatas
+    assert "not_test" not in dashboard_metadata.tile_metadatas
+    assert dashboard_metadata.tile_metadatas["test"].id == "test"
     assert "Parsing unsupported field in dashboard.yml: tiles.test.id" in caplog.text
 
 
@@ -125,13 +125,13 @@ tiles:
         dashboard_metadata = DashboardMetadata.from_path(path)
 
     assert dashboard_metadata.display_name == "name"
-    assert "correct" in dashboard_metadata.tiles
-    assert "partial_correct" in dashboard_metadata.tiles
-    assert "incorrect" not in dashboard_metadata.tiles
+    assert "correct" in dashboard_metadata.tile_metadatas
+    assert "partial_correct" in dashboard_metadata.tile_metadatas
+    assert "incorrect" not in dashboard_metadata.tile_metadatas
     assert "Parsing invalid tile metadata in dashboard.yml: tiles.incorrect.[{'order': 2}]" in caplog.text
     assert "Parsing unsupported field in dashboard.yml: tiles.partial_correct.non_existing_key" in caplog.text
-    assert dashboard_metadata.tiles["correct"].order == 1
-    assert dashboard_metadata.tiles["partial_correct"].order == 3
+    assert dashboard_metadata.tile_metadatas["correct"].order == 1
+    assert dashboard_metadata.tile_metadatas["partial_correct"].order == 3
 
 
 def test_tile_metadata_is_markdown():
