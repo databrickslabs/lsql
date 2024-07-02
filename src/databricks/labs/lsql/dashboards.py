@@ -363,11 +363,11 @@ class Tile:
     """A dashboard tile."""
 
     def __init__(self, tile_metadata: TileMetadata) -> None:
-        self._tile_metadata = tile_metadata
+        self._metadata = tile_metadata
 
         default_width, default_height = self._default_size()
-        width = self._tile_metadata.width or default_width
-        height = self._tile_metadata.height or default_height
+        width = self._metadata.width or default_width
+        height = self._metadata.height or default_height
         self.position = Position(0, 0, width, height)
 
     def _default_size(self) -> tuple[int, int]:
@@ -375,8 +375,8 @@ class Tile:
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        _, text = self._tile_metadata.handler.split()
-        widget = Widget(name=self._tile_metadata.id, textbox_spec=text)
+        _, text = self._metadata.handler.split()
+        widget = Widget(name=self._metadata.id, textbox_spec=text)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
@@ -413,7 +413,7 @@ class Tile:
         return TableTile(tile_metadata)
 
     def __repr__(self):
-        return f"Tile<{self._tile_metadata}>"
+        return f"Tile<{self._metadata}>"
 
 
 class MarkdownTile(Tile):
@@ -442,7 +442,7 @@ class QueryTile(Tile):
         self.query_transformer = query_transformer
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        _, query = self._tile_metadata.handler.split()
+        _, query = self._metadata.handler.split()
         try:
             return sqlglot.parse_one(query, dialect=self._DIALECT)
         except sqlglot.ParseError as e:
@@ -450,7 +450,7 @@ class QueryTile(Tile):
             return None
 
     def _get_query(self) -> str:
-        _, query = self._tile_metadata.handler.split()
+        _, query = self._metadata.handler.split()
         if self.query_transformer is None:
             return query
         syntax_tree = self._get_abstract_syntax_tree()
@@ -488,8 +488,8 @@ class QueryTile(Tile):
 
     def infer_spec_type(self) -> type[WidgetSpec] | None:
         """Infer the spec type from the query."""
-        if self._tile_metadata.widget_type != WidgetType.AUTO:
-            return self._tile_metadata.widget_type.as_widget_spec()
+        if self._metadata.widget_type != WidgetType.AUTO:
+            return self._metadata.widget_type.as_widget_spec()
         fields = self._find_fields()
         if len(fields) == 0:
             return None
@@ -500,7 +500,7 @@ class QueryTile(Tile):
     def get_datasets(self) -> Iterable[Dataset]:
         """Get the dataset belonging to the query."""
         query = self._get_query()
-        dataset = Dataset(name=self._tile_metadata.id, display_name=self._tile_metadata.id, query=query)
+        dataset = Dataset(name=self._metadata.id, display_name=self._metadata.id, query=query)
         yield dataset
 
     def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
@@ -517,9 +517,9 @@ class QueryTile(Tile):
 
     def _merge_widget_with_overrides(self, widget: Widget) -> Widget:
         """Merge the widget with (optional) overrides."""
-        if not self._tile_metadata.overrides:
+        if not self._metadata.overrides:
             return widget
-        updated = self._merge_nested_dictionaries(widget.as_dict(), self._tile_metadata.overrides)
+        updated = self._merge_nested_dictionaries(widget.as_dict(), self._metadata.overrides)
         widget = widget.from_dict(updated)
         return widget
 
@@ -529,21 +529,21 @@ class QueryTile(Tile):
         This is the main layout within the tile as it visualizes the dataset.
         """
         fields = self._find_fields()
-        query = Query(dataset_name=self._tile_metadata.id, fields=fields, disaggregated=True)
+        query = Query(dataset_name=self._metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
         frame = WidgetFrameSpec(
-            title=self._tile_metadata.title,
-            show_title=len(self._tile_metadata.title) > 0,
-            description=self._tile_metadata.description,
-            show_description=len(self._tile_metadata.description) > 0,
+            title=self._metadata.title,
+            show_title=len(self._metadata.title) > 0,
+            description=self._metadata.description,
+            show_description=len(self._metadata.description) > 0,
         )
         spec = self._get_query_widget_spec(fields, frame=frame)
-        widget = Widget(name=self._tile_metadata.id, queries=[named_query], spec=spec)
+        widget = Widget(name=self._metadata.id, queries=[named_query], spec=spec)
         widget = self._merge_widget_with_overrides(widget)
         height = self.position.height
-        if len(self._tile_metadata.filters) > 0 and self.position.width > 0:
-            height -= self._FILTER_HEIGHT * math.ceil(len(self._tile_metadata.filters) / self.position.width)
+        if len(self._metadata.filters) > 0 and self.position.width > 0:
+            height -= self._FILTER_HEIGHT * math.ceil(len(self._metadata.filters) / self.position.width)
         height = max(height, 0)
         y = self.position.y + self.position.height - height
         position = dataclasses.replace(self.position, y=y, height=height)
@@ -560,12 +560,12 @@ class QueryTile(Tile):
             Field(name=column, expression=f"`{column}`"),
             Field(name=f"{column}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
         ]
-        query = Query(dataset_name=self._tile_metadata.id, fields=fields, disaggregated=False)
+        query = Query(dataset_name=self._metadata.id, fields=fields, disaggregated=False)
         named_query = NamedQuery(name=f"filter_{column}", query=query)
         control_encodings: list[ControlEncoding] = [ControlFieldEncoding(column, named_query.name, display_name=column)]
         control_encoding_map = ControlEncodingMap(control_encodings)
         spec = MultiSelectSpec(encodings=control_encoding_map)
-        widget = Widget(name=f"{self._tile_metadata.id}_filter_{column}", queries=[named_query], spec=spec)
+        widget = Widget(name=f"{self._metadata.id}_filter_{column}", queries=[named_query], spec=spec)
         return widget
 
     def _get_filter_positions(self) -> Iterable[Position]:
@@ -579,17 +579,17 @@ class QueryTile(Tile):
               width of the tile whilst having a minimum filter width of one
            ii) occupy an additional row if the previous one is filled completely.
         """
-        filters_size = len(self._tile_metadata.filters) * self._FILTER_HEIGHT
+        filters_size = len(self._metadata.filters) * self._FILTER_HEIGHT
         if filters_size > self.position.width * (self.position.height - 1):  # At least one row for the query widget
             raise ValueError(f"Too many filters defined for {self}")
 
         # The bottom row requires bookkeeping to adjust the filters width to fill it completely
-        bottom_row_index = len(self._tile_metadata.filters) // self.position.width
-        bottom_row_filter_count = len(self._tile_metadata.filters) % self.position.width or self.position.width
+        bottom_row_index = len(self._metadata.filters) // self.position.width
+        bottom_row_filter_count = len(self._metadata.filters) % self.position.width or self.position.width
         bottom_row_filter_width = self.position.width // bottom_row_filter_count
         bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
 
-        for filter_index in range(len(self._tile_metadata.filters)):
+        for filter_index in range(len(self._metadata.filters)):
             if filter_index % self.position.width == 0:
                 x_offset = 0  # Reset on new row
             x = self.position.x + x_offset
@@ -605,10 +605,10 @@ class QueryTile(Tile):
 
     def _get_filters_layouts(self) -> Iterable[Layout]:
         """Get the layout visualizing the (optional) filters."""
-        if len(self._tile_metadata.filters) == 0:
+        if len(self._metadata.filters) == 0:
             return
         for filter_index, position in enumerate(self._get_filter_positions()):
-            widget = self._get_filter_widget(self._tile_metadata.filters[filter_index])
+            widget = self._get_filter_widget(self._metadata.filters[filter_index])
             layout = Layout(widget=widget, position=position)
             yield layout
 
