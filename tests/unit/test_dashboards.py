@@ -363,7 +363,7 @@ def test_tile_metadata_replaces_attribute(tmp_path, attribute: str):
         order=1,
         width=1,
         height=1,
-        _id="1",
+        id="1",
         title="1",
         description="1",
         widget_type=WidgetType.AUTO,

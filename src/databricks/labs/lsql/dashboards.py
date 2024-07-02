@@ -203,7 +203,7 @@ class TileMetadata:
         order: int | None = None,
         width: int = 0,
         height: int = 0,
-        _id: str = "",
+        id: str = "",  # pylint: disable=redefined-builtin
         title: str = "",
         description: str = "",
         widget_type: WidgetType = WidgetType.AUTO,
@@ -214,7 +214,7 @@ class TileMetadata:
         self.order = order
         self.width = width
         self.height = height
-        self.id = _id
+        self.id = id
         if not self.id:
             self.id = self._path.stem if self._path is not None else ""
         self.title = title
@@ -245,7 +245,7 @@ class TileMetadata:
             order=other.order or self.order,
             width=other.width or self.width,
             height=other.height or self.height,
-            _id=other.id or self.id,
+            id=other.id or self.id,
             title=other.title or self.title,
             description=other.description or self.description,
             widget_type=widget_type,
@@ -271,10 +271,6 @@ class TileMetadata:
 
     @classmethod
     def from_dict(cls, raw: dict) -> "TileMetadata":
-        if "id" in raw:
-            raw = copy.deepcopy(raw)
-            raw["_id"] = raw["id"]
-            del raw["id"]
         return cls(**raw)
 
     def as_dict(self) -> dict:
@@ -320,7 +316,7 @@ class DashboardMetadata:
             if not isinstance(tile_raw, dict):
                 logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
                 continue
-            tile = TileMetadata(_id=tile_id)
+            tile = TileMetadata(id=tile_id)
             for tile_key, tile_value in tile_raw.items():
                 if tile_key == "id":
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
