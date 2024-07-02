@@ -298,6 +298,56 @@ class TileMetadata:
 
 
 @dataclass
+class DashboardMetadata:
+    display_name: str
+    tile_metadatas: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, raw: dict) -> "DashboardMetadata":
+        display_name = raw["display_name"]  # Fail early if missing
+        tiles, tiles_raw = {}, raw.get("tiles", {})
+        for tile_id, tile_raw in tiles_raw.items():
+            if not isinstance(tile_raw, dict):
+                logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
+                continue
+            tile = TileMetadata(id=tile_id)
+            for tile_key, tile_value in tile_raw.items():
+                if tile_key == "id":
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
+                    continue
+                try:
+                    tile_new = TileMetadata.from_dict({tile_key: tile_value})
+                    tile.update(tile_new)
+                except TypeError:
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
+                    continue
+            tiles[tile.id] = tile
+        return cls(display_name=display_name, tile_metadatas=tiles)
+
+    def as_dict(self) -> dict:
+        raw: dict = {"display_name": self.display_name}
+        if self.tile_metadatas:
+            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tile_metadatas.values()}
+        return raw
+
+    @classmethod
+    def from_path(cls, path: Path) -> "DashboardMetadata":
+        """Export dashboard metadata from a YAML file."""
+        fallback_metadata = cls(display_name=path.parent.name)
+        if not path.exists():
+            return fallback_metadata
+        try:
+            raw = yaml.safe_load(path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+        try:
+            return cls.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+
+
 class Tile:
     """A dashboard tile."""
 
@@ -850,6 +900,64 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
+
+    @staticmethod
+    def _parse_tiles_metadata(dashboard_folder: Path, dashboard_metadata: DashboardMetadata) -> list[TileMetadata]:
+        """Parse the tile metadata from each (optional) header."""
+        tiles_metadata = []
+        for path in dashboard_folder.iterdir():
+            if path.suffix in {".sql", ".md"}:
+                tile_metadata = TileMetadata.from_path(path)
+                if tile_metadata.id in dashboard_metadata.tile_metadatas:
+                    # The line below implements the precedence for metadata in the file header over dashboard.yml
+                    dashboard_metadata.tile_metadatas[tile_metadata.id].update(tile_metadata)
+                    tile_metadata = dashboard_metadata.tile_metadatas[tile_metadata.id]
+                tiles_metadata.append(tile_metadata)
+        return tiles_metadata
+
+    @staticmethod
+    def _get_tiles(
+        tiles_metadata: list[TileMetadata],
+        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
+    ) -> list[Tile]:
+        """Create tiles from the tiles metadata.
+
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the multiple loops to get:
+        i) set the order when not specified;
+        ii) sort the tiles using the order field.
+        """
+        tiles_metadata_with_order = []
+        for order, tile_metadata in enumerate(sorted(tiles_metadata, key=lambda wm: wm.id)):
+            replica = copy.deepcopy(tile_metadata)
+            replica.order = tile_metadata.order if tile_metadata.order is not None else order
+            tiles_metadata_with_order.append(replica)
+
+        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        for tile_metadata in sorted(tiles_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
+            tile = Tile.from_tile_metadata(tile_metadata)
+            if isinstance(tile, QueryTile):
+                tile.query_transformer = query_transformer
+            placed_tile = tile.place_after(position)
+            tiles.append(placed_tile)
+            position = placed_tile.position
+        return tiles
+
+    @staticmethod
+    def _get_datasets(tiles: list[Tile]) -> list[Dataset]:
+        datasets: list[Dataset] = []
+        for tile in tiles:
+            if isinstance(tile, QueryTile):
+                datasets.extend(tile.get_datasets())
+        return datasets
+
+    @staticmethod
+    def _get_layouts(tiles: list[Tile]) -> list[Layout]:
+        """Create layouts from the tiles."""
+        layouts: list[Layout] = []
+        for tile in tiles:
+            layouts.extend(tile.get_layouts())
+        return layouts
 
     def deploy_dashboard(
         self,
