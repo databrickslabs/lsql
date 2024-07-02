@@ -171,12 +171,12 @@ class ExecutionBackend(SqlBackend):
                 field_type = field_type.__args__[0]
             if value is None:
                 data.append("NULL")
-            elif field_type == bool:
+            elif field_type is bool:
                 data.append("TRUE" if value else "FALSE")
-            elif field_type == str:
+            elif field_type is str:
                 value = str(value).replace("'", "''")
                 data.append(f"'{value}'")
-            elif field_type == int:
+            elif field_type is int:
                 data.append(f"{value}")
             else:
                 msg = f"unknown type: {field_type}"
@@ -336,7 +336,7 @@ class MockBackend(SqlBackend):
         rows = self._filter_none_rows(rows, klass)
         if mode == "overwrite":
             self._save_table = []
-        if klass.__class__ == type:
+        if klass.__class__ == type:  # noqa: E721
             row_factory = self._row_factory(klass)
             rows = [row_factory(*dataclasses.astuple(r)) for r in rows]
             self._save_table.append((full_name, rows, mode))
