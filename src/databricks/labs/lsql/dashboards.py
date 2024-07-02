@@ -312,6 +312,10 @@ class DashboardMetadata:
     display_name: str
     tile_metadatas: dict[str, TileMetadata] = dataclasses.field(default_factory=dict)
 
+    @property
+    def tiles(self) -> list[TileMetadata]:
+        return list(self.tile_metadatas.values())
+
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
         display_name = raw["display_name"]  # Fail early if missing
