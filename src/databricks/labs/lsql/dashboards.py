@@ -228,31 +228,31 @@ class TileMetadata:
             return False
         return self.as_dict() == other.as_dict()
 
-    def __or__(self, other: "TileMetadata") -> "TileMetadata":
-        """Supports `self | other`.
+    def update(self, other: "TileMetadata") -> None:
+        """Update the tile metadata with another tile metadata.
 
-        Precendence
+        Precendence:
         - The other takes precendences, similar to merging dictionairies.
         - Unless the others value is a default, then the value from self is taken.
+
+        Resources:
+        - https://docs.python.org/3/library/stdtypes.html#dict.update : Similar to the update method of a dictionary.
         """
         if not isinstance(other, TileMetadata):
             raise TypeError(f"Can not merge with {other}")
 
         widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
-        new = TileMetadata(
-            # Allow private access to other._path here as it is part of the class implementation
-            path=other._path or self._path,
-            order=other.order or self.order,
-            width=other.width or self.width,
-            height=other.height or self.height,
-            id=other.id or self.id,
-            title=other.title or self.title,
-            description=other.description or self.description,
-            widget_type=widget_type,
-            filters=other.filters or self.filters,
-            overrides=other.overrides or self.overrides,
-        )
-        return new
+
+        self._path = other._path or self._path
+        self.order = other.order or self.order
+        self.width = other.width or self.width
+        self.height = other.height or self.height
+        self.id = other.id or self.id
+        self.title = other.title or self.title
+        self.description = other.description or self.description
+        self.widget_type = widget_type
+        self.filters = other.filters or self.filters
+        self.overrides = other.overrides or self.overrides
 
     def is_markdown(self) -> bool:
         return self._path is not None and self._path.suffix == ".md"
@@ -322,7 +322,8 @@ class DashboardMetadata:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
                     continue
                 try:
-                    tile |= TileMetadata.from_dict({tile_key: tile_value})
+                    tile_new = TileMetadata.from_dict({tile_key: tile_value})
+                    tile.update(tile_new)
                 except TypeError:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
@@ -740,7 +741,8 @@ class Dashboards:
                 tile_metadata = TileMetadata.from_path(path)
                 if tile_metadata.id in dashboard_metadata.tiles:
                     # The line below implements the precedence for metadata in the file header over dashboard.yml
-                    tile_metadata = dashboard_metadata.tiles[tile_metadata.id] | tile_metadata
+                    dashboard_metadata.tiles[tile_metadata.id].update(tile_metadata)
+                    tile_metadata = dashboard_metadata.tiles[tile_metadata.id]
                 tiles_metadata.append(tile_metadata)
         return tiles_metadata
 
