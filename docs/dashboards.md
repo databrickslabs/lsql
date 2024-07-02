@@ -218,9 +218,9 @@ outweighs the ambiguity. Moreover, the ambiguity is resolved with this section i
 
 ## `.md` files
 
-Markdown files are used to define text widgets that can populate a dashboard. 
-
-The configuration is defined at the top of the file in YAML enclosed by two horizontal rules marked with dashes (---):
+Markdown files are used to define text widgets that can populate a dashboard.
+[Front matter](https://gohugo.io/content-management/front-matter/) adds configuration at the top of the file. i.e. 
+YAML enclosed by two horizontal rules marked with dashes (---):
 
 ``` md
 ---
