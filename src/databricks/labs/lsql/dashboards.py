@@ -728,8 +728,8 @@ class Dashboards:
             https://sqlglot.com/sqlglot/transforms.html
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
-        tiles_metadata = self._parse_tiles_metadata(dashboard_folder, dashboard_metadata)
-        tiles = self._get_tiles(tiles_metadata, query_transformer=query_transformer)
+        self._merge_metadata(dashboard_folder, dashboard_metadata)
+        tiles = self._get_tiles(dashboard_metadata.tiles, query_transformer=query_transformer)
         datasets = self._get_datasets(tiles)
         layouts = self._get_layouts(tiles)
         page = Page(
@@ -741,18 +741,16 @@ class Dashboards:
         return lakeview_dashboard
 
     @staticmethod
-    def _parse_tiles_metadata(dashboard_folder: Path, dashboard_metadata: DashboardMetadata) -> list[TileMetadata]:
-        """Parse the tile metadata from each (optional) header."""
-        tiles_metadata = []
+    def _merge_metadata(dashboard_folder: Path, dashboard_metadata: DashboardMetadata) -> None:
+        """Merge the dashboard metadata with the (optional) header metadata."""
         for path in dashboard_folder.iterdir():
             if path.suffix in {".sql", ".md"}:
                 tile_metadata = TileMetadata.from_path(path)
                 if tile_metadata.id in dashboard_metadata.tile_metadatas:
                     # The line below implements the precedence for metadata in the file header over dashboard.yml
                     dashboard_metadata.tile_metadatas[tile_metadata.id].update(tile_metadata)
-                    tile_metadata = dashboard_metadata.tile_metadatas[tile_metadata.id]
-                tiles_metadata.append(tile_metadata)
-        return tiles_metadata
+                else:
+                    dashboard_metadata.tiles.append(tile_metadata)
 
     @staticmethod
     def _get_tiles(
