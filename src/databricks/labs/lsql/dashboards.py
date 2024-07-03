@@ -348,17 +348,19 @@ class DashboardMetadata:
     def from_path(cls, path: Path) -> "DashboardMetadata":
         """Export dashboard metadata from a YAML file."""
         fallback_metadata = cls(display_name=path.parent.name)
-        if not path.exists():
+
+        dashboard_path = dashboard_folder / "dashboard.yml"
+        if not dashboard_path.exists():
             return fallback_metadata
         try:
-            raw = yaml.safe_load(path.read_text())
+            raw = yaml.safe_load(dashboard_path.read_text())
         except yaml.YAMLError as e:
-            logger.warning(f"Parsing {path}: {e}")
+            logger.warning(f"Parsing {dashboard_path}: {e}")
             return fallback_metadata
         try:
             return cls.from_dict(raw)
         except KeyError as e:
-            logger.warning(f"Parsing {path}: {e}")
+            logger.warning(f"Parsing {dashboard_path}: {e}")
             return fallback_metadata
 
 
@@ -727,7 +729,7 @@ class Dashboards:
         Source :
             https://sqlglot.com/sqlglot/transforms.html
         """
-        dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
+        dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
         self._merge_metadata(dashboard_folder, dashboard_metadata)
         # TODO: Remove temporary logic below required for refactoring while tests pass
         tile_metadatas = [
