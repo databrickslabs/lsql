@@ -940,6 +940,7 @@ def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
 
 
 def test_dashboards_creates_dashboard_with_widget_order_overwrite_from_dashboard_yaml(tmp_path):
+    # TODO: Warn on invalid `non_existing_tile`
     content = """
 display_name: Ordering
 

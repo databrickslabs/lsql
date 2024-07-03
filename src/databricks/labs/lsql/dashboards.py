@@ -729,7 +729,13 @@ class Dashboards:
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder / "dashboard.yml")
         self._merge_metadata(dashboard_folder, dashboard_metadata)
-        tiles = self._get_tiles(dashboard_metadata.tiles, query_transformer=query_transformer)
+        # TODO: Remove temporary logic below required for refactoring while tests pass
+        tile_metadatas = [
+            tile_metadata
+            for tile_metadata in dashboard_metadata.tiles
+            if tile_metadata.is_markdown() or tile_metadata.is_query()
+        ]
+        tiles = self._get_tiles(tile_metadatas, query_transformer=query_transformer)
         datasets = self._get_datasets(tiles)
         layouts = self._get_layouts(tiles)
         page = Page(
@@ -743,14 +749,24 @@ class Dashboards:
     @staticmethod
     def _merge_metadata(dashboard_folder: Path, dashboard_metadata: DashboardMetadata) -> None:
         """Merge the dashboard metadata with the (optional) header metadata."""
+        tile_metadatas_new = []
         for path in dashboard_folder.iterdir():
-            if path.suffix in {".sql", ".md"}:
-                tile_metadata = TileMetadata.from_path(path)
-                if tile_metadata.id in dashboard_metadata.tile_metadatas:
-                    # The line below implements the precedence for metadata in the file header over dashboard.yml
-                    dashboard_metadata.tile_metadatas[tile_metadata.id].update(tile_metadata)
-                else:
-                    dashboard_metadata.tiles.append(tile_metadata)
+            if path.suffix not in {".sql", ".md"}:
+                continue
+            tile_metadata, match = TileMetadata.from_path(path), False
+            for tile_metadata_existing in dashboard_metadata.tiles:
+                if tile_metadata.id == tile_metadata_existing.id:
+                    # TODO: Remove temporary logic below required for refactoring while tests pass
+                    if not (tile_metadata_existing.is_markdown() or tile_metadata_existing.is_query()):
+                        tile_metadata_existing.update(tile_metadata)
+                    else:
+                        tile_metadata_new = copy.deepcopy(tile_metadata_existing)
+                        tile_metadata_new.update(tile_metadata)
+                        tile_metadatas_new.append(tile_metadata_new)
+                    match = True
+            if not match:
+                tile_metadatas_new.append(tile_metadata)
+        dashboard_metadata.tiles.extend(tile_metadatas_new)
 
     @staticmethod
     def _get_tiles(
