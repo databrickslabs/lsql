@@ -659,13 +659,21 @@ class DashboardMetadata:
     ) -> list[Tile]:
         """Create tiles from the tiles metadata.
 
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the logic to:
+        i) set the order when not specified;
+        ii) sort the tiles using the order field.
+
         Parameters :
             query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default: None)
                 A sqlglot transformer applied on the queries (SQL files) before creating the tiles. If None, no
                 transformation is applied.
         """
+        # TODO: Create copy of the tile metadata to avoid side effects
+        for order, tile_metadata in enumerate(sorted(self.tile_metadatas, key=lambda wm: wm.id)):
+            tile_metadata.order = tile_metadata.order if tile_metadata.order is not None else order
         tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for tile_metadata in self.tile_metadatas:
+        for tile_metadata in sorted(self.tile_metadatas, key=lambda t: (t.order, t.id)):
             tile = Tile.from_tile_metadata(tile_metadata)
             if isinstance(tile, QueryTile):
                 tile.query_transformer = query_transformer
@@ -729,21 +737,12 @@ class DashboardMetadata:
 
     @classmethod
     def from_path(cls, path: Path) -> "DashboardMetadata":
-        """Read the dashboard metadata from the dashboard folder.
-
-        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
-        with the `order` key. Hence, the logic to:
-        i) set the order when not specified;
-        ii) sort the tiles using the order field.
-        """
+        """Read the dashboard metadata from the dashboard folder."""
         dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
         display_name = dashboard_metadata_yml.display_name  # Display name in dashboard.yml takes precedence
         dashboard_metadata_folder = cls._from_dashboard_folder(path)
         dashboard_metadata_yml.update(dashboard_metadata_folder)  # Metadata from file headers takes precedence
-        for order, tile_metadata in enumerate(sorted(dashboard_metadata_yml.tile_metadatas, key=lambda wm: wm.id)):
-            tile_metadata.order = tile_metadata.order if tile_metadata.order is not None else order
-        tiles_sorted = list(sorted(dashboard_metadata_yml.tile_metadatas, key=lambda t: (t.order, t.id)))
-        return cls(display_name=display_name, tile_metadatas=tiles_sorted)
+        return dataclasses.replace(dashboard_metadata_yml, display_name=display_name)
 
     @classmethod
     def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
