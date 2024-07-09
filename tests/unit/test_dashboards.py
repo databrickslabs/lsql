@@ -83,7 +83,7 @@ def test_dashboard_metadata_from_raw(tmp_path):
         yaml.safe_dump(raw, f)
 
     from_dict = DashboardMetadata.from_dict(raw)
-    from_path = DashboardMetadata.from_path(path)
+    from_path = DashboardMetadata.from_path(tmp_path)
 
     assert from_dict == from_path
 
@@ -101,7 +101,7 @@ def test_dashboard_metadata_handles_invalid_yml(tmp_path, dashboard_content):
     if len(dashboard_content) > 0:
         path.write_text(dashboard_content)
 
-    dashboard_metadata = DashboardMetadata.from_path(path)
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     assert dashboard_metadata.display_name == tmp_path.name
 
 
@@ -122,7 +122,7 @@ tiles:
     path.write_text(dashboard_content)
 
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
-        dashboard_metadata = DashboardMetadata.from_path(path)
+        dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
     assert dashboard_metadata.display_name == "name"
     assert "correct" in dashboard_metadata.tile_metadatas
