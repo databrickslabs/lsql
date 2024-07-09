@@ -575,7 +575,18 @@ class QueryTile(Tile):
 
 @dataclass
 class TableTile(QueryTile):
-    _position: Position = Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 6)
+    _position: Position = Position(0, 0, 3, 6)
+
+    @property
+    def position(self) -> Position:
+        fields = self._find_fields()
+        if self.metadata.width:
+            width = self.metadata.width
+        else:
+            width = max(self._position.width, len(fields) // 3)
+        width = min(width, _MAXIMUM_DASHBOARD_WIDTH)
+        height = self.metadata.height or self._position.height
+        return Position(self._position.x, self._position.y, width, height)
 
 
 @dataclass
