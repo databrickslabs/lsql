@@ -818,8 +818,8 @@ class Dashboards:
         formatted_query = ";\n".join(statements)
         return formatted_query
 
+    @staticmethod
     def create_dashboard(
-        self,
         dashboard_folder: Path,
         *,
         query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
