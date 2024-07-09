@@ -366,6 +366,8 @@ def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sql
 class QueryTile(Tile):
     """A tile based on a sql query."""
 
+    query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+
     _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
 
