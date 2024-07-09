@@ -581,10 +581,10 @@ class TableTile(QueryTile):
 
     @property
     def position(self) -> Position:
-        fields = self._find_fields()
         if self.metadata.width:
             width = self.metadata.width
         else:
+            fields = self._find_fields()
             width = max(self._position.width, len(fields) // 3)
         width = min(width, _MAXIMUM_DASHBOARD_WIDTH)
         height = self.metadata.height or self._position.height
