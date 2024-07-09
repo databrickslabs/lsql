@@ -199,6 +199,8 @@ class WidgetType(str, Enum):
 
 @dataclass
 class TileMetadata:
+    """The metadata defining a :class:Tile"""
+
     path: Path | None = None
     order: int | None = None
     width: int = 0
@@ -363,8 +365,6 @@ def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sql
 @dataclass
 class QueryTile(Tile):
     """A tile based on a sql query."""
-
-    query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
 
     _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
@@ -591,6 +591,8 @@ class CounterTile(QueryTile):
 
 @dataclass
 class DashboardMetadata:
+    """The metadata defining a lakeview dashboard"""
+
     display_name: str
     tile_metadatas: list[TileMetadata] = dataclasses.field(default_factory=list)
 
