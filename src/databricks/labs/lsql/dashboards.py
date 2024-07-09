@@ -941,13 +941,8 @@ class Dashboards:
             https://sqlglot.com/sqlglot/transforms.html
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
-        # TODO: Remove temporary logic below required for refactoring while tests pass
-        tile_metadatas = [
-            tile_metadata
-            for tile_metadata in dashboard_metadata.tiles
-            if tile_metadata.is_markdown() or tile_metadata.is_query()
-        ]
-        tiles = self._get_tiles(tile_metadatas, query_transformer=query_transformer)
+        dashboard_metadata.validate()
+        tiles = self._get_tiles(dashboard_metadata, query_transformer=query_transformer)
         datasets = self._get_datasets(tiles)
         layouts = self._get_layouts(tiles)
         page = Page(
@@ -960,7 +955,7 @@ class Dashboards:
 
     @staticmethod
     def _get_tiles(
-        tiles_metadata: list[TileMetadata],
+        dashboard_metadata: DashboardMetadata,
         query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
     ) -> list[Tile]:
         """Create tiles from the tiles metadata.
@@ -971,7 +966,7 @@ class Dashboards:
         ii) sort the tiles using the order field.
         """
         tiles_metadata_with_order = []
-        for order, tile_metadata in enumerate(sorted(tiles_metadata, key=lambda wm: wm.id)):
+        for order, tile_metadata in enumerate(sorted(dashboard_metadata.tiles, key=lambda wm: wm.id)):
             replica = copy.deepcopy(tile_metadata)
             replica.order = tile_metadata.order if tile_metadata.order is not None else order
             tiles_metadata_with_order.append(replica)
