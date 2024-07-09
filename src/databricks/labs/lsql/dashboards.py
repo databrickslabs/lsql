@@ -617,7 +617,7 @@ class DashboardMetadata:
         """
         tile_ids = []
         for tile in self.tile_metadatas:
-            if not (tile.is_markdown() or tile.is_query()):
+            if tile.path is None:
                 raise ValueError(f"Tile path is required: {tile}")
             tile_ids.append(tile.id)
         counter = collections.Counter(tile_ids)
