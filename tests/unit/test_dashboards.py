@@ -143,7 +143,6 @@ tiles:
   correct:
     order: 1
 """.lstrip()
-    path = tmp_path / "dashboard.yml"
     (tmp_path / "dashboard.yml").write_text(dashboard_content)
     (tmp_path / "correct.sql").touch()
 
@@ -165,7 +164,6 @@ tiles:
   correct:
     order: 1
 """.lstrip()
-    path = tmp_path / "dashboard.yml"
     (tmp_path / "dashboard.yml").write_text(dashboard_content)
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
