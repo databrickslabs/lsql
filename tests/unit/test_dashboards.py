@@ -918,7 +918,7 @@ def test_dashboards_creates_dashboard_with_widget_below_text_widget(tmp_path):
     ws.assert_not_called()
 
 
-def test_dashboards_creates_dashboard_with_id_collisions(tmp_path):
+def test_dashboards_creates_dashboard_with_id_collisions_raises_value_error(tmp_path):
     ws = create_autospec(WorkspaceClient)
 
     dashboard_content = """
@@ -933,12 +933,9 @@ tiles:
     (tmp_path / "counter.sql").write_text("SELECT 100 AS count")
     (tmp_path / "header_overwrite.sql").write_text("-- --id counter\nSELECT 100 AS count")
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
-    layouts = lakeview_dashboard.pages[0].layout
-
-    assert len(layouts) == 3
-    assert all(layout.position.width == 10 for layout in layouts)
-    ws.assert_not_called()
+    with pytest.raises(ValueError) as e:
+        Dashboards(ws).create_dashboard(tmp_path)
+    assert "Duplicate id: counter" in str(e.value)
 
 
 @pytest.mark.parametrize("query_names", [["a", "b", "c"], ["01", "02", "10"]])
@@ -1003,15 +1000,12 @@ def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
 
 
 def test_dashboards_creates_dashboard_with_widget_order_overwrite_from_dashboard_yaml(tmp_path):
-    # TODO: Warn on invalid `non_existing_tile`
     content = """
 display_name: Ordering
 
 tiles:
   e:
     order: -1
-  non_existing_tile:
-    order: -2
 """
     (tmp_path / "dashboard.yml").write_text(content)
     for query_name in "abcdef":
