@@ -295,24 +295,24 @@ class TileMetadata:
         return f"TileMetadata<{self.id}>"
 
 
+@dataclass
 class Tile:
     """A dashboard tile."""
 
-    def __init__(self, tile_metadata: TileMetadata) -> None:
-        self._metadata = tile_metadata
+    metadata: TileMetadata
 
-        default_width, default_height = self._default_size()
-        width = self._metadata.width or default_width
-        height = self._metadata.height or default_height
-        self.position = Position(0, 0, width, height)
+    _position: Position = Position(0, 0, 0, 0)
 
-    def _default_size(self) -> tuple[int, int]:
-        return 0, 0
+    @property
+    def position(self) -> Position:
+        width = self.metadata.width or self._position.width
+        height = self.metadata.height or self._position.height
+        return Position(self._position.x, self._position.y, width, height)
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        _, text = self._metadata.handler.split()
-        widget = Widget(name=self._metadata.id, textbox_spec=text)
+        _, text = self.metadata.handler.split()
+        widget = Widget(name=self.metadata.id, textbox_spec=text)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
@@ -329,7 +329,7 @@ class Tile:
             y = position.y + position.height
         else:
             y = position.y
-        self.position = dataclasses.replace(self.position, x=x, y=y)
+        self._position = dataclasses.replace(self.position, x=x, y=y)
 
     @classmethod
     def from_tile_metadata(cls, tile_metadata: TileMetadata) -> "Tile":
@@ -345,12 +345,12 @@ class Tile:
         return TableTile(tile_metadata)
 
     def __repr__(self):
-        return f"Tile<{self._metadata}>"
+        return f"Tile<{self.metadata.id}>"
 
 
+@dataclass
 class MarkdownTile(Tile):
-    def _default_size(self) -> tuple[int, int]:
-        return _MAXIMUM_DASHBOARD_WIDTH, 3
+    _position: Position = Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3)
 
 
 def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sqlglot.Expression:
@@ -360,6 +360,7 @@ def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sql
     return node
 
 
+@dataclass
 class QueryTile(Tile):
     _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
@@ -374,7 +375,7 @@ class QueryTile(Tile):
         self.query_transformer = query_transformer
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        _, query = self._metadata.handler.split()
+        _, query = self.metadata.handler.split()
         try:
             return sqlglot.parse_one(query, dialect=self._DIALECT)
         except sqlglot.ParseError as e:
@@ -382,7 +383,7 @@ class QueryTile(Tile):
             return None
 
     def _get_query(self) -> str:
-        _, query = self._metadata.handler.split()
+        _, query = self.metadata.handler.split()
         if self.query_transformer is None:
             return query
         syntax_tree = self._get_abstract_syntax_tree()
@@ -420,8 +421,8 @@ class QueryTile(Tile):
 
     def infer_spec_type(self) -> type[WidgetSpec] | None:
         """Infer the spec type from the query."""
-        if self._metadata.widget_type != WidgetType.AUTO:
-            return self._metadata.widget_type.as_widget_spec()
+        if self.metadata.widget_type != WidgetType.AUTO:
+            return self.metadata.widget_type.as_widget_spec()
         fields = self._find_fields()
         if len(fields) == 0:
             return None
@@ -432,7 +433,7 @@ class QueryTile(Tile):
     def get_datasets(self) -> Iterable[Dataset]:
         """Get the dataset belonging to the query."""
         query = self._get_query()
-        dataset = Dataset(name=self._metadata.id, display_name=self._metadata.id, query=query)
+        dataset = Dataset(name=self.metadata.id, display_name=self.metadata.id, query=query)
         yield dataset
 
     def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
@@ -449,9 +450,9 @@ class QueryTile(Tile):
 
     def _merge_widget_with_overrides(self, widget: Widget) -> Widget:
         """Merge the widget with (optional) overrides."""
-        if not self._metadata.overrides:
+        if not self.metadata.overrides:
             return widget
-        updated = self._merge_nested_dictionaries(widget.as_dict(), self._metadata.overrides)
+        updated = self._merge_nested_dictionaries(widget.as_dict(), self.metadata.overrides)
         widget = widget.from_dict(updated)
         return widget
 
@@ -461,21 +462,21 @@ class QueryTile(Tile):
         This is the main layout within the tile as it visualizes the dataset.
         """
         fields = self._find_fields()
-        query = Query(dataset_name=self._metadata.id, fields=fields, disaggregated=True)
+        query = Query(dataset_name=self.metadata.id, fields=fields, disaggregated=True)
         # As far as testing went, a NamedQuery should always have "main_query" as name
         named_query = NamedQuery(name="main_query", query=query)
         frame = WidgetFrameSpec(
-            title=self._metadata.title,
-            show_title=len(self._metadata.title) > 0,
-            description=self._metadata.description,
-            show_description=len(self._metadata.description) > 0,
+            title=self.metadata.title,
+            show_title=len(self.metadata.title) > 0,
+            description=self.metadata.description,
+            show_description=len(self.metadata.description) > 0,
         )
         spec = self._get_query_widget_spec(fields, frame=frame)
-        widget = Widget(name=self._metadata.id, queries=[named_query], spec=spec)
+        widget = Widget(name=self.metadata.id, queries=[named_query], spec=spec)
         widget = self._merge_widget_with_overrides(widget)
         height = self.position.height
-        if len(self._metadata.filters) > 0 and self.position.width > 0:
-            height -= self._FILTER_HEIGHT * math.ceil(len(self._metadata.filters) / self.position.width)
+        if len(self.metadata.filters) > 0 and self.position.width > 0:
+            height -= self._FILTER_HEIGHT * math.ceil(len(self.metadata.filters) / self.position.width)
         height = max(height, 0)
         y = self.position.y + self.position.height - height
         position = dataclasses.replace(self.position, y=y, height=height)
@@ -492,12 +493,12 @@ class QueryTile(Tile):
             Field(name=column, expression=f"`{column}`"),
             Field(name=f"{column}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
         ]
-        query = Query(dataset_name=self._metadata.id, fields=fields, disaggregated=False)
+        query = Query(dataset_name=self.metadata.id, fields=fields, disaggregated=False)
         named_query = NamedQuery(name=f"filter_{column}", query=query)
         control_encodings: list[ControlEncoding] = [ControlFieldEncoding(column, named_query.name, display_name=column)]
         control_encoding_map = ControlEncodingMap(control_encodings)
         spec = MultiSelectSpec(encodings=control_encoding_map)
-        widget = Widget(name=f"{self._metadata.id}_filter_{column}", queries=[named_query], spec=spec)
+        widget = Widget(name=f"{self.metadata.id}_filter_{column}", queries=[named_query], spec=spec)
         return widget
 
     def _get_filter_positions(self) -> Iterable[Position]:
@@ -511,17 +512,17 @@ class QueryTile(Tile):
               width of the tile whilst having a minimum filter width of one
            ii) occupy an additional row if the previous one is filled completely.
         """
-        filters_size = len(self._metadata.filters) * self._FILTER_HEIGHT
+        filters_size = len(self.metadata.filters) * self._FILTER_HEIGHT
         if filters_size > self.position.width * (self.position.height - 1):  # At least one row for the query widget
             raise ValueError(f"Too many filters defined for {self}")
 
         # The bottom row requires bookkeeping to adjust the filters width to fill it completely
-        bottom_row_index = len(self._metadata.filters) // self.position.width
-        bottom_row_filter_count = len(self._metadata.filters) % self.position.width or self.position.width
+        bottom_row_index = len(self.metadata.filters) // self.position.width
+        bottom_row_filter_count = len(self.metadata.filters) % self.position.width or self.position.width
         bottom_row_filter_width = self.position.width // bottom_row_filter_count
         bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
 
-        for filter_index in range(len(self._metadata.filters)):
+        for filter_index in range(len(self.metadata.filters)):
             if filter_index % self.position.width == 0:
                 x_offset = 0  # Reset on new row
             x = self.position.x + x_offset
@@ -537,10 +538,10 @@ class QueryTile(Tile):
 
     def _get_filters_layouts(self) -> Iterable[Layout]:
         """Get the layout visualizing the (optional) filters."""
-        if len(self._metadata.filters) == 0:
+        if len(self.metadata.filters) == 0:
             return
         for filter_index, position in enumerate(self._get_filter_positions()):
-            widget = self._get_filter_widget(self._metadata.filters[filter_index])
+            widget = self._get_filter_widget(self.metadata.filters[filter_index])
             layout = Layout(widget=widget, position=position)
             yield layout
 
@@ -577,14 +578,14 @@ class QueryTile(Tile):
         return spec
 
 
+@dataclass
 class TableTile(QueryTile):
-    def _default_size(self) -> tuple[int, int]:
-        return 6, 6
+    _position: Position = Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 6)
 
 
+@dataclass
 class CounterTile(QueryTile):
-    def _default_size(self) -> tuple[int, int]:
-        return 1, 3
+    _position: Position = Position(0, 0, 1, 3)
 
     @staticmethod
     def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
