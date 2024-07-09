@@ -336,12 +336,26 @@ class DashboardMetadata:
 
     @classmethod
     def from_path(cls, path: Path) -> "DashboardMetadata":
-        """Export dashboard metadata from a YAML file."""
-        dashboard_path = path / "dashboard.yml"
-        return cls._from_dashboard_path(dashboard_path)
+        """Read the dashboard metadata from the dashboard folder."""
+        dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
+        dashboard_metadata_folder = cls._from_dashboard_folder(path)
+        merged_tiles = []
+        for tile in dashboard_metadata_folder.tiles:
+            tile_metadata = dashboard_metadata_yml.tile_metadatas.get(tile.id)
+            if tile_metadata is not None:
+                tile_metadata.update(tile)
+                merged_tiles.append(tile_metadata)
+            else:
+                merged_tiles.append(tile)
+        for tile in dashboard_metadata_yml.tiles:
+            tile_metadata = dashboard_metadata_folder.tile_metadatas.get(tile.id)
+            if tile_metadata is None:
+                merged_tiles.append(tile)
+        return dataclasses.replace(dashboard_metadata_yml, tiles=merged_tiles)
 
     @classmethod
     def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
+        """Read the dashboard metadata from the dashboard yml."""
         fallback_metadata = cls(display_name=path.parent.name)
 
         if not path.exists():
@@ -356,6 +370,16 @@ class DashboardMetadata:
         except KeyError as e:
             logger.warning(f"Parsing {path}: {e}")
             return fallback_metadata
+
+    @classmethod
+    def _from_dashboard_folder(cls, folder: Path) -> "DashboardMetadata":
+        """Read the dashboard metadata from the tile files."""
+        tiles = []
+        for path in folder.iterdir():
+            if path.suffix not in {".sql", ".md"}:
+                continue
+            tiles.append(TileMetadata.from_path(path))
+        return cls(display_name=folder.name, tiles=tiles)
 
 
 class Tile:
@@ -900,7 +924,6 @@ class Dashboards:
             https://sqlglot.com/sqlglot/transforms.html
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
-        self._merge_metadata(dashboard_folder, dashboard_metadata)
         # TODO: Remove temporary logic below required for refactoring while tests pass
         tile_metadatas = [
             tile_metadata
@@ -917,28 +940,6 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
-
-    @staticmethod
-    def _merge_metadata(dashboard_folder: Path, dashboard_metadata: DashboardMetadata) -> None:
-        """Merge the dashboard metadata with the (optional) header metadata."""
-        tile_metadatas_new = []
-        for path in dashboard_folder.iterdir():
-            if path.suffix not in {".sql", ".md"}:
-                continue
-            tile_metadata, match = TileMetadata.from_path(path), False
-            for tile_metadata_existing in dashboard_metadata.tiles:
-                if tile_metadata.id == tile_metadata_existing.id:
-                    # TODO: Remove temporary logic below required for refactoring while tests pass
-                    if not (tile_metadata_existing.is_markdown() or tile_metadata_existing.is_query()):
-                        tile_metadata_existing.update(tile_metadata)
-                    else:
-                        tile_metadata_new = copy.deepcopy(tile_metadata_existing)
-                        tile_metadata_new.update(tile_metadata)
-                        tile_metadatas_new.append(tile_metadata_new)
-                    match = True
-            if not match:
-                tile_metadatas_new.append(tile_metadata)
-        dashboard_metadata.tiles.extend(tile_metadatas_new)
 
     @staticmethod
     def _get_tiles(
