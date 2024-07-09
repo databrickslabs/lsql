@@ -1,6 +1,5 @@
 import argparse
 import collections
-import copy
 import dataclasses
 import json
 import logging
@@ -329,7 +328,7 @@ class Tile:
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
-    def place_after(self, position: Position) -> "Tile":
+    def place_after(self, position: Position) -> None:
         """Place the tile after another tile:
 
         The tiling logic works if:
@@ -342,11 +341,7 @@ class Tile:
             y = position.y + position.height
         else:
             y = position.y
-        new_position = dataclasses.replace(self.position, x=x, y=y)
-
-        replica = copy.deepcopy(self)
-        replica.position = new_position
-        return replica
+        self.position = dataclasses.replace(self.position, x=x, y=y)
 
     @classmethod
     def from_tile_metadata(cls, tile_metadata: TileMetadata) -> "Tile":
@@ -646,9 +641,9 @@ class DashboardMetadata:
             tile = Tile.from_tile_metadata(tile_metadata)
             if isinstance(tile, QueryTile):
                 tile.query_transformer = query_transformer
-            placed_tile = tile.place_after(position)
-            tiles.append(placed_tile)
-            position = placed_tile.position
+            tile.place_after(position)
+            tiles.append(tile)
+            position = tile.position
         return tiles
 
     def create_datasets(

@@ -480,10 +480,10 @@ def test_tile_places_tile_to_the_right():
     tile = Tile(tile_metadata)
 
     position = Position(0, 4, 3, 4)
-    placed_tile = tile.place_after(position)
+    tile.place_after(position)
 
-    assert placed_tile.position.x == position.x + position.width
-    assert placed_tile.position.y == 4
+    assert tile.position.x == position.x + position.width
+    assert tile.position.y == 4
 
 
 def test_tile_places_tile_below():
@@ -491,10 +491,10 @@ def test_tile_places_tile_below():
     tile = Tile(tile_metadata)
 
     position = Position(5, 4, 3, 4)
-    placed_tile = tile.place_after(position)
+    tile.place_after(position)
 
-    assert placed_tile.position.x == 0
-    assert placed_tile.position.y == 8
+    assert tile.position.x == 0
+    assert tile.position.y == 8
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
