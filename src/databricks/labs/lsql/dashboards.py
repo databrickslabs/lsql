@@ -295,6 +295,7 @@ class TileMetadata:
         return f"TileMetadata<{self.id}>"
 
 
+@dataclass
 class Tile:
     """A dashboard tile."""
 
@@ -328,7 +329,7 @@ class Tile:
             y = position.y + position.height
         else:
             y = position.y
-        self.position = dataclasses.replace(self.position, x=x, y=y)
+        self._position = dataclasses.replace(self.position, x=x, y=y)
 
     @classmethod
     def from_tile_metadata(cls, tile_metadata: TileMetadata) -> "Tile":
@@ -574,18 +575,7 @@ class QueryTile(Tile):
 
 @dataclass
 class TableTile(QueryTile):
-    _position: Position = Position(0, 0, 3, 6)
-
-    @property
-    def position(self) -> Position:
-        fields = self._find_fields()
-        if self.metadata.width:
-            width = self.metadata.width
-        else:
-            width = max(self._position.width, len(fields) // 3)
-        width = min(width, _MAXIMUM_DASHBOARD_WIDTH)
-        height = self.metadata.height or self._position.height
-        return Position(self._position.x, self._position.y, width, height)
+    _position: Position = Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 6)
 
 
 @dataclass
