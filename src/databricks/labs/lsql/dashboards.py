@@ -622,6 +622,34 @@ class DashboardMetadata:
             if id_count > 1:
                 raise ValueError(f"Duplicate id: {tile_id}")
 
+    def update(self, other: "DashboardMetadata") -> None:
+        """Update the dashboard metadata with another dashboard metadata.
+
+        The other takes precedence, similar to merging dictionaries.
+
+        Resources:
+        - https://docs.python.org/3/library/stdtypes.html#dict.update : Similar to the update method of a dictionary.
+        """
+        if not isinstance(other, DashboardMetadata):
+            raise TypeError(f"Can not merge with {other}")
+
+        self.display_name = other.display_name
+
+        tile_metadatas = []
+        metadata_mapping = {tile.id: tile for tile in self.tile_metadatas}
+        for tile_metadata in other.tile_metadatas:
+            tile_metadata_existing = metadata_mapping.get(tile_metadata.id)
+            if tile_metadata_existing is not None:
+                tile_metadata_existing.update(tile_metadata)
+                tile_metadatas.append(tile_metadata_existing)
+            else:
+                tile_metadatas.append(tile_metadata)
+        metadata_mapping_other = {tile.id: tile for tile in other.tile_metadatas}
+        for tile_metadata in self.tile_metadatas:
+            if tile_metadata.id not in metadata_mapping_other:
+                tile_metadatas.append(tile_metadata)
+        self.tile_metadatas = tile_metadatas
+
     def _create_tiles(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     ) -> list[Tile]:
@@ -705,24 +733,13 @@ class DashboardMetadata:
         ii) sort the tiles using the order field.
         """
         dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
+        display_name = dashboard_metadata_yml.display_name  # Display name in dashboard.yml takes precedence
         dashboard_metadata_folder = cls._from_dashboard_folder(path)
-        tile_metadatas = []
-        yml_tile_metadatas = {tile.id: tile for tile in dashboard_metadata_yml.tile_metadatas}
-        for tile_metadata in dashboard_metadata_folder.tile_metadatas:
-            yml_tile_metadata = yml_tile_metadatas.get(tile_metadata.id)
-            if yml_tile_metadata is not None:
-                yml_tile_metadata.update(tile_metadata)
-                tile_metadatas.append(yml_tile_metadata)
-            else:
-                tile_metadatas.append(tile_metadata)
-        folder_tile_metadatas = {tile.id: tile for tile in dashboard_metadata_folder.tile_metadatas}
-        for tile_metadata in dashboard_metadata_yml.tile_metadatas:
-            if tile_metadata.id not in folder_tile_metadatas:
-                tile_metadatas.append(tile_metadata)
-        for order, tile_metadata in enumerate(sorted(tile_metadatas, key=lambda wm: wm.id)):
+        dashboard_metadata_yml.update(dashboard_metadata_folder)  # Metadata from file headers takes precedence
+        for order, tile_metadata in enumerate(sorted(dashboard_metadata_yml.tile_metadatas, key=lambda wm: wm.id)):
             tile_metadata.order = tile_metadata.order if tile_metadata.order is not None else order
-        tiles_sorted = list(sorted(tile_metadatas, key=lambda t: (t.order, t.id)))
-        return dataclasses.replace(dashboard_metadata_yml, tile_metadatas=tiles_sorted)
+        tiles_sorted = list(sorted(dashboard_metadata_yml.tile_metadatas, key=lambda t: (t.order, t.id)))
+        return cls(display_name=display_name, tile_metadatas=tiles_sorted)
 
     @classmethod
     def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
