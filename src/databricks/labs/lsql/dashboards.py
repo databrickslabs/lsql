@@ -118,6 +118,7 @@ class QueryHandler(BaseHandler):
             action="extend",
             dest="filters",
             nargs="*",
+            default=[],
         )
         parser.add_argument(
             "--overrides",
@@ -196,37 +197,22 @@ class WidgetType(str, Enum):
         return widget_spec_mapping[self.name]
 
 
+@dataclass
 class TileMetadata:
-    def __init__(  # pylint: disable=too-many-arguments
-        self,
-        path: str | Path | None = None,
-        order: int | None = None,
-        width: int = 0,
-        height: int = 0,
-        id: str = "",  # pylint: disable=redefined-builtin
-        title: str = "",
-        description: str = "",
-        widget_type: WidgetType = WidgetType.AUTO,
-        filters: list[str] | None = None,
-        overrides: dict | None = None,
-    ):
-        self._path = Path(path) if path is not None else None
-        self.order = order
-        self.width = width
-        self.height = height
-        self.id = id
-        if not self.id:
-            self.id = self._path.stem if self._path is not None else ""
-        self.title = title
-        self.description = description
-        self.widget_type = widget_type
-        self.filters = filters or []
-        self.overrides = overrides or {}
+    path: Path | None = None
+    order: int | None = None
+    width: int = 0
+    height: int = 0
+    id: str = ""
+    title: str = ""
+    description: str = ""
+    widget_type: WidgetType = WidgetType.AUTO
+    filters: list[str] = dataclasses.field(default_factory=list)
+    overrides: dict = dataclasses.field(default_factory=dict)
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, TileMetadata):
-            return False
-        return self.as_dict() == other.as_dict()
+    def __post_init__(self):
+        if not self.id:
+            self.id = self.path.stem if self.path is not None else ""
 
     def update(self, other: "TileMetadata") -> None:
         """Update the tile metadata with another tile metadata.
@@ -243,7 +229,7 @@ class TileMetadata:
 
         widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
 
-        self._path = other._path or self._path
+        self.path = other.path or self.path
         self.order = other.order if other.order is not None else self.order
         self.width = other.width or self.width
         self.height = other.height or self.height
@@ -255,10 +241,10 @@ class TileMetadata:
         self.overrides = other.overrides or self.overrides
 
     def is_markdown(self) -> bool:
-        return self._path is not None and self._path.suffix == ".md"
+        return self.path is not None and self.path.suffix == ".md"
 
     def is_query(self) -> bool:
-        return self._path is not None and self._path.suffix == ".sql"
+        return self.path is not None and self.path.suffix == ".sql"
 
     @property
     def handler(self) -> BaseHandler:
@@ -267,11 +253,13 @@ class TileMetadata:
             handler = MarkdownHandler
         elif self.is_query():
             handler = QueryHandler
-        return handler(self._path)
+        return handler(self.path)
 
     @classmethod
     def from_dict(cls, raw: dict) -> "TileMetadata":
-        return cls(**raw)
+        path = raw.pop("path", None)
+        path = Path(path) if path is not None else None
+        return cls(path=path, **raw)
 
     def as_dict(self) -> dict:
         exclude_attributes = {
@@ -279,8 +267,8 @@ class TileMetadata:
             "path",  # Path is set explicitly below
         }
         body = {}
-        if self._path is not None:
-            body["path"] = self._path.as_posix()
+        if self.path is not None:
+            body["path"] = self.path.as_posix()
         for attribute in dir(self):
             if attribute.startswith("_"):
                 continue
@@ -669,11 +657,12 @@ class DashboardMetadata:
                 A sqlglot transformer applied on the queries (SQL files) before creating the tiles. If None, no
                 transformation is applied.
         """
-        # TODO: Create copy of the tile metadata to avoid side effects
-        for order, tile_metadata in enumerate(sorted(self.tile_metadatas, key=lambda wm: wm.id)):
-            tile_metadata.order = tile_metadata.order if tile_metadata.order is not None else order
+        tile_metadatas_with_order = []
+        for default_order, tile_metadata in enumerate(sorted(self.tile_metadatas, key=lambda wm: wm.id)):
+            order = tile_metadata.order if tile_metadata.order is not None else default_order
+            tile_metadatas_with_order.append(dataclasses.replace(tile_metadata, order=order))
         tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for tile_metadata in sorted(self.tile_metadatas, key=lambda t: (t.order, t.id)):
+        for tile_metadata in sorted(tile_metadatas_with_order, key=lambda t: (t.order, t.id)):
             tile = Tile.from_tile_metadata(tile_metadata)
             if isinstance(tile, QueryTile):
                 tile.query_transformer = query_transformer
