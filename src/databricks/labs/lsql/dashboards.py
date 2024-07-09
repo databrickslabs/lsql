@@ -337,9 +337,9 @@ class DashboardMetadata:
     @classmethod
     def from_path(cls, path: Path) -> "DashboardMetadata":
         """Export dashboard metadata from a YAML file."""
-        fallback_metadata = cls(display_name=path.parent.name)
+        fallback_metadata = cls(display_name=path.name)
 
-        dashboard_path = dashboard_folder / "dashboard.yml"
+        dashboard_path = path / "dashboard.yml"
         if not dashboard_path.exists():
             return fallback_metadata
         try:
