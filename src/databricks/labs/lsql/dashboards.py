@@ -627,7 +627,7 @@ class DashboardMetadata:
             if id_count > 1:
                 raise ValueError(f"Duplicate id: {tile_id}")
 
-    def get_tiles(
+    def _get_tiles(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     ) -> list[Tile]:
         """Create tiles from the tiles metadata.
@@ -646,6 +646,25 @@ class DashboardMetadata:
             tiles.append(placed_tile)
             position = placed_tile.position
         return tiles
+
+    def create_datasets(
+        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+    ) -> list[Dataset]:
+        """Create the datasets for the dashboard."""
+        datasets: list[Dataset] = []
+        for tile in self._get_tiles(query_transformer):
+            if isinstance(tile, QueryTile):
+                datasets.extend(tile.get_datasets())
+        return datasets
+
+    def create_layouts(
+        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+    ) -> list[Layout]:
+        """Create the layouts for the dashboard."""
+        layouts: list[Layout] = []
+        for tile in self._get_tiles(query_transformer):
+            layouts.extend(tile.get_layouts())
+        return layouts
 
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
@@ -800,9 +819,8 @@ class Dashboards:
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
         dashboard_metadata.validate()
-        tiles = dashboard_metadata.get_tiles(query_transformer)
-        datasets = self._get_datasets(tiles)
-        layouts = self._get_layouts(tiles)
+        datasets = dashboard_metadata.create_datasets(query_transformer)
+        layouts = dashboard_metadata.create_layouts(query_transformer)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
@@ -810,22 +828,6 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
-
-    @staticmethod
-    def _get_datasets(tiles: list[Tile]) -> list[Dataset]:
-        datasets: list[Dataset] = []
-        for tile in tiles:
-            if isinstance(tile, QueryTile):
-                datasets.extend(tile.get_datasets())
-        return datasets
-
-    @staticmethod
-    def _get_layouts(tiles: list[Tile]) -> list[Layout]:
-        """Create layouts from the tiles."""
-        layouts: list[Layout] = []
-        for tile in tiles:
-            layouts.extend(tile.get_layouts())
-        return layouts
 
     def deploy_dashboard(
         self,
