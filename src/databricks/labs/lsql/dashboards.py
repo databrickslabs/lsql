@@ -199,8 +199,6 @@ class WidgetType(str, Enum):
 
 @dataclass
 class TileMetadata:
-    """The metadata defining a :class:Tile"""
-
     path: Path | None = None
     order: int | None = None
     width: int = 0
@@ -231,7 +229,7 @@ class TileMetadata:
 
         widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
 
-        self._path = other._path or self._path
+        self.path = other.path or self.path
         self.order = other.order if other.order is not None else self.order
         self.width = other.width or self.width
         self.height = other.height or self.height
@@ -665,11 +663,12 @@ class DashboardMetadata:
                 A sqlglot transformer applied on the queries (SQL files) before creating the tiles. If None, no
                 transformation is applied.
         """
-        # TODO: Create copy of the tile metadata to avoid side effects
-        for order, tile_metadata in enumerate(sorted(self.tile_metadatas, key=lambda wm: wm.id)):
-            tile_metadata.order = tile_metadata.order if tile_metadata.order is not None else order
+        tile_metadatas_with_order = []
+        for default_order, tile_metadata in enumerate(sorted(self.tile_metadatas, key=lambda wm: wm.id)):
+            order = tile_metadata.order if tile_metadata.order is not None else default_order
+            tile_metadatas_with_order.append(dataclasses.replace(tile_metadata, order=order))
         tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for tile_metadata in sorted(self.tile_metadatas, key=lambda t: (t.order, t.id)):
+        for tile_metadata in sorted(tile_metadatas_with_order, key=lambda t: (t.order, t.id)):
             tile = Tile.from_tile_metadata(tile_metadata)
             if isinstance(tile, QueryTile):
                 tile.query_transformer = query_transformer
