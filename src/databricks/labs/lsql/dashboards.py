@@ -622,7 +622,7 @@ class DashboardMetadata:
             if id_count > 1:
                 raise ValueError(f"Duplicate id: {tile_id}")
 
-    def _get_tiles(
+    def _create_tiles(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     ) -> list[Tile]:
         """Create tiles from the tiles metadata.
@@ -647,7 +647,7 @@ class DashboardMetadata:
     ) -> list[Dataset]:
         """Create the datasets for the dashboard."""
         datasets: list[Dataset] = []
-        for tile in self._get_tiles(query_transformer):
+        for tile in self._create_tiles(query_transformer):
             if isinstance(tile, QueryTile):
                 datasets.extend(tile.get_datasets())
         return datasets
@@ -657,7 +657,7 @@ class DashboardMetadata:
     ) -> list[Layout]:
         """Create the layouts for the dashboard."""
         layouts: list[Layout] = []
-        for tile in self._get_tiles(query_transformer):
+        for tile in self._create_tiles(query_transformer):
             layouts.extend(tile.get_layouts())
         return layouts
 
