@@ -308,116 +308,6 @@ class TileMetadata:
         return f"TileMetadata<{self.id}>"
 
 
-@dataclass
-class DashboardMetadata:
-    display_name: str
-    tiles: list[TileMetadata] = dataclasses.field(default_factory=list)
-
-    @property
-    def tile_metadatas(self) -> dict[str, TileMetadata]:
-        return {tile.id: tile for tile in self.tiles}
-
-    def validate(self) -> None:
-        """Validate the dashboard metadata.
-
-        Raises:
-            ValueError : If the dashboard metadata is invalid.
-        """
-        tile_ids = []
-        for tile in self.tiles:
-            if not (tile.is_markdown() or tile.is_query()):
-                raise ValueError(f"Tile path is required: {tile}")
-            tile_ids.append(tile.id)
-        counter = collections.Counter(tile_ids)
-        for id, id_count in counter.items():
-            if id_count > 1:
-                raise ValueError(f"Duplicate id: {id}")
-
-    @classmethod
-    def from_dict(cls, raw: dict) -> "DashboardMetadata":
-        display_name = raw["display_name"]  # Fail early if missing
-        tiles, tiles_raw = [], raw.get("tiles", {})
-        for tile_id, tile_raw in tiles_raw.items():
-            if not isinstance(tile_raw, dict):
-                logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
-                continue
-            tile = TileMetadata(id=tile_id)
-            for tile_key, tile_value in tile_raw.items():
-                if tile_key == "id":
-                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
-                    continue
-                try:
-                    tile_new = TileMetadata.from_dict({tile_key: tile_value})
-                    tile.update(tile_new)
-                except TypeError:
-                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
-                    continue
-            tiles.append(tile)
-        return cls(display_name=display_name, tiles=tiles)
-
-    def as_dict(self) -> dict:
-        raw: dict = {"display_name": self.display_name}
-        if self.tiles:
-            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tiles}
-        return raw
-
-    @classmethod
-    def from_path(cls, path: Path) -> "DashboardMetadata":
-        """Read the dashboard metadata from the dashboard folder.
-
-        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
-        with the `order` key. Hence, the logic to:
-        i) set the order when not specified;
-        ii) sort the tiles using the order field.
-        """
-        dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
-        dashboard_metadata_folder = cls._from_dashboard_folder(path)
-        tiles = []
-        for tile in dashboard_metadata_folder.tiles:
-            tile_metadata = dashboard_metadata_yml.tile_metadatas.get(tile.id)
-            if tile_metadata is not None:
-                tile_metadata.update(tile)
-                tiles.append(tile_metadata)
-            else:
-                tiles.append(tile)
-        for tile in dashboard_metadata_yml.tiles:
-            tile_metadata = dashboard_metadata_folder.tile_metadatas.get(tile.id)
-            if tile_metadata is None:
-                tiles.append(tile)
-        for order, tile in enumerate(sorted(tiles, key=lambda wm: wm.id)):
-            tile.order = tile.order if tile.order is not None else order
-        tiles_sorted = list(sorted(tiles, key=lambda t: (t.order, t.id)))
-        return dataclasses.replace(dashboard_metadata_yml, tiles=tiles_sorted)
-
-    @classmethod
-    def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
-        """Read the dashboard metadata from the dashboard yml."""
-        fallback_metadata = cls(display_name=path.parent.name)
-
-        if not path.exists():
-            return fallback_metadata
-        try:
-            raw = yaml.safe_load(path.read_text())
-        except yaml.YAMLError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-        try:
-            return cls.from_dict(raw)
-        except KeyError as e:
-            logger.warning(f"Parsing {path}: {e}")
-            return fallback_metadata
-
-    @classmethod
-    def _from_dashboard_folder(cls, folder: Path) -> "DashboardMetadata":
-        """Read the dashboard metadata from the tile files."""
-        tiles = []
-        for path in folder.iterdir():
-            if path.suffix not in {".sql", ".md"}:
-                continue
-            tiles.append(TileMetadata.from_path(path))
-        return cls(display_name=folder.name, tiles=tiles)
-
-
 class Tile:
     """A dashboard tile."""
 
@@ -720,6 +610,136 @@ class CounterTile(QueryTile):
         return spec
 
 
+@dataclass
+class DashboardMetadata:
+    display_name: str
+    tiles: list[TileMetadata] = dataclasses.field(default_factory=list)
+
+    @property
+    def tile_metadatas(self) -> dict[str, TileMetadata]:
+        return {tile.id: tile for tile in self.tiles}
+
+    def validate(self) -> None:
+        """Validate the dashboard metadata.
+
+        Raises:
+            ValueError : If the dashboard metadata is invalid.
+        """
+        tile_ids = []
+        for tile in self.tiles:
+            if not (tile.is_markdown() or tile.is_query()):
+                raise ValueError(f"Tile path is required: {tile}")
+            tile_ids.append(tile.id)
+        counter = collections.Counter(tile_ids)
+        for id, id_count in counter.items():
+            if id_count > 1:
+                raise ValueError(f"Duplicate id: {id}")
+
+    def get_tiles(
+        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+    ) -> list[Tile]:
+        """Create tiles from the tiles metadata.
+
+        Arguments:
+            query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default: None)
+                A sqlglot transformer applied on the queries (SQL files) before creating the dashboard. If None, no
+                transformation is applied.
+        """
+        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        for tile_metadata in self.tiles:
+            tile = Tile.from_tile_metadata(tile_metadata)
+            if isinstance(tile, QueryTile):
+                tile.query_transformer = query_transformer
+            placed_tile = tile.place_after(position)
+            tiles.append(placed_tile)
+            position = placed_tile.position
+        return tiles
+
+    @classmethod
+    def from_dict(cls, raw: dict) -> "DashboardMetadata":
+        display_name = raw["display_name"]  # Fail early if missing
+        tiles, tiles_raw = [], raw.get("tiles", {})
+        for tile_id, tile_raw in tiles_raw.items():
+            if not isinstance(tile_raw, dict):
+                logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
+                continue
+            tile = TileMetadata(id=tile_id)
+            for tile_key, tile_value in tile_raw.items():
+                if tile_key == "id":
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
+                    continue
+                try:
+                    tile_new = TileMetadata.from_dict({tile_key: tile_value})
+                    tile.update(tile_new)
+                except TypeError:
+                    logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
+                    continue
+            tiles.append(tile)
+        return cls(display_name=display_name, tiles=tiles)
+
+    def as_dict(self) -> dict:
+        raw: dict = {"display_name": self.display_name}
+        if self.tiles:
+            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tiles}
+        return raw
+
+    @classmethod
+    def from_path(cls, path: Path) -> "DashboardMetadata":
+        """Read the dashboard metadata from the dashboard folder.
+
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the logic to:
+        i) set the order when not specified;
+        ii) sort the tiles using the order field.
+        """
+        dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
+        dashboard_metadata_folder = cls._from_dashboard_folder(path)
+        tiles = []
+        for tile in dashboard_metadata_folder.tiles:
+            tile_metadata = dashboard_metadata_yml.tile_metadatas.get(tile.id)
+            if tile_metadata is not None:
+                tile_metadata.update(tile)
+                tiles.append(tile_metadata)
+            else:
+                tiles.append(tile)
+        for tile in dashboard_metadata_yml.tiles:
+            tile_metadata = dashboard_metadata_folder.tile_metadatas.get(tile.id)
+            if tile_metadata is None:
+                tiles.append(tile)
+        for order, tile in enumerate(sorted(tiles, key=lambda wm: wm.id)):
+            tile.order = tile.order if tile.order is not None else order
+        tiles_sorted = list(sorted(tiles, key=lambda t: (t.order, t.id)))
+        return dataclasses.replace(dashboard_metadata_yml, tiles=tiles_sorted)
+
+    @classmethod
+    def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
+        """Read the dashboard metadata from the dashboard yml."""
+        fallback_metadata = cls(display_name=path.parent.name)
+
+        if not path.exists():
+            return fallback_metadata
+        try:
+            raw = yaml.safe_load(path.read_text())
+        except yaml.YAMLError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+        try:
+            return cls.from_dict(raw)
+        except KeyError as e:
+            logger.warning(f"Parsing {path}: {e}")
+            return fallback_metadata
+
+    @classmethod
+    def _from_dashboard_folder(cls, folder: Path) -> "DashboardMetadata":
+        """Read the dashboard metadata from the tile files."""
+        tiles = []
+        for path in folder.iterdir():
+            if path.suffix not in {".sql", ".md"}:
+                continue
+            tiles.append(TileMetadata.from_path(path))
+        return cls(display_name=folder.name, tiles=tiles)
+
+
 class Dashboards:
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
@@ -788,7 +808,7 @@ class Dashboards:
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
         dashboard_metadata.validate()
-        tiles = self._get_tiles(dashboard_metadata, query_transformer=query_transformer)
+        tiles = dashboard_metadata.get_tiles(query_transformer)
         datasets = self._get_datasets(tiles)
         layouts = self._get_layouts(tiles)
         page = Page(
@@ -798,22 +818,6 @@ class Dashboards:
         )
         lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
         return lakeview_dashboard
-
-    @staticmethod
-    def _get_tiles(
-        dashboard_metadata: DashboardMetadata,
-        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
-    ) -> list[Tile]:
-        """Create tiles from the tiles metadata."""
-        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for tile_metadata in dashboard_metadata.tiles:
-            tile = Tile.from_tile_metadata(tile_metadata)
-            if isinstance(tile, QueryTile):
-                tile.query_transformer = query_transformer
-            placed_tile = tile.place_after(position)
-            tiles.append(placed_tile)
-            position = placed_tile.position
-        return tiles
 
     @staticmethod
     def _get_datasets(tiles: list[Tile]) -> list[Dataset]:
