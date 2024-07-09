@@ -217,8 +217,8 @@ class TileMetadata:
     def update(self, other: "TileMetadata") -> None:
         """Update the tile metadata with another tile metadata.
 
-        Precendence:
-        - The other takes precendences, similar to merging dictionairies.
+        Precedence:
+        - The other takes precedences, similar to merging dictionaries.
         - Unless the others value is a default, then the value from self is taken.
 
         Resources:
@@ -436,7 +436,7 @@ class QueryTile(Tile):
         yield dataset
 
     def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
-        """Merge nested dictionairies."""
+        """Merge nested dictionaries."""
         out: dict = defaultdict(dict)
         out.update(left)
         for key, value in right.items():
