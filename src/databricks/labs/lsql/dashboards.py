@@ -613,7 +613,7 @@ class CounterTile(QueryTile):
 @dataclass
 class DashboardMetadata:
     display_name: str
-    tiles: list[TileMetadata] = dataclasses.field(default_factory=list)
+    tile_metadatas: list[TileMetadata] = dataclasses.field(default_factory=list)
 
     def validate(self) -> None:
         """Validate the dashboard metadata.
@@ -622,7 +622,7 @@ class DashboardMetadata:
             ValueError : If the dashboard metadata is invalid.
         """
         tile_ids = []
-        for tile in self.tiles:
+        for tile in self.tile_metadatas:
             if not (tile.is_markdown() or tile.is_query()):
                 raise ValueError(f"Tile path is required: {tile}")
             tile_ids.append(tile.id)
@@ -642,7 +642,7 @@ class DashboardMetadata:
                 transformation is applied.
         """
         tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for tile_metadata in self.tiles:
+        for tile_metadata in self.tile_metadatas:
             tile = Tile.from_tile_metadata(tile_metadata)
             if isinstance(tile, QueryTile):
                 tile.query_transformer = query_transformer
@@ -690,12 +690,12 @@ class DashboardMetadata:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
             tiles.append(tile)
-        return cls(display_name=display_name, tiles=tiles)
+        return cls(display_name=display_name, tile_metadatas=tiles)
 
     def as_dict(self) -> dict:
         raw: dict = {"display_name": self.display_name}
-        if self.tiles:
-            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tiles}
+        if self.tile_metadatas:
+            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tile_metadatas}
         return raw
 
     @classmethod
@@ -709,23 +709,23 @@ class DashboardMetadata:
         """
         dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
         dashboard_metadata_folder = cls._from_dashboard_folder(path)
-        tiles = []
-        yml_tiles = {tile.id: tile for tile in dashboard_metadata_yml.tiles}
-        for tile in dashboard_metadata_folder.tiles:
-            yml_tile = yml_tiles.get(tile.id)
-            if yml_tile is not None:
-                yml_tile.update(tile)
-                tiles.append(yml_tile)
+        tile_metadatas = []
+        yml_tile_metadatas = {tile.id: tile for tile in dashboard_metadata_yml.tile_metadatas}
+        for tile_metadata in dashboard_metadata_folder.tile_metadatas:
+            yml_tile_metadata = yml_tile_metadatas.get(tile_metadata.id)
+            if yml_tile_metadata is not None:
+                yml_tile_metadata.update(tile_metadata)
+                tile_metadatas.append(yml_tile_metadata)
             else:
-                tiles.append(tile)
-        folder_tiles = {tile.id: tile for tile in dashboard_metadata_folder.tiles}
-        for tile in dashboard_metadata_yml.tiles:
-            if tile.id not in folder_tiles:
-                tiles.append(tile)
-        for order, tile in enumerate(sorted(tiles, key=lambda wm: wm.id)):
-            tile.order = tile.order if tile.order is not None else order
-        tiles_sorted = list(sorted(tiles, key=lambda t: (t.order, t.id)))
-        return dataclasses.replace(dashboard_metadata_yml, tiles=tiles_sorted)
+                tile_metadatas.append(tile_metadata)
+        folder_tile_metadatas = {tile.id: tile for tile in dashboard_metadata_folder.tile_metadatas}
+        for tile_metadata in dashboard_metadata_yml.tile_metadatas:
+            if tile_metadata.id not in folder_tile_metadatas:
+                tile_metadatas.append(tile_metadata)
+        for order, tile_metadata in enumerate(sorted(tile_metadatas, key=lambda wm: wm.id)):
+            tile_metadata.order = tile_metadata.order if tile_metadata.order is not None else order
+        tiles_sorted = list(sorted(tile_metadatas, key=lambda t: (t.order, t.id)))
+        return dataclasses.replace(dashboard_metadata_yml, tile_metadatas=tiles_sorted)
 
     @classmethod
     def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
@@ -753,7 +753,7 @@ class DashboardMetadata:
             if path.suffix not in {".sql", ".md"}:
                 continue
             tiles.append(TileMetadata.from_path(path))
-        return cls(display_name=folder.name, tiles=tiles)
+        return cls(display_name=folder.name, tile_metadatas=tiles)
 
 
 class Dashboards:
