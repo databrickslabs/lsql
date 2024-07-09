@@ -653,10 +653,10 @@ class DashboardMetadata:
                 tile_metadatas.append(tile_metadata)
         self.tile_metadatas = tile_metadatas
 
-    def _create_tiles(
+    def _get_tiles(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     ) -> list[Tile]:
-        """Create tiles from the tiles metadata.
+        """Get the tiles from the tiles metadata.
 
         The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
         with the `order` key. Hence, the logic to:
@@ -682,28 +682,28 @@ class DashboardMetadata:
             position = tile.position
         return tiles
 
-    def create_datasets(
+    def get_datasets(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     ) -> list[Dataset]:
-        """Create the datasets for the dashboard.
+        """Get the datasets for the dashboard.
 
-        See :meth:`DashboardMetadata._create_tiles` for `query_transformer`.
+        See :meth:`DashboardMetadata._get_tiles` for `query_transformer`.
         """
         datasets: list[Dataset] = []
-        for tile in self._create_tiles(query_transformer):
+        for tile in self._get_tiles(query_transformer):
             if isinstance(tile, QueryTile):
                 datasets.extend(tile.get_datasets())
         return datasets
 
-    def create_layouts(
+    def get_layouts(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     ) -> list[Layout]:
-        """Create the layouts for the dashboard.
+        """Get the layouts for the dashboard.
 
-        See :meth:`DashboardMetadata._create_tiles` for `query_transformer`.
+        See :meth:`DashboardMetadata._get_tiles` for `query_transformer`.
         """
         layouts: list[Layout] = []
-        for tile in self._create_tiles(query_transformer):
+        for tile in self._get_tiles(query_transformer):
             layouts.extend(tile.get_layouts())
         return layouts
 
@@ -841,8 +841,8 @@ class Dashboards:
         """
         dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
         dashboard_metadata.validate()
-        datasets = dashboard_metadata.create_datasets(query_transformer)
-        layouts = dashboard_metadata.create_layouts(query_transformer)
+        datasets = dashboard_metadata.get_datasets(query_transformer)
+        layouts = dashboard_metadata.get_layouts(query_transformer)
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
