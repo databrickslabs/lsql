@@ -135,6 +135,69 @@ tiles:
     assert dashboard_metadata.tile_metadatas["partial_correct"].order == 3
 
 
+def test_dashboard_metadata_validate_valid(tmp_path):
+    dashboard_content = """
+display_name: name
+
+tiles:
+  correct:
+    order: 1
+""".lstrip()
+    path = tmp_path / "dashboard.yml"
+    (tmp_path / "dashboard.yml").write_text(dashboard_content)
+    (tmp_path / "correct.sql").touch()
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+
+    try:
+        dashboard_metadata.validate()
+    except ValueError as e:
+        assert False, f"Invalid dashboard metadata: {e}"
+    else:
+        assert True, "Valid dashboard metadata"
+
+
+def test_dashboard_metadata_validate_misses_tile_path(tmp_path):
+    dashboard_content = """
+display_name: name
+
+tiles:
+  correct:
+    order: 1
+""".lstrip()
+    path = tmp_path / "dashboard.yml"
+    (tmp_path / "dashboard.yml").write_text(dashboard_content)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+
+    with pytest.raises(ValueError) as e:
+        dashboard_metadata.validate()
+    assert "Tile path is required: TileMetadata<correct>" in str(e.value)
+
+
+def test_dashboard_metadata_validate_finds_duplicate_query_id(tmp_path):
+    (tmp_path / "query.sql").touch()
+    query_content = """-- --id query\nSELECT 1"""
+    (tmp_path / "not_query.sql").write_text(query_content)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+
+    with pytest.raises(ValueError) as e:
+        dashboard_metadata.validate()
+    assert "Duplicate id: query" in str(e.value)
+
+
+def test_dashboard_metadata_validate_finds_duplicate_widget_id(tmp_path):
+    (tmp_path / "widget.sql").touch()
+    (tmp_path / "widget.md").touch()
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+
+    with pytest.raises(ValueError) as e:
+        dashboard_metadata.validate()
+    assert "Duplicate id: widget" in str(e.value)
+
+
 def test_tile_metadata_is_markdown():
     tile_metadata = TileMetadata(Path("test.md"))
     assert tile_metadata.is_markdown()
