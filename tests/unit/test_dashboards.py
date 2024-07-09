@@ -2,6 +2,7 @@ import functools
 import itertools
 import json
 import logging
+import string
 from pathlib import Path
 from unittest.mock import create_autospec
 
@@ -787,6 +788,20 @@ def test_query_tile_fills_up_size(tmp_path, width, height, filters, axes):
             assert getattr(before, axis) + getattr(before, dimension) == getattr(after, axis), message
 
 
+def test_table_tile_becomes_wider_with_more_columns(tmp_path):
+    query = "SELECT col0, col1"
+    query_path = tmp_path / "small.sql"
+    query_path.write_text(query)
+    small_table = Tile.from_tile_metadata(TileMetadata.from_path(query_path))
+
+    query = "SELECT " + ", ".join(f"col{i}" for i in range(100))
+    query_path = tmp_path / "big.sql"
+    query_path.write_text(query)
+    big_table = Tile.from_tile_metadata(TileMetadata.from_path(query_path))
+
+    assert small_table.position.width < big_table.position.width
+
+
 def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
     with (tmp_path / "query.sql").open("w") as f:
         f.write("SELECT 1 AS amount")
@@ -1040,14 +1055,12 @@ tiles:
     "query, width, height",
     [
         ("SELECT 1 AS count", 1, 3),
-        ("SELECT 1 AS first, 2 AS second", 6, 6),
+        ("SELECT " + ", ".join(string.ascii_letters), 6, 6),
     ],
 )
 def test_dashboards_creates_dashboards_where_widget_has_expected_width_and_height(tmp_path, query, width, height):
     ws = create_autospec(WorkspaceClient)
-
-    with (tmp_path / "query.sql").open("w") as f:
-        f.write(query)
+    (tmp_path / "query.sql").write_text(query)
 
     lakeview_dashboard = Dashboards(ws).create_dashboard(tmp_path)
     position = lakeview_dashboard.pages[0].layout[0].position
