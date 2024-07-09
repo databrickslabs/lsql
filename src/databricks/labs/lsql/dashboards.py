@@ -607,10 +607,6 @@ class DashboardMetadata:
     display_name: str
     tiles: list[TileMetadata] = dataclasses.field(default_factory=list)
 
-    @property
-    def tile_metadatas(self) -> dict[str, TileMetadata]:
-        return {tile.id: tile for tile in self.tiles}
-
     def validate(self) -> None:
         """Validate the dashboard metadata.
 
@@ -706,16 +702,17 @@ class DashboardMetadata:
         dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
         dashboard_metadata_folder = cls._from_dashboard_folder(path)
         tiles = []
+        yml_tiles = {tile.id: tile for tile in dashboard_metadata_yml.tiles}
         for tile in dashboard_metadata_folder.tiles:
-            tile_metadata = dashboard_metadata_yml.tile_metadatas.get(tile.id)
-            if tile_metadata is not None:
-                tile_metadata.update(tile)
-                tiles.append(tile_metadata)
+            yml_tile = yml_tiles.get(tile.id)
+            if yml_tile is not None:
+                yml_tile.update(tile)
+                tiles.append(yml_tile)
             else:
                 tiles.append(tile)
+        folder_tiles = {tile.id: tile for tile in dashboard_metadata_folder.tiles}
         for tile in dashboard_metadata_yml.tiles:
-            tile_metadata = dashboard_metadata_folder.tile_metadatas.get(tile.id)
-            if tile_metadata is None:
+            if tile.id not in folder_tiles:
                 tiles.append(tile)
         for order, tile in enumerate(sorted(tiles, key=lambda wm: wm.id)):
             tile.order = tile.order if tile.order is not None else order
