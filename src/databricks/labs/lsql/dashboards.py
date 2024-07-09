@@ -1,4 +1,5 @@
 import argparse
+import collections
 import copy
 import dataclasses
 import json
@@ -304,7 +305,7 @@ class TileMetadata:
         return cls.from_dict(header)
 
     def __repr__(self):
-        return f"TileMetadata<{self._path}>"
+        return f"TileMetadata<{self.id}>"
 
 
 @dataclass
@@ -315,6 +316,22 @@ class DashboardMetadata:
     @property
     def tile_metadatas(self) -> dict[str, TileMetadata]:
         return {tile.id: tile for tile in self.tiles}
+
+    def validate(self) -> None:
+        """Validate the dashboard metadata.
+
+        Raises:
+            ValueError : If the dashboard metadata is invalid.
+        """
+        tile_ids = []
+        for tile in self.tiles:
+            if not (tile.is_markdown() or tile.is_query()):
+                raise ValueError(f"Tile path is required: {tile}")
+            tile_ids.append(tile.id)
+        counter = collections.Counter(tile_ids)
+        for id, id_count in counter.items():
+            if id_count > 1:
+                raise ValueError(f"Duplicate id: {id}")
 
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
