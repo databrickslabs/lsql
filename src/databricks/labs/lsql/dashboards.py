@@ -627,9 +627,9 @@ class DashboardMetadata:
     ) -> list[Tile]:
         """Create tiles from the tiles metadata.
 
-        Arguments:
+        Parameters :
             query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default: None)
-                A sqlglot transformer applied on the queries (SQL files) before creating the dashboard. If None, no
+                A sqlglot transformer applied on the queries (SQL files) before creating the tiles. If None, no
                 transformation is applied.
         """
         tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
@@ -645,7 +645,10 @@ class DashboardMetadata:
     def create_datasets(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     ) -> list[Dataset]:
-        """Create the datasets for the dashboard."""
+        """Create the datasets for the dashboard.
+
+        See :meth:`DashboardMetadata._create_tiles` for `query_transformer`.
+        """
         datasets: list[Dataset] = []
         for tile in self._create_tiles(query_transformer):
             if isinstance(tile, QueryTile):
@@ -655,7 +658,10 @@ class DashboardMetadata:
     def create_layouts(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     ) -> list[Layout]:
-        """Create the layouts for the dashboard."""
+        """Create the layouts for the dashboard.
+
+        See :meth:`DashboardMetadata._create_tiles` for `query_transformer`.
+        """
         layouts: list[Layout] = []
         for tile in self._create_tiles(query_transformer):
             layouts.extend(tile.get_layouts())
