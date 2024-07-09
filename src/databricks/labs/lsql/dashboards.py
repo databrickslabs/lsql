@@ -631,9 +631,9 @@ class DashboardMetadata:
                 raise ValueError(f"Tile path is required: {tile}")
             tile_ids.append(tile.id)
         counter = collections.Counter(tile_ids)
-        for id, id_count in counter.items():
+        for tile_id, id_count in counter.items():
             if id_count > 1:
-                raise ValueError(f"Duplicate id: {id}")
+                raise ValueError(f"Duplicate id: {tile_id}")
 
     def get_tiles(
         self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
