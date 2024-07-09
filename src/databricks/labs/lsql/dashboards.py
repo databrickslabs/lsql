@@ -347,20 +347,24 @@ class DashboardMetadata:
     @classmethod
     def from_path(cls, path: Path) -> "DashboardMetadata":
         """Export dashboard metadata from a YAML file."""
-        fallback_metadata = cls(display_name=path.name)
-
         dashboard_path = path / "dashboard.yml"
-        if not dashboard_path.exists():
+        return cls._from_dashboard_path(dashboard_path)
+
+    @classmethod
+    def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
+        fallback_metadata = cls(display_name=path.parent.name)
+
+        if not path.exists():
             return fallback_metadata
         try:
-            raw = yaml.safe_load(dashboard_path.read_text())
+            raw = yaml.safe_load(path.read_text())
         except yaml.YAMLError as e:
-            logger.warning(f"Parsing {dashboard_path}: {e}")
+            logger.warning(f"Parsing {path}: {e}")
             return fallback_metadata
         try:
             return cls.from_dict(raw)
         except KeyError as e:
-            logger.warning(f"Parsing {dashboard_path}: {e}")
+            logger.warning(f"Parsing {path}: {e}")
             return fallback_metadata
 
 
