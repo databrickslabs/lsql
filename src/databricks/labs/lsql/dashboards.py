@@ -232,7 +232,7 @@ class TileMetadata:
 
         widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
 
-        self.path = other.path or self.path
+        self._path = other._path or self._path
         self.order = other.order if other.order is not None else self.order
         self.width = other.width or self.width
         self.height = other.height or self.height
@@ -353,22 +353,31 @@ class DashboardMetadata:
 
     @classmethod
     def from_path(cls, path: Path) -> "DashboardMetadata":
-        """Read the dashboard metadata from the dashboard folder."""
+        """Read the dashboard metadata from the dashboard folder.
+
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the logic to:
+        i) set the order when not specified;
+        ii) sort the tiles using the order field.
+        """
         dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
         dashboard_metadata_folder = cls._from_dashboard_folder(path)
-        merged_tiles = []
+        tiles = []
         for tile in dashboard_metadata_folder.tiles:
             tile_metadata = dashboard_metadata_yml.tile_metadatas.get(tile.id)
             if tile_metadata is not None:
                 tile_metadata.update(tile)
-                merged_tiles.append(tile_metadata)
+                tiles.append(tile_metadata)
             else:
-                merged_tiles.append(tile)
+                tiles.append(tile)
         for tile in dashboard_metadata_yml.tiles:
             tile_metadata = dashboard_metadata_folder.tile_metadatas.get(tile.id)
             if tile_metadata is None:
-                merged_tiles.append(tile)
-        return dataclasses.replace(dashboard_metadata_yml, tiles=merged_tiles)
+                tiles.append(tile)
+        for order, tile in enumerate(sorted(tiles, key=lambda wm: wm.id)):
+            tile.order = tile.order if tile.order is not None else order
+        tiles_sorted = list(sorted(tiles, key=lambda t: (t.order, t.id)))
+        return dataclasses.replace(dashboard_metadata_yml, tiles=tiles_sorted)
 
     @classmethod
     def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
@@ -958,21 +967,9 @@ class Dashboards:
         dashboard_metadata: DashboardMetadata,
         query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
     ) -> list[Tile]:
-        """Create tiles from the tiles metadata.
-
-        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
-        with the `order` key. Hence, the multiple loops to get:
-        i) set the order when not specified;
-        ii) sort the tiles using the order field.
-        """
-        tiles_metadata_with_order = []
-        for order, tile_metadata in enumerate(sorted(dashboard_metadata.tiles, key=lambda wm: wm.id)):
-            replica = copy.deepcopy(tile_metadata)
-            replica.order = tile_metadata.order if tile_metadata.order is not None else order
-            tiles_metadata_with_order.append(replica)
-
+        """Create tiles from the tiles metadata."""
         tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for tile_metadata in sorted(tiles_metadata_with_order, key=lambda wm: (wm.order, wm.id)):
+        for tile_metadata in dashboard_metadata.tiles:
             tile = Tile.from_tile_metadata(tile_metadata)
             if isinstance(tile, QueryTile):
                 tile.query_transformer = query_transformer
