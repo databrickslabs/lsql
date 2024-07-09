@@ -366,17 +366,10 @@ def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sql
 class QueryTile(Tile):
     """A tile based on a sql query."""
 
+    query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+
     _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
-
-    def __init__(
-        self,
-        tile_metadata: TileMetadata,
-        *,
-        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
-    ) -> None:
-        super().__init__(tile_metadata)
-        self.query_transformer = query_transformer
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
         _, query = self.metadata.handler.split()
