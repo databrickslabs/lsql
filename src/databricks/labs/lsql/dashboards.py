@@ -303,9 +303,16 @@ class Tile:
     """A dashboard tile."""
 
     metadata: TileMetadata
-    content: str = ""
 
+    _content: str = ""
     _position: Position = Position(0, 0, 0, 0)
+
+    @property
+    def content(self) -> str:
+        if len(self._content) == 0:
+            _, content = self.metadata.handler.split()
+            self._content = content
+        return self._content
 
     @property
     def position(self) -> Position:
@@ -337,16 +344,15 @@ class Tile:
     @classmethod
     def from_tile_metadata(cls, tile_metadata: TileMetadata) -> "Tile":
         """Create a tile given the tile metadata."""
-        _, content = tile_metadata.handler.split()
         if tile_metadata.is_markdown():
-            return MarkdownTile(tile_metadata, content)
-        query_tile = QueryTile(tile_metadata, content)
+            return MarkdownTile(tile_metadata)
+        query_tile = QueryTile(tile_metadata)
         spec_type = query_tile.infer_spec_type()
         if spec_type is None:
-            return MarkdownTile(tile_metadata, content)
+            return MarkdownTile(tile_metadata)
         if spec_type == CounterSpec:
-            return CounterTile(tile_metadata, content)
-        return TableTile(tile_metadata, content)
+            return CounterTile(tile_metadata)
+        return TableTile(tile_metadata)
 
     def __repr__(self):
         return f"Tile<{self.metadata.id}>"
