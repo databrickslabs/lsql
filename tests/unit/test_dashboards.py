@@ -1371,7 +1371,7 @@ def test_dashboards_save_to_folder_replaces_counter_names(ugly_dashboard, tmp_pa
 
 
 def test_dashboards_get_dashboard_url():
-    dashboard_url_expected = "https://adb-0123456789.12.azuredatabricks.net/sql/dashboardsv3/1234"
+    dashboard_url_expected = "https://adb-0123456789.12.azuredatabricks.net/dashboardsv3/1234/published"
 
     ws = create_autospec(WorkspaceClient)
     ws.config.host = "https://adb-0123456789.12.azuredatabricks.net"

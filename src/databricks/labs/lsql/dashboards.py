@@ -931,5 +931,6 @@ class Dashboards:
         Returns :
             The dashboard URL
         """
-        dashboard_url = f"{self._ws.config.host}/sql/dashboardsv3/{dashboard.dashboard_id}"
+        # The /published redirects to the draft if the dashboard is not published
+        dashboard_url = f"{self._ws.config.host}/dashboardsv3/{dashboard.dashboard_id}/published"
         return dashboard_url
