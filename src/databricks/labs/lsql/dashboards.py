@@ -597,20 +597,11 @@ class CounterTile(QueryTile):
 
 @dataclass
 class DashboardMetadata:
-    """The metadata defining a lakeview dashboard
+    """The metadata defining a lakeview dashboard"""
 
-    Attributes :
-        display_name : str
-            The dashboard display name
-        tile_metadatas : list[TileMetadata] (default: [])
-            The tile metadata objects
-        query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default: None)
-            A sqlglot transformer applied on the queries (SQL files) before creating the tiles. If None, no
-            transformation is applied.
-    """
-
-    display_name: str
-    tile_metadatas: list[TileMetadata] = dataclasses.field(default_factory=list)
+    display_name: str  # The dashboard display name
+    tile_metadatas: list[TileMetadata] = dataclasses.field(default_factory=list)  # The tile metadata objects
+    # A sqlglot transformer applied on the queries before creating the tiles. If None, no transformation is applied
     query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
 
     def validate(self) -> None:
