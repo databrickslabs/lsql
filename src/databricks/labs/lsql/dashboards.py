@@ -355,9 +355,30 @@ class MarkdownTile(Tile):
     _position: Position = Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3)
 
 
-def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sqlglot.Expression:
-    """Replace the database in a query."""
-    if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
+def replace_database_in_query(
+    node: sqlglot.Expression,
+    *,
+    database: str,
+    database_to_replace: str | None = None,
+) -> sqlglot.Expression:
+    """Replace the database in a query.
+
+    Parameters :
+        node : sqlglot.Expression
+            The parsed sql query
+        database : str
+            The value to replace the database with
+        database_to_replace : str | None (default: None)
+            The database to replace, if None, all databases are replaced
+
+    Returns :
+        The query with the database replaced
+    """
+    if (
+        isinstance(node, sqlglot.exp.Table)
+        and node.args.get("db") is not None
+        and (database_to_replace is None or getattr(node.args.get("db"), "this", "") == database_to_replace)
+    ):
         node.args["db"].set("this", database)
     return node
 

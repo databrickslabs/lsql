@@ -762,6 +762,31 @@ def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, qu
     assert dataset.query == sqlglot.parse_one(query_transformed).sql(pretty=True)
 
 
+@pytest.mark.parametrize(
+    "query, query_transformed",
+    [
+        (
+            "SELECT left.name FROM database.table AS left JOIN other_database.table AS right ON left.id = right.id",
+            "SELECT left.name FROM development.table AS left JOIN other_database.table AS right ON left.id = right.id",
+        ),
+    ],
+)
+def test_query_tile_creates_database_with_database_overwrite_where(tmp_path, query, query_transformed):
+    query_path = tmp_path / "counter.sql"
+    query_path.write_text(query)
+
+    replace_with_development_database = functools.partial(
+        replace_database_in_query,
+        database="development",
+        database_to_replace="database",
+    )
+    query_tile = QueryTile(TileMetadata.from_path(query_path), query_transformer=replace_with_development_database)
+
+    dataset = next(query_tile.get_datasets())
+
+    assert dataset.query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+
+
 @pytest.mark.parametrize("width", [5, 8, 13])
 @pytest.mark.parametrize("height", [4, 8, 12])
 @pytest.mark.parametrize("filters", ["", "a", "ab", "abc", "abcde", "abcdefgh"])
