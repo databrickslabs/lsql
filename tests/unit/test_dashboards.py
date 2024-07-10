@@ -715,7 +715,7 @@ def test_query_tile_finds_fields(tmp_path, query, names):
     query_file.write_text(query)
 
     tile_metadata = TileMetadata(query_file, 1, 1, 1)
-    tile = QueryTile(tile_metadata)
+    tile = QueryTile.from_tile_metadata(tile_metadata)
 
     fields = tile._find_fields()  # pylint: disable=protected-access
 

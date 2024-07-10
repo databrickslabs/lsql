@@ -302,6 +302,7 @@ class Tile:
     """A dashboard tile."""
 
     metadata: TileMetadata
+    content: str = ""
 
     _position: Position = Position(0, 0, 0, 0)
 
@@ -313,8 +314,7 @@ class Tile:
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        _, text = self.metadata.handler.split()
-        widget = Widget(name=self.metadata.id, textbox_spec=text)
+        widget = Widget(name=self.metadata.id, textbox_spec=self.content)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
@@ -336,15 +336,16 @@ class Tile:
     @classmethod
     def from_tile_metadata(cls, tile_metadata: TileMetadata) -> "Tile":
         """Create a tile given the tile metadata."""
+        _, content = tile_metadata.handler.split()
         if tile_metadata.is_markdown():
-            return MarkdownTile(tile_metadata)
-        query_tile = QueryTile(tile_metadata)
+            return MarkdownTile(tile_metadata, content)
+        query_tile = QueryTile(tile_metadata, content)
         spec_type = query_tile.infer_spec_type()
         if spec_type is None:
-            return MarkdownTile(tile_metadata)
+            return MarkdownTile(tile_metadata, content)
         if spec_type == CounterSpec:
-            return CounterTile(tile_metadata)
-        return TableTile(tile_metadata)
+            return CounterTile(tile_metadata, content)
+        return TableTile(tile_metadata, content)
 
     def __repr__(self):
         return f"Tile<{self.metadata.id}>"
@@ -365,11 +366,10 @@ class QueryTile(Tile):
     _FILTER_HEIGHT = 1
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        _, query = self.metadata.handler.split()
         try:
-            return sqlglot.parse_one(query, dialect=self._DIALECT)
+            return sqlglot.parse_one(self.content, dialect=self._DIALECT)
         except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {query}: {e}")
+            logger.warning(f"Parsing {self.content}: {e}")
             return None
 
     def _get_query(self) -> str:
