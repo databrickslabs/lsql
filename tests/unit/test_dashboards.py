@@ -1373,5 +1373,5 @@ def test_dashboards_get_dashboard_url():
     dashboard_url_expected = "https://adb-0123456789.12.azuredatabricks.net/dashboardsv3/1234/published"
     ws = create_autospec(WorkspaceClient)
     ws.config.host = "https://adb-0123456789.12.azuredatabricks.net"
-    dashboard_url = Dashboards(ws).get_dashboard_url("1234")
+    dashboard_url = Dashboards(ws).get_url("1234")
     assert dashboard_url == dashboard_url_expected
