@@ -581,10 +581,10 @@ class TableTile(QueryTile):
 
     @property
     def position(self) -> Position:
-        fields = self._find_fields()
         if self.metadata.width:
             width = self.metadata.width
         else:
+            fields = self._find_fields()
             width = max(self._position.width, len(fields) // 3)
         width = min(width, _MAXIMUM_DASHBOARD_WIDTH)
         height = self.metadata.height or self._position.height
@@ -617,7 +617,7 @@ class DashboardMetadata:
         """
         tile_ids = []
         for tile in self.tile_metadatas:
-            if not (tile.is_markdown() or tile.is_query()):
+            if tile.path is None:
                 raise ValueError(f"Tile path is required: {tile}")
             tile_ids.append(tile.id)
         counter = collections.Counter(tile_ids)
