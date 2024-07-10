@@ -741,7 +741,7 @@ def test_query_tile_keeps_original_query(tmp_path):
     query_path.write_text(query)
 
     tile_metadata = TileMetadata.from_path(query_path)
-    query_tile = QueryTile(tile_metadata)
+    query_tile = QueryTile.from_tile_metadata(tile_metadata)
 
     dataset = next(query_tile.get_datasets())
 
