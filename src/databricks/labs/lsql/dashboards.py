@@ -355,34 +355,6 @@ class MarkdownTile(Tile):
     _position: Position = Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3)
 
 
-def replace_database_in_query(
-    node: sqlglot.Expression,
-    *,
-    database: str,
-    database_to_replace: str | None = None,
-) -> sqlglot.Expression:
-    """Replace the database in a query.
-
-    Parameters :
-        node : sqlglot.Expression
-            The parsed sql query
-        database : str
-            The value to replace the database with
-        database_to_replace : str | None (default: None)
-            The database to replace, if None, all databases are replaced
-
-    Returns :
-        The query with the database replaced
-    """
-    if (
-        isinstance(node, sqlglot.exp.Table)
-        and node.args.get("db") is not None
-        and (database_to_replace is None or getattr(node.args.get("db"), "this", "") == database_to_replace)
-    ):
-        node.args["db"].set("this", database)
-    return node
-
-
 @dataclass
 class QueryTile(Tile):
     """A tile based on a sql query."""
@@ -625,10 +597,21 @@ class CounterTile(QueryTile):
 
 @dataclass
 class DashboardMetadata:
-    """The metadata defining a lakeview dashboard"""
+    """The metadata defining a lakeview dashboard
+
+    Attributes :
+        display_name : str
+            The dashboard display name
+        tile_metadatas : list[TileMetadata] (default: [])
+            The tile metadata objects
+        query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default: None)
+            A sqlglot transformer applied on the queries (SQL files) before creating the tiles. If None, no
+            transformation is applied.
+    """
 
     display_name: str
     tile_metadatas: list[TileMetadata] = dataclasses.field(default_factory=list)
+    query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
 
     def validate(self) -> None:
         """Validate the dashboard metadata.
@@ -674,20 +657,39 @@ class DashboardMetadata:
                 tile_metadatas.append(tile_metadata)
         self.tile_metadatas = tile_metadatas
 
-    def _get_tiles(
-        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
-    ) -> list[Tile]:
+    def replace_database(
+        self,
+        database: str,
+        *,
+        database_to_replace: str | None = None,
+    ) -> None:
+        """Replace the database in the queries.
+
+        Parameters :
+            database : str
+                The value to replace the database with
+            database_to_replace : str | None (default: None)
+                The database to replace, if None, all databases are replaced
+        """
+
+        def replace_database_in_query(node: sqlglot.Expression) -> sqlglot.Expression:
+            if (
+                isinstance(node, sqlglot.exp.Table)
+                and node.args.get("db") is not None
+                and (database_to_replace is None or getattr(node.args.get("db"), "this", "") == database_to_replace)
+            ):
+                node.args["db"].set("this", database)
+            return node
+
+        self.query_transformer = replace_database_in_query
+
+    def _get_tiles(self) -> list[Tile]:
         """Get the tiles from the tiles metadata.
 
         The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
         with the `order` key. Hence, the logic to:
         i) set the order when not specified;
         ii) sort the tiles using the order field.
-
-        Parameters :
-            query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default: None)
-                A sqlglot transformer applied on the queries (SQL files) before creating the tiles. If None, no
-                transformation is applied.
         """
         tile_metadatas_with_order = []
         for default_order, tile_metadata in enumerate(sorted(self.tile_metadatas, key=lambda wm: wm.id)):
@@ -697,34 +699,24 @@ class DashboardMetadata:
         for tile_metadata in sorted(tile_metadatas_with_order, key=lambda t: (t.order, t.id)):
             tile = Tile.from_tile_metadata(tile_metadata)
             if isinstance(tile, QueryTile):
-                tile.query_transformer = query_transformer
+                tile.query_transformer = self.query_transformer
             tile.place_after(position)
             tiles.append(tile)
             position = tile.position
         return tiles
 
-    def get_datasets(
-        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
-    ) -> list[Dataset]:
-        """Get the datasets for the dashboard.
-
-        See :meth:`DashboardMetadata._get_tiles` for `query_transformer`.
-        """
+    def get_datasets(self) -> list[Dataset]:
+        """Get the datasets for the dashboard."""
         datasets: list[Dataset] = []
-        for tile in self._get_tiles(query_transformer):
+        for tile in self._get_tiles():
             if isinstance(tile, QueryTile):
                 datasets.extend(tile.get_datasets())
         return datasets
 
-    def get_layouts(
-        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
-    ) -> list[Layout]:
-        """Get the layouts for the dashboard.
-
-        See :meth:`DashboardMetadata._get_tiles` for `query_transformer`.
-        """
+    def get_layouts(self) -> list[Layout]:
+        """Get the layouts for the dashboard."""
         layouts: list[Layout] = []
-        for tile in self._get_tiles(query_transformer):
+        for tile in self._get_tiles():
             layouts.extend(tile.get_layouts())
         return layouts
 
@@ -840,30 +832,22 @@ class Dashboards:
         return formatted_query
 
     @staticmethod
-    def create_dashboard(
-        dashboard_folder: Path,
-        *,
-        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
-    ) -> Dashboard:
-        """Create a dashboard from code, i.e. configuration and queries.
+    def create_dashboard(dashboard_metadata: DashboardMetadata) -> Dashboard:
+        """Create a dashboard from the dashboard metadata
 
         Parameters :
-            dashboard_folder : Path
-                The path to the folder with dashboard files.
-            query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default | None)
-                A sqlglot transformer applied on the queries (SQL files) before creating the dashboard. If None, no
-                transformation will be applied.
+            dashboard_metadata : DashboardMetadata
+                The dashboard metadata
 
-        Raises:
+        Raises :
             ValueError : If the dashboard metadata is invalid.
 
         Source :
             https://sqlglot.com/sqlglot/transforms.html
         """
-        dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
         dashboard_metadata.validate()
-        datasets = dashboard_metadata.get_datasets(query_transformer)
-        layouts = dashboard_metadata.get_layouts(query_transformer)
+        datasets = dashboard_metadata.get_datasets()
+        layouts = dashboard_metadata.get_layouts()
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,

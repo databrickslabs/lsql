@@ -1,4 +1,3 @@
-import functools
 import webbrowser
 from pathlib import Path
 
@@ -6,8 +5,7 @@ from databricks.labs.blueprint.cli import App
 from databricks.labs.blueprint.entrypoint import get_logger
 from databricks.sdk import WorkspaceClient
 
-from databricks.labs.lsql import dashboards
-from databricks.labs.lsql.dashboards import Dashboards
+from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards
 
 logger = get_logger(__file__)
 lsql = App(__file__)
@@ -25,10 +23,10 @@ def create_dashboard(
     logger.debug("Creating dashboard ...")
     lakeview_dashboards = Dashboards(w)
     folder = Path(folder)
-    replace_database_in_query = None
+    dashboard_metadata = DashboardMetadata.from_path(folder)
     if database:
-        replace_database_in_query = functools.partial(dashboards.replace_database_in_query, database=database)
-    lakeview_dashboard = lakeview_dashboards.create_dashboard(folder, query_transformer=replace_database_in_query)
+        dashboard_metadata.replace_database(database)
+    lakeview_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata)
     sdk_dashboard = lakeview_dashboards.deploy_dashboard(lakeview_dashboard)
     if not no_open:
         assert sdk_dashboard.dashboard_id is not None
