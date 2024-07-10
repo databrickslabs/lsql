@@ -590,7 +590,7 @@ SELECT COALESCE(CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%'), 'N/A') AS re
 """.lstrip()
     (tmp_path / "counter.sql").write_text(query)
 
-    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database("development")
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(database="development")
     lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
 
     dataset = lakeview_dashboard.datasets[0]
@@ -736,33 +736,45 @@ def test_query_tile_keeps_original_query(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "query, query_transformed, database_to_replace",
+    "query, query_transformed, catalog_to_replace, database_to_replace",
     [
-        ("SELECT count FROM table", "SELECT count FROM table", None),
-        ("SELECT count FROM database.table", "SELECT count FROM development.table", None),
-        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table", None),
-        ("SELECT database FROM database.table", "SELECT database FROM development.table", None),
+        ("SELECT count FROM table", "SELECT count FROM table", None, None),
+        ("SELECT count FROM database.table", "SELECT count FROM development.table", None, None),
+        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table", None, None),
+        ("SELECT database FROM database.table", "SELECT database FROM development.table", None, None),
         (
-            "SELECT a FROM server.database.table, server.other_database.table",
-            "SELECT a FROM server.development.table, server.development.table",
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM catalog.development.table, remote_server.development.table",
+            "server",
             None,
         ),
         (
-            "SELECT left.a FROM server.database.table AS left JOIN server.other_database.table AS right ON left.id = right.id",
-            "SELECT left.a FROM server.development.table AS left JOIN server.development.table AS right ON left.id = right.id",
+            "SELECT left.a FROM hive_metastore.database.table AS left JOIN hive_metastore.other_database.table AS right ON left.id = right.id",
+            "SELECT left.a FROM catalog.development.table AS left JOIN catalog.development.table AS right ON left.id = right.id",
+            None,
             None,
         ),
         (
             "SELECT left.name FROM database.table AS left JOIN other_database.table AS right ON left.id = right.id",
             "SELECT left.name FROM development.table AS left JOIN other_database.table AS right ON left.id = right.id",
+            None,
             "database",
         ),
     ],
 )
-def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, query_transformed, database_to_replace):
+def test_query_tile_creates_database_with_database_overwrite(
+    tmp_path,
+    query,
+    query_transformed,
+    catalog_to_replace,
+    database_to_replace,
+):
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(
-        "development", database_to_replace=database_to_replace
+        "catalog",
+        "development",
+        catalog_to_replace=catalog_to_replace,
+        database_to_replace=database_to_replace,
     )
 
     datasets = dashboard_metadata.get_datasets()

@@ -659,29 +659,38 @@ class DashboardMetadata:
 
     def replace_database(
         self,
-        database: str,
+        catalog: str | None = None,
+        database: str | None = None,
         *,
+        catalog_to_replace: str | None = None,
         database_to_replace: str | None = None,
     ) -> "DashboardMetadata":
         """Replace the database in the queries.
 
         Parameters :
+            catalog : str
+                The value to replace the catalog with
             database : str
                 The value to replace the database with
+            catalog_to_replace : str | None (default: None)
+                The catalog to replace, if None, all catalogs are replaced
             database_to_replace : str | None (default: None)
                 The database to replace, if None, all databases are replaced
         """
 
-        def replace_database_in_query(node: sqlglot.Expression) -> sqlglot.Expression:
-            if (
-                isinstance(node, sqlglot.exp.Table)
-                and node.args.get("db") is not None
-                and (database_to_replace is None or getattr(node.args.get("db"), "this", "") == database_to_replace)
-            ):
-                node.args["db"].set("this", database)
+        def replace_catalog_and_database_in_query(node: sqlglot.Expression) -> sqlglot.Expression:
+            if isinstance(node, sqlglot.exp.Table):
+                if node.args.get("catalog") is not None and (
+                    catalog_to_replace is None or getattr(node.args.get("catalog"), "this", "") == catalog_to_replace
+                ):
+                    node.args["catalog"].set("this", catalog)
+                if node.args.get("db") is not None and (
+                    database_to_replace is None or getattr(node.args.get("db"), "this", "") == database_to_replace
+                ):
+                    node.args["db"].set("this", database)
             return node
 
-        return dataclasses.replace(self, query_transformer=replace_database_in_query)
+        return dataclasses.replace(self, query_transformer=replace_catalog_and_database_in_query)
 
     def _get_tiles(self) -> list[Tile]:
         """Get the tiles from the tiles metadata.
