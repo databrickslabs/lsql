@@ -30,8 +30,9 @@ def create_dashboard(
         replace_database_in_query = functools.partial(dashboards.replace_database_in_query, database=database)
     lakeview_dashboard = lakeview_dashboards.create_dashboard(folder, query_transformer=replace_database_in_query)
     sdk_dashboard = lakeview_dashboards.deploy_dashboard(lakeview_dashboard)
-    dashboard_url = f"{w.config.host}/sql/dashboardsv3/{sdk_dashboard.dashboard_id}"
     if not no_open:
+        assert sdk_dashboard.dashboard_id is not None
+        dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)
         webbrowser.open(dashboard_url)
     print(sdk_dashboard.dashboard_id)
 

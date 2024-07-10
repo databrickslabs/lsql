@@ -1367,3 +1367,11 @@ def test_dashboards_save_to_folder_replaces_counter_names(ugly_dashboard, tmp_pa
 
     assert all(counter.name == "counter" for counter in counters)
     ws.assert_not_called()
+
+
+def test_dashboards_get_dashboard_url():
+    dashboard_url_expected = "https://adb-0123456789.12.azuredatabricks.net/dashboardsv3/1234/published"
+    ws = create_autospec(WorkspaceClient)
+    ws.config.host = "https://adb-0123456789.12.azuredatabricks.net"
+    dashboard_url = Dashboards(ws).get_url("1234")
+    assert dashboard_url == dashboard_url_expected
