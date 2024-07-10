@@ -16,6 +16,7 @@ def create_dashboard(
     w: WorkspaceClient,
     folder: Path = Path.cwd(),
     *,
+    catalog: str = "",
     database: str = "",
     no_open: bool = False,
 ):
@@ -23,9 +24,9 @@ def create_dashboard(
     logger.debug("Creating dashboard ...")
     lakeview_dashboards = Dashboards(w)
     folder = Path(folder)
-    dashboard_metadata = DashboardMetadata.from_path(folder)
-    if database:
-        dashboard_metadata = dashboard_metadata.replace_database(database)
+    dashboard_metadata = DashboardMetadata.from_path(folder).replace_database(
+        catalog=catalog or None, database=database or None
+    )
     lakeview_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata)
     sdk_dashboard = lakeview_dashboards.deploy_dashboard(lakeview_dashboard)
     if not no_open:
