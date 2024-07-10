@@ -10,7 +10,6 @@ import pytest
 import sqlglot
 import yaml
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 
 from databricks.labs.lsql.dashboards import (
     BaseHandler,
@@ -1372,11 +1371,7 @@ def test_dashboards_save_to_folder_replaces_counter_names(ugly_dashboard, tmp_pa
 
 def test_dashboards_get_dashboard_url():
     dashboard_url_expected = "https://adb-0123456789.12.azuredatabricks.net/dashboardsv3/1234/published"
-
     ws = create_autospec(WorkspaceClient)
     ws.config.host = "https://adb-0123456789.12.azuredatabricks.net"
-
-    dashboard = SDKDashboard(dashboard_id="1234", display_name="test")
-    dashboard_url = Dashboards(ws).get_dashboard_url(dashboard)
-
+    dashboard_url = Dashboards(ws).get_dashboard_url("1234")
     assert dashboard_url == dashboard_url_expected

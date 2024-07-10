@@ -920,16 +920,16 @@ class Dashboards:
                 node.name = node.spec.as_dict().get("widgetType", node.name)
         return node
 
-    def get_dashboard_url(self, dashboard: SDKDashboard) -> str:
+    def get_dashboard_url(self, dashboard_id) -> str:
         """Get the dashboard URL.
 
         Parameters :
-            dashboard : SDKDashboard
-                The dashboard to get the URL for
+            dashboard_id : str
+                The dashboard id to get the URL for
 
         Returns :
             The dashboard URL
         """
         # The /published redirects to the draft if the dashboard is not published
-        dashboard_url = f"{self._ws.config.host}/dashboardsv3/{dashboard.dashboard_id}/published"
+        dashboard_url = f"{self._ws.config.host}/dashboardsv3/{dashboard_id}/published"
         return dashboard_url
