@@ -6,7 +6,6 @@ import logging
 import math
 import re
 import shlex
-import urllib
 from argparse import ArgumentParser
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
