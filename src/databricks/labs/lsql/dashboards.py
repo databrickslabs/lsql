@@ -662,7 +662,7 @@ class DashboardMetadata:
         database: str,
         *,
         database_to_replace: str | None = None,
-    ) -> None:
+    ) -> "DashboardMetadata":
         """Replace the database in the queries.
 
         Parameters :
@@ -681,7 +681,7 @@ class DashboardMetadata:
                 node.args["db"].set("this", database)
             return node
 
-        self.query_transformer = replace_database_in_query
+        return dataclasses.replace(self, query_transformer=replace_database_in_query)
 
     def _get_tiles(self) -> list[Tile]:
         """Get the tiles from the tiles metadata.

@@ -590,8 +590,7 @@ SELECT COALESCE(CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%'), 'N/A') AS re
 """.lstrip()
     (tmp_path / "counter.sql").write_text(query)
 
-    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    dashboard_metadata.replace_database("development")
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database("development")
     lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
 
     dataset = lakeview_dashboard.datasets[0]
@@ -762,8 +761,9 @@ def test_query_tile_keeps_original_query(tmp_path):
 )
 def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, query_transformed, database_to_replace):
     (tmp_path / "counter.sql").write_text(query)
-    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    dashboard_metadata.replace_database("development", database_to_replace=database_to_replace)
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(
+        "development", database_to_replace=database_to_replace
+    )
 
     datasets = dashboard_metadata.get_datasets()
 

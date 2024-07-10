@@ -25,7 +25,7 @@ def create_dashboard(
     folder = Path(folder)
     dashboard_metadata = DashboardMetadata.from_path(folder)
     if database:
-        dashboard_metadata.replace_database(database)
+        dashboard_metadata = dashboard_metadata.replace_database(database)
     lakeview_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata)
     sdk_dashboard = lakeview_dashboards.deploy_dashboard(lakeview_dashboard)
     if not no_open:
