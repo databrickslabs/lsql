@@ -6,6 +6,7 @@ import logging
 import math
 import re
 import shlex
+import urllib
 from argparse import ArgumentParser
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
@@ -919,3 +920,16 @@ class Dashboards:
             if node.spec is not None:
                 node.name = node.spec.as_dict().get("widgetType", node.name)
         return node
+
+    def get_dashboard_url(self, dashboard: SDKDashboard) -> str:
+        """Get the dashboard URL.
+
+        Parameters :
+            dashboard : SDKDashboard
+                The dashboard to get the URL for
+
+        Returns :
+            The dashboard URL
+        """
+        dashboard_url = f"{self._ws.config.host}/sql/dashboardsv3/{dashboard.dashboard_id}"
+        return dashboard_url
