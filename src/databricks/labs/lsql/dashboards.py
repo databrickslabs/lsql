@@ -650,34 +650,23 @@ class DashboardMetadata:
             if id_count > 1:
                 raise ValueError(f"Duplicate id: {tile_id}")
 
-    def update(self, other: "DashboardMetadata") -> None:
-        """Update the dashboard metadata with another dashboard metadata.
-
-        The other takes precedence, similar to merging dictionaries.
-
-        Resources:
-        - https://docs.python.org/3/library/stdtypes.html#dict.update : Similar to the update method of a dictionary.
-        """
-        if not isinstance(other, DashboardMetadata):
-            raise TypeError(f"Can not merge with {other}")
-
-        self.display_name = other.display_name
-
-        tile_metadatas = []
-        metadata_mapping = {tile.metadata.id: tile.metadata for tile in self._tiles}
-        for tile in other.tiles:
-            tile_metadata_existing = metadata_mapping.get(tile.metadata.id)
-            if tile_metadata_existing is not None:
-                tile_metadata_existing.update(tile.metadata)
-                tile_metadatas.append(tile_metadata_existing)
+    @classmethod
+    def _merge_tile_metadatas(cls, left: list[TileMetadata], right: list[TileMetadata]) -> list[TileMetadata]:
+        """Merge tile metdatas where the right takes precedence over the left."""
+        metadata_mapping_left = {metadata.id: metadata for metadata in left}
+        metadata_mapping_right = {metadata.id: metadata for metadata in right}
+        metadatas = []
+        for metadata in right:
+            metadata_existing = metadata_mapping_left.get(metadata.id)
+            if metadata_existing is not None:
+                metadata_existing.update(metadata)
+                metadatas.append(metadata_existing)
             else:
-                tile_metadatas.append(tile.metadata)
-        metadata_mapping_other = {tile.metadata.id: tile.metadata for tile in other._tiles}
-        for tile in self._tiles:
-            if tile.metadata.id not in metadata_mapping_other:
-                tile_metadatas.append(tile.metadata)
-        tiles = [Tile.from_tile_metadata(tile_metadata) for tile_metadata in tile_metadatas]
-        self._tiles = tiles
+                metadatas.append(metadata)
+        for metadata in left:
+            if metadata.id not in metadata_mapping_right:
+                metadatas.append(metadata)
+        return metadatas
 
     def replace_database(
         self,
@@ -762,10 +751,12 @@ class DashboardMetadata:
     def from_path(cls, path: Path) -> "DashboardMetadata":
         """Read the dashboard metadata from the dashboard folder."""
         dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
-        display_name = dashboard_metadata_yml.display_name  # Display name in dashboard.yml takes precedence
         dashboard_metadata_folder = cls._from_dashboard_folder(path)
-        dashboard_metadata_yml.update(dashboard_metadata_folder)  # Metadata from file headers takes precedence
-        return dataclasses.replace(dashboard_metadata_yml, display_name=display_name)
+        tile_metadatas_yml = [tile.metadata for tile in dashboard_metadata_yml.tiles]
+        tile_metadatas_folder = [tile.metadata for tile in dashboard_metadata_folder.tiles]
+        tile_metadatas = cls._merge_tile_metadatas(tile_metadatas_yml, tile_metadatas_folder)
+        tiles = [Tile.from_tile_metadata(tile_metadata) for tile_metadata in tile_metadatas]
+        return cls(dashboard_metadata_yml.display_name, _tiles=tiles)
 
     @classmethod
     def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
