@@ -734,51 +734,37 @@ def test_query_tile_keeps_original_query(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "query, query_transformed",
+    "query, query_transformed, database_to_replace",
     [
-        ("SELECT count FROM table", "SELECT count FROM table"),
-        ("SELECT count FROM database.table", "SELECT count FROM development.table"),
-        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table"),
-        ("SELECT database FROM database.table", "SELECT database FROM development.table"),
+        ("SELECT count FROM table", "SELECT count FROM table", None),
+        ("SELECT count FROM database.table", "SELECT count FROM development.table", None),
+        ("SELECT count FROM catalog.database.table", "SELECT count FROM catalog.development.table", None),
+        ("SELECT database FROM database.table", "SELECT database FROM development.table", None),
         (
             "SELECT * FROM server.database.table, server.other_database.table",
             "SELECT * FROM server.development.table, server.development.table",
+            None,
         ),
         (
             "SELECT left.* FROM server.database.table AS left JOIN server.other_database.table AS right ON left.id = right.id",
             "SELECT left.* FROM server.development.table AS left JOIN server.development.table AS right ON left.id = right.id",
+            None,
         ),
-    ],
-)
-def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, query_transformed):
-    query_path = tmp_path / "counter.sql"
-    query_path.write_text(query)
-
-    replace_with_development_database = functools.partial(replace_database_in_query, database="development")
-    query_tile = QueryTile(TileMetadata.from_path(query_path), query_transformer=replace_with_development_database)
-
-    dataset = next(query_tile.get_datasets())
-
-    assert dataset.query == sqlglot.parse_one(query_transformed).sql(pretty=True)
-
-
-@pytest.mark.parametrize(
-    "query, query_transformed",
-    [
         (
             "SELECT left.name FROM database.table AS left JOIN other_database.table AS right ON left.id = right.id",
             "SELECT left.name FROM development.table AS left JOIN other_database.table AS right ON left.id = right.id",
+            "database",
         ),
     ],
 )
-def test_query_tile_creates_database_with_database_overwrite_where(tmp_path, query, query_transformed):
+def test_query_tile_creates_database_with_database_overwrite(tmp_path, query, query_transformed, database_to_replace):
     query_path = tmp_path / "counter.sql"
     query_path.write_text(query)
 
     replace_with_development_database = functools.partial(
         replace_database_in_query,
         database="development",
-        database_to_replace="database",
+        database_to_replace=database_to_replace,
     )
     query_tile = QueryTile(TileMetadata.from_path(query_path), query_transformer=replace_with_development_database)
 
