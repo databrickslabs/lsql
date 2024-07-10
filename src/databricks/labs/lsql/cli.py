@@ -31,6 +31,7 @@ def create_dashboard(
     lakeview_dashboard = lakeview_dashboards.create_dashboard(folder, query_transformer=replace_database_in_query)
     sdk_dashboard = lakeview_dashboards.deploy_dashboard(lakeview_dashboard)
     if not no_open:
+        assert sdk_dashboard.dashboard_id is not None
         dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)
         webbrowser.open(dashboard_url)
     print(sdk_dashboard.dashboard_id)
