@@ -46,12 +46,21 @@ def test_dashboard_metadata_sets_display_name_from_dict():
     assert dashboard_metadata.display_name == "test"
 
 
-def test_dashboard_metadata_sets_tiles_from_dict():
-    tile_metadata = TileMetadata(Path("test.sql"))
-    raw = {"display_name": "test", "tiles": {"test": {"path": "test.sql"}}}
+def test_dashboard_metadata_from_path_raises_not_implemented_error_for_select_star(tmp_path):
+    (tmp_path / "star.sql").write_text("SELECT * FROM table")
+    with pytest.raises(NotImplementedError) as e:
+        DashboardMetadata.from_path(tmp_path)
+    assert "star" in str(e)
+
+
+def test_dashboard_metadata_sets_tiles_from_dict(tmp_path):
+    query_path = tmp_path / "test.sql"
+    query_path.touch()
+    tile_metadata = TileMetadata.from_path(query_path)
+    raw = {"display_name": "test", "tiles": {"test": {"path": query_path.as_posix()}}}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
-    assert len(dashboard_metadata.tile_metadatas) == 1
-    assert dashboard_metadata.tile_metadatas[0] == tile_metadata
+    assert len(dashboard_metadata.tiles) == 1
+    assert dashboard_metadata.tiles[0].metadata == tile_metadata
 
 
 def test_dashboard_metadata_ignores_id_overwrite(caplog):
@@ -60,20 +69,24 @@ def test_dashboard_metadata_ignores_id_overwrite(caplog):
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
         dashboard_metadata = DashboardMetadata.from_dict(raw)
 
-    assert len(dashboard_metadata.tile_metadatas) == 1
-    assert dashboard_metadata.tile_metadatas[0].id == "test"
+    assert len(dashboard_metadata.tiles) == 1
+    assert dashboard_metadata.tiles[0].metadata.id == "test"
     assert "Parsing unsupported field in dashboard.yml: tiles.test.id" in caplog.text
 
 
-def test_dashboard_metadata_from_and_as_dict_is_a_unit_function():
-    raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
+def test_dashboard_metadata_from_and_as_dict_is_a_unit_function(tmp_path):
+    query_path = tmp_path / "test.sql"
+    query_path.touch()
+    raw_tile = {"path": query_path.as_posix(), "id": "test", "height": 0, "width": 0, "widget_type": "AUTO"}
     raw = {"display_name": "test", "tiles": {"test": raw_tile}}
     dashboard_metadata = DashboardMetadata.from_dict(raw)
     assert dashboard_metadata.as_dict() == raw
 
 
 def test_dashboard_metadata_from_raw(tmp_path):
-    raw_tile = {"path": "test.sql", "id": "test", "height": 0, "width": 0, "widget_type": "AUTO", "order": 0}
+    query_path = tmp_path / "test.sql"
+    query_path.touch()
+    raw_tile = {"path": query_path.as_posix(), "id": "test", "height": 0, "width": 0, "widget_type": "AUTO", "order": 0}
     raw = {"display_name": "test", "tiles": {"test": raw_tile}}
 
     path = tmp_path / "dashboard.yml"
@@ -123,11 +136,11 @@ tiles:
         dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
     assert dashboard_metadata.display_name == "name"
-    assert len(dashboard_metadata.tile_metadatas) == 2
-    assert dashboard_metadata.tile_metadatas[0].id == "correct"
-    assert dashboard_metadata.tile_metadatas[0].order == 1
-    assert dashboard_metadata.tile_metadatas[1].id == "partial_correct"
-    assert dashboard_metadata.tile_metadatas[1].order == 3
+    assert len(dashboard_metadata.tiles) == 2
+    assert dashboard_metadata.tiles[0].metadata.id == "correct"
+    assert dashboard_metadata.tiles[0].metadata.order == 1
+    assert dashboard_metadata.tiles[1].metadata.id == "partial_correct"
+    assert dashboard_metadata.tiles[1].metadata.order == 3
     assert "Parsing invalid tile metadata in dashboard.yml: tiles.incorrect.[{'order': 2}]" in caplog.text
     assert "Parsing unsupported field in dashboard.yml: tiles.partial_correct.non_existing_key" in caplog.text
 
@@ -141,7 +154,7 @@ tiles:
     order: 1
 """.lstrip()
     (tmp_path / "dashboard.yml").write_text(dashboard_content)
-    (tmp_path / "correct.sql").touch()
+    (tmp_path / "correct.sql").write_text("SELECT 1")
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
@@ -167,11 +180,11 @@ tiles:
 
     with pytest.raises(ValueError) as e:
         dashboard_metadata.validate()
-    assert "Tile path is required: TileMetadata<correct>" in str(e.value)
+    assert "Tile has empty content:" in str(e.value)
 
 
 def test_dashboard_metadata_validate_finds_duplicate_query_id(tmp_path):
-    (tmp_path / "query.sql").touch()
+    (tmp_path / "query.sql").write_text("SELECT 1")
     query_content = """-- --id query\nSELECT 1"""
     (tmp_path / "not_query.sql").write_text(query_content)
 
@@ -183,8 +196,8 @@ def test_dashboard_metadata_validate_finds_duplicate_query_id(tmp_path):
 
 
 def test_dashboard_metadata_validate_finds_duplicate_widget_id(tmp_path):
-    (tmp_path / "widget.sql").touch()
-    (tmp_path / "widget.md").touch()
+    (tmp_path / "widget.sql").write_text("SELECT 1")
+    (tmp_path / "widget.md").write_text("# Widget")
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
@@ -266,7 +279,7 @@ def test_query_handler_ignores_comment_on_other_lines(tmp_path, query):
 
     header = handler.parse_header()
 
-    assert header["width"] is None
+    assert header["width"] == 0
     assert header["height"] == 5
 
 
@@ -1240,18 +1253,6 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     assert position.width == 1
     assert position.height == 5
     assert query_path.as_posix() in caplog.text
-    ws.assert_not_called()
-
-
-def test_create_dashboard_raises_not_implemented_error_for_select_star(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-    (tmp_path / "star.sql").write_text("SELECT * FROM table")
-    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    with pytest.raises(NotImplementedError) as e:
-        Dashboards(ws).create_dashboard(dashboard_metadata)
-
-    assert "star" in str(e)
     ws.assert_not_called()
 
 

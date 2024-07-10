@@ -97,8 +97,8 @@ class QueryHandler(BaseHandler):
         parser = ArgumentParser("TileMetadata", add_help=False, exit_on_error=False)
         parser.add_argument("--id", type=str)
         parser.add_argument("-o", "--order", type=int)
-        parser.add_argument("-w", "--width", type=int)
-        parser.add_argument("-h", "--height", type=int)
+        parser.add_argument("-w", "--width", type=int, default=0)
+        parser.add_argument("-h", "--height", type=int, default=0)
         parser.add_argument("-t", "--title", type=str, default="")
         parser.add_argument("-d", "--description", type=str, default="")
         parser.add_argument(
@@ -124,6 +124,7 @@ class QueryHandler(BaseHandler):
             "--overrides",
             type=json.loads,
             help="Override the low-level Lakeview entities with a json payload.",
+            default={},
         )
         return parser
 
@@ -600,9 +601,32 @@ class DashboardMetadata:
     """The metadata defining a lakeview dashboard"""
 
     display_name: str  # The dashboard display name
-    tile_metadatas: list[TileMetadata] = dataclasses.field(default_factory=list)  # The tile metadata objects
     # A sqlglot transformer applied on the queries before creating the tiles. If None, no transformation is applied
     query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+
+    _tiles: list[Tile] = dataclasses.field(default_factory=list)  # The dashboard tiles
+
+    @property
+    def tiles(self) -> list[Tile]:
+        """The ordered dashboard tiles
+
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the logic to:
+        i) set the order when not specified;
+        ii) sort the tiles using the order field.
+        """
+        tiles_with_order = []
+        for default_order, tile in enumerate(sorted(self._tiles, key=lambda tile: tile.metadata.id)):
+            order = tile.metadata.order if tile.metadata.order is not None else default_order
+            tiles_with_order.append((order, tile))
+        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        for _, tile in sorted(tiles_with_order, key=lambda el: (el[0], el[1].metadata.id)):
+            if isinstance(tile, QueryTile):
+                tile.query_transformer = self.query_transformer
+            tile.place_after(position)
+            tiles.append(tile)
+            position = tile.position
+        return tiles
 
     def validate(self) -> None:
         """Validate the dashboard metadata.
@@ -611,10 +635,10 @@ class DashboardMetadata:
             ValueError : If the dashboard metadata is invalid.
         """
         tile_ids = []
-        for tile in self.tile_metadatas:
-            if tile.path is None:
-                raise ValueError(f"Tile path is required: {tile}")
-            tile_ids.append(tile.id)
+        for tile in self._tiles:
+            if len(tile.content) == 0:
+                raise ValueError(f"Tile has empty content: {tile}")
+            tile_ids.append(tile.metadata.id)
         counter = collections.Counter(tile_ids)
         for tile_id, id_count in counter.items():
             if id_count > 1:
@@ -634,19 +658,20 @@ class DashboardMetadata:
         self.display_name = other.display_name
 
         tile_metadatas = []
-        metadata_mapping = {tile.id: tile for tile in self.tile_metadatas}
-        for tile_metadata in other.tile_metadatas:
-            tile_metadata_existing = metadata_mapping.get(tile_metadata.id)
+        metadata_mapping = {tile.metadata.id: tile.metadata for tile in self._tiles}
+        for tile in other.tiles:
+            tile_metadata_existing = metadata_mapping.get(tile.metadata.id)
             if tile_metadata_existing is not None:
-                tile_metadata_existing.update(tile_metadata)
+                tile_metadata_existing.update(tile.metadata)
                 tile_metadatas.append(tile_metadata_existing)
             else:
-                tile_metadatas.append(tile_metadata)
-        metadata_mapping_other = {tile.id: tile for tile in other.tile_metadatas}
-        for tile_metadata in self.tile_metadatas:
-            if tile_metadata.id not in metadata_mapping_other:
-                tile_metadatas.append(tile_metadata)
-        self.tile_metadatas = tile_metadatas
+                tile_metadatas.append(tile.metadata)
+        metadata_mapping_other = {tile.metadata.id: tile.metadata for tile in other._tiles}
+        for tile in self._tiles:
+            if tile.metadata.id not in metadata_mapping_other:
+                tile_metadatas.append(tile.metadata)
+        tiles = [Tile.from_tile_metadata(tile_metadata) for tile_metadata in tile_metadatas]
+        self._tiles = tiles
 
     def replace_database(
         self,
@@ -683,32 +708,10 @@ class DashboardMetadata:
 
         return dataclasses.replace(self, query_transformer=replace_catalog_and_database_in_query)
 
-    def _get_tiles(self) -> list[Tile]:
-        """Get the tiles from the tiles metadata.
-
-        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
-        with the `order` key. Hence, the logic to:
-        i) set the order when not specified;
-        ii) sort the tiles using the order field.
-        """
-        tile_metadatas_with_order = []
-        for default_order, tile_metadata in enumerate(sorted(self.tile_metadatas, key=lambda wm: wm.id)):
-            order = tile_metadata.order if tile_metadata.order is not None else default_order
-            tile_metadatas_with_order.append(dataclasses.replace(tile_metadata, order=order))
-        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for tile_metadata in sorted(tile_metadatas_with_order, key=lambda t: (t.order, t.id)):
-            tile = Tile.from_tile_metadata(tile_metadata)
-            if isinstance(tile, QueryTile):
-                tile.query_transformer = self.query_transformer
-            tile.place_after(position)
-            tiles.append(tile)
-            position = tile.position
-        return tiles
-
     def get_datasets(self) -> list[Dataset]:
         """Get the datasets for the dashboard."""
         datasets: list[Dataset] = []
-        for tile in self._get_tiles():
+        for tile in self.tiles:
             if isinstance(tile, QueryTile):
                 datasets.extend(tile.get_datasets())
         return datasets
@@ -716,7 +719,7 @@ class DashboardMetadata:
     def get_layouts(self) -> list[Layout]:
         """Get the layouts for the dashboard."""
         layouts: list[Layout] = []
-        for tile in self._get_tiles():
+        for tile in self.tiles:
             layouts.extend(tile.get_layouts())
         return layouts
 
@@ -728,24 +731,25 @@ class DashboardMetadata:
             if not isinstance(tile_raw, dict):
                 logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
                 continue
-            tile = TileMetadata(id=tile_id)
+            tile_metadata = TileMetadata(id=tile_id)
             for tile_key, tile_value in tile_raw.items():
                 if tile_key == "id":
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
                     continue
                 try:
-                    tile_new = TileMetadata.from_dict({tile_key: tile_value})
-                    tile.update(tile_new)
+                    tile_metadata_new = TileMetadata.from_dict({tile_key: tile_value})
+                    tile_metadata.update(tile_metadata_new)
                 except TypeError:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
+            tile = Tile.from_tile_metadata(tile_metadata)
             tiles.append(tile)
-        return cls(display_name=display_name, tile_metadatas=tiles)
+        return cls(display_name=display_name, _tiles=tiles)
 
     def as_dict(self) -> dict:
         raw: dict = {"display_name": self.display_name}
-        if self.tile_metadatas:
-            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tile_metadatas}
+        if self.tiles:
+            raw["tiles"] = {tile.metadata.id: tile.metadata.as_dict() for tile in self.tiles}
         return raw
 
     @classmethod
@@ -782,8 +786,10 @@ class DashboardMetadata:
         for path in folder.iterdir():
             if path.suffix not in {".sql", ".md"}:
                 continue
-            tiles.append(TileMetadata.from_path(path))
-        return cls(display_name=folder.name, tile_metadatas=tiles)
+            tile_metadata = TileMetadata.from_path(path)
+            tile = Tile.from_tile_metadata(tile_metadata)
+            tiles.append(tile)
+        return cls(display_name=folder.name, _tiles=tiles)
 
 
 class Dashboards:
