@@ -920,7 +920,7 @@ class Dashboards:
                 node.name = node.spec.as_dict().get("widgetType", node.name)
         return node
 
-    def get_url(self, dashboard_id) -> str:
+    def get_url(self, dashboard_id: str) -> str:
         """Get the dashboard URL.
 
         Parameters :
