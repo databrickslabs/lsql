@@ -839,7 +839,7 @@ class Dashboards:
         return formatted_query
 
     @staticmethod
-    def create_dashboard(dashboard_metadata: DashboardMetadata) -> Dashboard:
+    def as_lakeview(dashboard_metadata: DashboardMetadata) -> Dashboard:
         """Create a dashboard from the dashboard metadata
 
         Parameters :

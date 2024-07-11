@@ -512,7 +512,7 @@ def test_tile_places_tile_below():
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
-    dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     Dashboards(ws).save_to_folder(dashboard, tmp_path)
 
@@ -523,7 +523,7 @@ def test_dashboards_saves_sql_files_to_folder(tmp_path):
 def test_dashboards_saves_yml_files_to_folder(tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
-    dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     Dashboards(ws).save_to_folder(dashboard, tmp_path)
 
@@ -534,7 +534,7 @@ def test_dashboards_saves_yml_files_to_folder(tmp_path):
 def test_dashboards_creates_dashboard_with_first_page_name_after_folder():
     ws = create_autospec(WorkspaceClient)
     dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
     page = lakeview_dashboard.pages[0]
     assert page.name == "queries"
     assert page.display_name == "queries"
@@ -545,7 +545,7 @@ def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
 
     (tmp_path / "dashboard.yml").write_text("display_name: Custom")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     page = lakeview_dashboard.pages[0]
     assert page.name == "Custom"
@@ -561,7 +561,7 @@ def test_dashboards_handles_invalid_dashboard_yml(tmp_path, dashboard_content):
     (queries_path / "dashboard.yml").write_text(dashboard_content)
     dashboard_metadata = DashboardMetadata.from_path(queries_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     page = lakeview_dashboard.pages[0]
     assert page.name == "queries"
@@ -573,7 +573,7 @@ def test_dashboards_creates_one_dataset_per_query():
     ws = create_autospec(WorkspaceClient)
     queries = Path(__file__).parent / "queries"
     dashboard_metadata = DashboardMetadata.from_path(queries)
-    dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
     assert len(dashboard.datasets) == len([query for query in queries.glob("*.sql")])
 
 
@@ -583,7 +583,7 @@ def test_dashboard_creates_datasets_using_query(tmp_path):
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     dataset = lakeview_dashboard.datasets[0]
     assert dataset.query == query
@@ -604,7 +604,7 @@ SELECT COALESCE(CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%'), 'N/A') AS re
     (tmp_path / "counter.sql").write_text(query)
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(database="development")
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     dataset = lakeview_dashboard.datasets[0]
 
@@ -619,7 +619,7 @@ def test_dashboards_creates_one_counter_widget_per_query():
     queries = Path(__file__).parent / "queries"
     dashboard_metadata = DashboardMetadata.from_path(queries)
 
-    dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     counter_widgets = []
     for page in dashboard.pages:
@@ -642,7 +642,7 @@ def test_dashboards_creates_text_widget_for_invalid_query(tmp_path, caplog):
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
-        lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+        lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     markdown_widget = lakeview_dashboard.pages[0].layout[1].widget
     assert markdown_widget.textbox_spec == invalid_query
@@ -653,7 +653,7 @@ def test_dashboards_does_not_create_widget_for_yml_file(tmp_path, caplog):
     ws = create_autospec(WorkspaceClient)
     (tmp_path / "dashboard.yml").write_text("display_name: Git based dashboard")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
     assert len(lakeview_dashboard.pages[0].layout) == 0
 
 
@@ -841,7 +841,7 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
     (tmp_path / "query.sql").write_text("SELECT 1 AS amount")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     counter_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
     assert isinstance(counter_spec, CounterSpec)
@@ -864,7 +864,7 @@ def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
     (tmp_path / "query.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     spec = lakeview_dashboard.pages[0].layout[0].widget.spec
     assert isinstance(spec, spec_expected)
@@ -877,7 +877,7 @@ def test_dashboards_overrides_show_empty_title_in_query_header(tmp_path):
     (tmp_path / "query.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.show_title
@@ -902,7 +902,7 @@ tiles:
     (tmp_path / "query.sql").write_text("SELECT 20")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.show_title
@@ -915,7 +915,7 @@ def test_dashboards_creates_dashboard_with_expected_table_field_encodings(tmp_pa
     (tmp_path / "query.sql").write_text("select 1 as first, 2 as second")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     table_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
     assert isinstance(table_spec, TableV1Spec)
@@ -931,7 +931,7 @@ def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_fi
         (tmp_path / f"counter_{i}.sql").write_text(f"SELECT {i} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     layout = lakeview_dashboard.pages[0].layout
     first_position, second_position = layout[0].position, layout[1].position
@@ -946,7 +946,7 @@ def test_dashboards_creates_dashboard_with_many_widgets_not_on_the_first_row(tmp
         (tmp_path / f"counter_{i}.sql").write_text(f"SELECT {i} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     layout = lakeview_dashboard.pages[0].layout
     assert layout[-1].position.y > 0
@@ -959,7 +959,7 @@ def test_dashboards_creates_dashboard_with_widget_below_text_widget(tmp_path):
     (tmp_path / "010_counter.sql").write_text("SELECT 100 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     layout = lakeview_dashboard.pages[0].layout
     assert len(layout) == 2
@@ -984,7 +984,7 @@ tiles:
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
     with pytest.raises(ValueError) as e:
-        Dashboards(ws).create_dashboard(dashboard_metadata)
+        Dashboards(ws).as_lakeview(dashboard_metadata)
     assert "Duplicate id: counter" in str(e.value)
 
 
@@ -996,7 +996,7 @@ def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
     assert widget_names == query_names
@@ -1013,7 +1013,7 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
     assert "".join(widget_names) == "abecdf"
@@ -1030,7 +1030,7 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite_zero(tmp_pat
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
     assert "".join(widget_names) == "aebcdf"
@@ -1045,7 +1045,7 @@ def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
     assert "".join(widget_names) == "abcdef"
@@ -1067,7 +1067,7 @@ tiles:
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
     assert "".join(widget_names) == "eabcdf"
@@ -1089,7 +1089,7 @@ tiles:
         (tmp_path / f"query_{index}.sql").write_text(f"-- --order {index}\nSELECT {index} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
     assert widget_names == ["query_0", "query_1", "query_2"]
@@ -1108,7 +1108,7 @@ def test_dashboards_creates_dashboards_where_widget_has_expected_width_and_heigh
     (tmp_path / "query.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
     position = lakeview_dashboard.pages[0].layout[0].position
 
     assert position.width == width
@@ -1121,7 +1121,7 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_width_and_
     (tmp_path / "description.md").write_text("# Description")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width == 6
@@ -1135,7 +1135,7 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_p
     (tmp_path / "description.md").write_text(content)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     widget = lakeview_dashboard.pages[0].layout[0].widget
     assert widget.textbox_spec == content
@@ -1156,7 +1156,7 @@ def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width == 6
@@ -1170,7 +1170,7 @@ def test_dashboard_creates_dashboard_with_title(tmp_path):
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.title == "Count me in"
@@ -1183,7 +1183,7 @@ def test_dashboard_creates_dashboard_without_title(tmp_path):
     (tmp_path / "counter.sql").write_text("SELECT 109")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.title == ""
@@ -1197,7 +1197,7 @@ def test_dashboard_creates_dashboard_with_description(tmp_path):
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.description == "Only when it counts"
@@ -1210,7 +1210,7 @@ def test_dashboard_creates_dashboard_without_description(tmp_path):
     (tmp_path / "counter.sql").write_text("SELECT 190219")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.description == ""
@@ -1225,7 +1225,7 @@ def test_dashboard_creates_dashboard_with_filter(tmp_path):
     (tmp_path / "table.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     layouts = lakeview_dashboard.pages[0].layout
     assert any(f"filter_{filter_column}" in layout.widget.name for layout in layouts)
@@ -1247,7 +1247,7 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
-        lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+        lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width == 1
@@ -1265,7 +1265,7 @@ def test_dashboard_creates_dashboard_based_on_markdown_header(tmp_path):
     (tmp_path / "widget.md").write_text(content)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width == 6
@@ -1279,7 +1279,7 @@ def test_dashboard_uses_metadata_above_select_when_query_has_cte(tmp_path):
     (tmp_path / "widget.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width == 6
@@ -1293,7 +1293,7 @@ def test_dashboard_ignores_first_line_metadata_when_query_has_cte(tmp_path):
     (tmp_path / "widget.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    lakeview_dashboard = Dashboards(ws).as_lakeview(dashboard_metadata)
 
     position = lakeview_dashboard.pages[0].layout[0].position
     assert position.width != 6
