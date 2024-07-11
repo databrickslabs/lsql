@@ -747,8 +747,9 @@ def test_query_tile_creates_database_with_database_overwrite(
         database_to_replace=database_to_replace,
     )
 
-    datasets = dashboard_metadata._get_datasets()
+    dashboard = dashboard_metadata.as_lakeview()
 
+    datasets = dashboard.datasets
     assert len(datasets) == 1
     assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
 
