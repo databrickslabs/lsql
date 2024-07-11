@@ -730,6 +730,7 @@ class DashboardMetadata:
                 logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
                 continue
             tile_metadata = TileMetadata(id=tile_id)
+            # The loop below allows for partial parsing by skipping unsupported fields
             for tile_key, tile_value in tile_raw.items():
                 if tile_key == "id":
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
