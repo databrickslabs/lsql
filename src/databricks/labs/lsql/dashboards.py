@@ -422,6 +422,9 @@ class QueryTile(Tile):
                 The catalog to replace, if None, all catalogs are replaced
             database_to_replace : str | None (default: None)
                 The database to replace, if None, all databases are replaced
+
+        Source :
+            https://sqlglot.com/sqlglot/transforms.html
         """
 
         def replace_catalog_and_database_in_query(node: sqlglot.Expression) -> sqlglot.Expression:
@@ -706,7 +709,7 @@ class DashboardMetadata:
                 tiles.append(tile)
         return dataclasses.replace(self, _tiles=tiles)
 
-    def get_datasets(self) -> list[Dataset]:
+    def _get_datasets(self) -> list[Dataset]:
         """Get the datasets for the dashboard."""
         datasets: list[Dataset] = []
         for tile in self.tiles:
@@ -714,12 +717,24 @@ class DashboardMetadata:
                 datasets.extend(tile.get_datasets())
         return datasets
 
-    def get_layouts(self) -> list[Layout]:
+    def _get_layouts(self) -> list[Layout]:
         """Get the layouts for the dashboard."""
         layouts: list[Layout] = []
         for tile in self.tiles:
             layouts.extend(tile.get_layouts())
         return layouts
+
+    def as_lakeview(self) -> Dashboard:
+        """Create a lakeview dashboard from the dashboard metadata."""
+        datasets = self._get_datasets()
+        layouts = self._get_layouts()
+        page = Page(
+            name=self.display_name,
+            display_name=self.display_name,
+            layout=layouts,
+        )
+        lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
+        return lakeview_dashboard
 
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
@@ -837,31 +852,6 @@ class Dashboards:
             )
         formatted_query = ";\n".join(statements)
         return formatted_query
-
-    @staticmethod
-    def create_dashboard(dashboard_metadata: DashboardMetadata) -> Dashboard:
-        """Create a dashboard from the dashboard metadata
-
-        Parameters :
-            dashboard_metadata : DashboardMetadata
-                The dashboard metadata
-
-        Raises :
-            ValueError : If the dashboard metadata is invalid.
-
-        Source :
-            https://sqlglot.com/sqlglot/transforms.html
-        """
-        dashboard_metadata.validate()
-        datasets = dashboard_metadata.get_datasets()
-        layouts = dashboard_metadata.get_layouts()
-        page = Page(
-            name=dashboard_metadata.display_name,
-            display_name=dashboard_metadata.display_name,
-            layout=layouts,
-        )
-        lakeview_dashboard = Dashboard(datasets=datasets, pages=[page])
-        return lakeview_dashboard
 
     def deploy_dashboard(
         self,

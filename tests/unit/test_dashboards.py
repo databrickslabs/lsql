@@ -166,7 +166,7 @@ tiles:
         assert True, "Valid dashboard metadata"
 
 
-def test_dashboard_metadata_validate_misses_tile_path(tmp_path):
+def test_dashboard_metadata_validate_misses_tile_content(tmp_path):
     dashboard_content = """
 display_name: name
 
@@ -509,90 +509,55 @@ def test_tile_places_tile_below():
     assert tile.position.y == 8
 
 
-def test_dashboards_saves_sql_files_to_folder(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_as_lakeview_with_folder_name_as_first_page_name():
     dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
-    dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-
-    Dashboards(ws).save_to_folder(dashboard, tmp_path)
-
-    assert len(list(tmp_path.glob("*.sql"))) == len(dashboard.datasets)
-    ws.assert_not_called()
-
-
-def test_dashboards_saves_yml_files_to_folder(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-    dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
-    dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-
-    Dashboards(ws).save_to_folder(dashboard, tmp_path)
-
-    assert len(list(tmp_path.glob("*.yml"))) == len(dashboard.pages)
-    ws.assert_not_called()
-
-
-def test_dashboards_creates_dashboard_with_first_page_name_after_folder():
-    ws = create_autospec(WorkspaceClient)
-    dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-    page = lakeview_dashboard.pages[0]
+    dashboard = dashboard_metadata.as_lakeview()
+    page = dashboard.pages[0]
     assert page.name == "queries"
     assert page.display_name == "queries"
 
 
-def test_dashboards_creates_dashboard_with_custom_first_page_name(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_as_lakeview_with_custom_first_page_name(tmp_path):
     (tmp_path / "dashboard.yml").write_text("display_name: Custom")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
 
-    page = lakeview_dashboard.pages[0]
+    dashboard = dashboard_metadata.as_lakeview()
+
+    page = dashboard.pages[0]
     assert page.name == "Custom"
     assert page.display_name == "Custom"
 
 
 @pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml"])
-def test_dashboards_handles_invalid_dashboard_yml(tmp_path, dashboard_content):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_handles_invalid_dashboard_yml(tmp_path, dashboard_content):
     queries_path = tmp_path / "queries"
     queries_path.mkdir()
     (queries_path / "dashboard.yml").write_text(dashboard_content)
     dashboard_metadata = DashboardMetadata.from_path(queries_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    page = lakeview_dashboard.pages[0]
+    page = dashboard.pages[0]
     assert page.name == "queries"
     assert page.display_name == "queries"
-    ws.assert_not_called()
 
 
-def test_dashboards_creates_one_dataset_per_query():
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_one_dataset_per_query():
     queries = Path(__file__).parent / "queries"
     dashboard_metadata = DashboardMetadata.from_path(queries)
-    dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
     assert len(dashboard.datasets) == len([query for query in queries.glob("*.sql")])
 
 
-def test_dashboard_creates_datasets_using_query(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_datasets_using_query(tmp_path):
     query = "SELECT count FROM database.table"
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-
-    dataset = lakeview_dashboard.datasets[0]
-    assert dataset.query == query
-    ws.assert_not_called()
+    dashboard = dashboard_metadata.as_lakeview()
+    assert dashboard.datasets[0].query == query
 
 
-def test_dashboard_creates_datasets_with_transformed_query(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_creates_datasets_with_database_replaced(tmp_path):
     # Note that sqlglot sees "$inventory" (convention in ucx) as a parameter thus only replaces "inventory"
     query = """
 WITH raw AS (
@@ -602,59 +567,51 @@ WITH raw AS (
 SELECT COALESCE(CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%'), 'N/A') AS readiness FROM raw
 """.lstrip()
     (tmp_path / "counter.sql").write_text(query)
-
     dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(database="development")
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
 
-    dataset = lakeview_dashboard.datasets[0]
+    dashboard = dashboard_metadata.as_lakeview()
 
+    dataset = dashboard.datasets[0]
     assert "$inventory.objects" not in dataset.query
     assert "development.objects" in dataset.query
     assert len(dataset.query.split("\n")) != 1  # Without formatting the query transformer results a single line
-    ws.assert_not_called()
 
 
-def test_dashboards_creates_one_counter_widget_per_query():
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_one_counter_widget_per_single_column_query():
     queries = Path(__file__).parent / "queries"
     dashboard_metadata = DashboardMetadata.from_path(queries)
 
-    dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
     counter_widgets = []
     for page in dashboard.pages:
         for layout in page.layout:
             if isinstance(layout.widget.spec, CounterSpec):
                 counter_widgets.append(layout.widget)
-
     assert len(counter_widgets) == len([query for query in queries.glob("*.sql")])
 
 
-def test_dashboards_creates_text_widget_for_invalid_query(tmp_path, caplog):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_creates_text_widget_for_invalid_query(tmp_path, caplog):
     # Test for the invalid query not to be the first or last query
     for i in range(0, 3, 2):
         (tmp_path / f"{i}_counter.sql").write_text(f"SELECT {i} AS count")
-
     invalid_query = "SELECT COUNT(* AS missing_closing_parenthesis"
     (tmp_path / "1_invalid.sql").write_text(invalid_query)
-
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
-        lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
 
-    markdown_widget = lakeview_dashboard.pages[0].layout[1].widget
+    with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
+        dashboard = dashboard_metadata.as_lakeview()
+
+    markdown_widget = dashboard.pages[0].layout[1].widget
     assert markdown_widget.textbox_spec == invalid_query
     assert invalid_query in caplog.text
 
 
-def test_dashboards_does_not_create_widget_for_yml_file(tmp_path, caplog):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_does_not_create_widget_for_yml_file(tmp_path, caplog):
     (tmp_path / "dashboard.yml").write_text("display_name: Git based dashboard")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-    assert len(lakeview_dashboard.pages[0].layout) == 0
+    dashboard = dashboard_metadata.as_lakeview()
+    assert len(dashboard.pages[0].layout) == 0
 
 
 @pytest.mark.parametrize(
@@ -790,8 +747,9 @@ def test_query_tile_creates_database_with_database_overwrite(
         database_to_replace=database_to_replace,
     )
 
-    datasets = dashboard_metadata.get_datasets()
+    dashboard = dashboard_metadata.as_lakeview()
 
+    datasets = dashboard.datasets
     assert len(datasets) == 1
     assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
 
@@ -836,18 +794,16 @@ def test_table_tile_becomes_wider_with_more_columns(tmp_path):
     assert small_table.position.width < big_table.position.width
 
 
-def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_counter_with_field_encoding_names(tmp_path):
     (tmp_path / "query.sql").write_text("SELECT 1 AS amount")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    counter_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    counter_spec = dashboard.pages[0].layout[0].widget.spec
     assert isinstance(counter_spec, CounterSpec)
     assert counter_spec.encodings.value.field_name == "amount"
     assert counter_spec.encodings.value.display_name == "amount"
-    ws.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -859,35 +815,27 @@ def test_dashboards_creates_dashboard_with_expected_counter_field_encoding_names
         ("-- --type counter\nSELECT 1, 2", CounterSpec),
     ],
 )
-def test_dashboards_infers_query_spec(tmp_path, query, spec_expected):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_infers_query_spec(tmp_path, query, spec_expected):
     (tmp_path / "query.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-
-    spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    dashboard = dashboard_metadata.as_lakeview()
+    spec = dashboard.pages[0].layout[0].widget.spec
     assert isinstance(spec, spec_expected)
-    ws.assert_not_called()
 
 
-def test_dashboards_overrides_show_empty_title_in_query_header(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_overrides_show_empty_title_in_query_header(tmp_path):
     query = '-- --overrides \'{"spec": {"frame": {"showTitle": true}}}\'\nSELECT 102132 AS count'
     (tmp_path / "query.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    frame = dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.show_title
     assert len(frame.title) == 0
-    ws.assert_not_called()
 
 
-def test_dashboards_overrides_show_empty_title_in_dashboard_yml(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_overrides_show_empty_title_from_dashboard_yml(tmp_path):
     dashboard_content = """
 display_name: Show empty title
 
@@ -902,110 +850,68 @@ tiles:
     (tmp_path / "query.sql").write_text("SELECT 20")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    frame = dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.show_title
     assert len(frame.title) == 0
-    ws.assert_not_called()
 
 
-def test_dashboards_creates_dashboard_with_expected_table_field_encodings(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_table_with_field_encodings(tmp_path):
     (tmp_path / "query.sql").write_text("select 1 as first, 2 as second")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    table_spec = lakeview_dashboard.pages[0].layout[0].widget.spec
+    table_spec = dashboard.pages[0].layout[0].widget.spec
     assert isinstance(table_spec, TableV1Spec)
     assert table_spec.encodings.columns[0].field_name == "first"
     assert table_spec.encodings.columns[1].field_name == "second"
-    ws.assert_not_called()
 
 
-def test_dashboards_creates_dashboards_with_second_widget_to_the_right_of_the_first_widget(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_places_second_widget_to_the_right_of_the_first_widget(tmp_path):
     for i in range(2):
         (tmp_path / f"counter_{i}.sql").write_text(f"SELECT {i} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    layout = lakeview_dashboard.pages[0].layout
+    layout = dashboard.pages[0].layout
     first_position, second_position = layout[0].position, layout[1].position
     assert first_position.x < second_position.x
     assert first_position.y == second_position.y
-    ws.assert_not_called()
 
 
-def test_dashboards_creates_dashboard_with_many_widgets_not_on_the_first_row(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_places_many_widgets_not_on_the_first_row(tmp_path):
     for i in range(10):
         (tmp_path / f"counter_{i}.sql").write_text(f"SELECT {i} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-
-    layout = lakeview_dashboard.pages[0].layout
-    assert layout[-1].position.y > 0
-    ws.assert_not_called()
+    dashboard = dashboard_metadata.as_lakeview()
+    assert dashboard.pages[0].layout[-1].position.y > 0
 
 
-def test_dashboards_creates_dashboard_with_widget_below_text_widget(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_places_widget_below_markdown_widget(tmp_path):
     (tmp_path / "000_counter.md").write_text("# Description")
     (tmp_path / "010_counter.sql").write_text("SELECT 100 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    layout = lakeview_dashboard.pages[0].layout
+    layout = dashboard.pages[0].layout
     assert len(layout) == 2
     assert layout[0].position.y < layout[1].position.y
-    ws.assert_not_called()
-
-
-def test_dashboards_creates_dashboard_with_id_collisions_raises_value_error(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
-    dashboard_content = """
-display_name: Id collisions
-
-tiles:
-  counter:
-    width: 10
-""".lstrip()
-    (tmp_path / "dashboard.yml").write_text(dashboard_content)
-    (tmp_path / "counter.md").write_text("# Description")
-    (tmp_path / "counter.sql").write_text("SELECT 100 AS count")
-    (tmp_path / "header_overwrite.sql").write_text("-- --id counter\nSELECT 100 AS count")
-    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    with pytest.raises(ValueError) as e:
-        Dashboards(ws).create_dashboard(dashboard_metadata)
-    assert "Duplicate id: counter" in str(e.value)
 
 
 @pytest.mark.parametrize("query_names", [["a", "b", "c"], ["01", "02", "10"]])
-def test_dashboards_creates_dashboards_with_widgets_sorted_alphanumerically(tmp_path, query_names):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_sorts_widgets_alphanumerically(tmp_path, query_names):
     for query_name in query_names:
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-
-    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
-    assert widget_names == query_names
-    ws.assert_not_called()
+    dashboard = dashboard_metadata.as_lakeview()
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == query_names
 
 
-def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_orders_widget_using_overwrite(tmp_path):
     # Move the 'e' inbetween 'b' and 'c' query. Note that the order 1 puts 'e' on the same position as 'b', but with an
     # order tiebreaker the query name decides the final order.
     (tmp_path / "e.sql").write_text("-- --order 1\nSELECT 1 AS count")
@@ -1013,16 +919,12 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite(tmp_path):
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
-    assert "".join(widget_names) == "abecdf"
-    ws.assert_not_called()
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == list("abecdf")
 
 
-def test_dashboards_creates_dashboards_with_widgets_order_overwrite_zero(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_orders_widget_with_overwrite_zero(tmp_path):
     # Move the 'e' inbetween 'a' and 'b' query. Note that the order 0 puts 'e' on the same position as 'a', but with an
     # order tiebreaker the query name decides the final order.
     (tmp_path / "e.sql").write_text("-- --order 0\nSELECT 1 AS count")
@@ -1030,31 +932,23 @@ def test_dashboards_creates_dashboards_with_widgets_order_overwrite_zero(tmp_pat
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
-    assert "".join(widget_names) == "aebcdf"
-    ws.assert_not_called()
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == list("aebcdf")
 
 
-def test_dashboards_creates_dashboards_with_widget_ordered_using_id(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_orders_widgets_using_id(tmp_path):
     (tmp_path / "z.sql").write_text("-- --id a\nSELECT 1 AS count")  # Should be first because id is 'a'
     for query_name in "bcdef":
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
-    assert "".join(widget_names) == "abcdef"
-    ws.assert_not_called()
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == list("abcdef")
 
 
-def test_dashboards_creates_dashboard_with_widget_order_overwrite_from_dashboard_yaml(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_orders_widgets_with_overwrite_from_dashboard_yaml(tmp_path):
     content = """
 display_name: Ordering
 
@@ -1067,16 +961,12 @@ tiles:
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
-    assert "".join(widget_names) == "eabcdf"
-    ws.assert_not_called()
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == list("eabcdf")
 
 
-def test_dashboards_creates_dashboard_where_widget_order_in_header_takes_precedence(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_orders_widget_where_header_takes_precedence(tmp_path):
     content = """
 display_name: Ordering
 
@@ -1089,11 +979,9 @@ tiles:
         (tmp_path / f"query_{index}.sql").write_text(f"-- --order {index}\nSELECT {index} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    widget_names = [layout.widget.name for layout in lakeview_dashboard.pages[0].layout]
-    assert widget_names == ["query_0", "query_1", "query_2"]
-    ws.assert_not_called()
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == ["query_0", "query_1", "query_2"]
 
 
 @pytest.mark.parametrize(
@@ -1103,43 +991,34 @@ tiles:
         ("SELECT " + ", ".join(string.ascii_letters), 6, 6),
     ],
 )
-def test_dashboards_creates_dashboards_where_widget_has_expected_width_and_height(tmp_path, query, width, height):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_widget_width_and_height(tmp_path, query, width, height):
     (tmp_path / "query.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-    position = lakeview_dashboard.pages[0].layout[0].position
+    dashboard = dashboard_metadata.as_lakeview()
 
+    position = dashboard.pages[0].layout[0].position
     assert position.width == width
     assert position.height == height
-    ws.assert_not_called()
 
 
-def test_dashboards_creates_dashboards_where_text_widget_has_expected_width_and_height(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_markdown_widget_width_and_height(tmp_path):
     (tmp_path / "description.md").write_text("# Description")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    position = lakeview_dashboard.pages[0].layout[0].position
+    position = dashboard.pages[0].layout[0].position
     assert position.width == 6
     assert position.height == 3
-    ws.assert_not_called()
 
 
-def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_markdown_widget_text(tmp_path):
     content = "# Description"
     (tmp_path / "description.md").write_text(content)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
-
-    widget = lakeview_dashboard.pages[0].layout[0].widget
-    assert widget.textbox_spec == content
-    ws.assert_not_called()
+    dashboard = dashboard_metadata.as_lakeview()
+    assert dashboard.pages[0].layout[0].widget.textbox_spec == content
 
 
 @pytest.mark.parametrize(
@@ -1150,96 +1029,82 @@ def test_dashboards_creates_dashboards_where_text_widget_has_expected_text(tmp_p
         "/*\n--width 6\n--height 3 */",
     ],
 )
-def test_dashboard_creates_dashboard_with_custom_sized_widget(tmp_path, header):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_widget_with_custom_size(tmp_path, header):
     query = f"{header}\nSELECT 82917019218921 AS big_number_needs_big_widget"
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    position = lakeview_dashboard.pages[0].layout[0].position
+    position = dashboard.pages[0].layout[0].position
     assert position.width == 6
     assert position.height == 3
-    ws.assert_not_called()
 
 
-def test_dashboard_creates_dashboard_with_title(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_widget_with_title(tmp_path):
     query = "-- --title 'Count me in'\nSELECT 2918"
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    frame = dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.title == "Count me in"
     assert frame.show_title
-    ws.assert_not_called()
 
 
-def test_dashboard_creates_dashboard_without_title(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_widget_without_title(tmp_path):
     (tmp_path / "counter.sql").write_text("SELECT 109")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    frame = dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.title == ""
     assert not frame.show_title
-    ws.assert_not_called()
 
 
-def test_dashboard_creates_dashboard_with_description(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_widget_with_description(tmp_path):
     query = "-- --description 'Only when it counts'\nSELECT 2918"
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    frame = dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.description == "Only when it counts"
     assert frame.show_description
-    ws.assert_not_called()
 
 
-def test_dashboard_creates_dashboard_without_description(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_widget_without_description(tmp_path):
     (tmp_path / "counter.sql").write_text("SELECT 190219")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    frame = lakeview_dashboard.pages[0].layout[0].widget.spec.frame
+    frame = dashboard.pages[0].layout[0].widget.spec.frame
     assert frame.description == ""
     assert not frame.show_description
-    ws.assert_not_called()
 
 
-def test_dashboard_creates_dashboard_with_filter(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_creates_widget_with_filter(tmp_path):
     filter_column = "City"
     query = f"-- --filter {filter_column}\nSELECT Address, City, Province, Country FROM europe"
     (tmp_path / "table.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    layouts = lakeview_dashboard.pages[0].layout
+    layouts = dashboard.pages[0].layout
     assert any(f"filter_{filter_column}" in layout.widget.name for layout in layouts)
     filter_query = [layout.widget for layout in layouts if filter_column in layout.widget.name][0].queries[0]
     assert filter_query.name == f"filter_{filter_column}"
     assert len(filter_query.query.fields) == 2
     assert filter_query.query.fields[0].name == filter_column  # Filter column
     assert filter_column in filter_query.query.fields[1].name  # Associativity column
-    ws.assert_not_called()
 
 
-def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_handles_incorrect_query_header(tmp_path, caplog):
     # Typo is on purpose
     query = "-- --widh 6 --height 5 \nSELECT 82917019218921 AS big_number_needs_big_widget"
     query_path = tmp_path / "counter.sql"
@@ -1247,57 +1112,71 @@ def test_dashboard_handles_incorrect_query_header(tmp_path, caplog):
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
     with caplog.at_level(logging.WARNING, logger="databricks.labs.lsql.dashboards"):
-        lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+        dashboard = dashboard_metadata.as_lakeview()
 
-    position = lakeview_dashboard.pages[0].layout[0].position
+    position = dashboard.pages[0].layout[0].position
     assert position.width == 1
     assert position.height == 5
     assert query_path.as_posix() in caplog.text
-    ws.assert_not_called()
 
 
-def test_dashboard_creates_dashboard_based_on_markdown_header(tmp_path):
-    ws = create_autospec(WorkspaceClient)
-
+def test_dashboard_metadata_reads_markdown_header(tmp_path):
     for query_name in "abcdef":
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     content = "---\norder: -1\nwidth: 6\nheight: 3\n---\n# Description"
     (tmp_path / "widget.md").write_text(content)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    position = lakeview_dashboard.pages[0].layout[0].position
+    position = dashboard.pages[0].layout[0].position
     assert position.width == 6
     assert position.height == 3
-    ws.assert_not_called()
 
 
-def test_dashboard_uses_metadata_above_select_when_query_has_cte(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_reads_header_above_select_when_query_has_cte(tmp_path):
     query = "WITH data AS (SELECT 1 AS count)\n" "-- --width 6 --height 6\n" "SELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    position = lakeview_dashboard.pages[0].layout[0].position
+    position = dashboard.pages[0].layout[0].position
     assert position.width == 6
     assert position.height == 6
-    ws.assert_not_called()
 
 
-def test_dashboard_ignores_first_line_metadata_when_query_has_cte(tmp_path):
-    ws = create_autospec(WorkspaceClient)
+def test_dashboard_metadata_ignores_first_line_metadata_when_query_has_cte(tmp_path):
     query = "-- --width 6 --height 6\n" "WITH data AS (SELECT 1 AS count)\n" "SELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    lakeview_dashboard = Dashboards(ws).create_dashboard(dashboard_metadata)
+    dashboard = dashboard_metadata.as_lakeview()
 
-    position = lakeview_dashboard.pages[0].layout[0].position
+    position = dashboard.pages[0].layout[0].position
     assert position.width != 6
     assert position.height != 6
+
+
+def test_dashboards_saves_sql_files_to_folder(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
+    dashboard = dashboard_metadata.as_lakeview()
+
+    Dashboards(ws).save_to_folder(dashboard, tmp_path)
+
+    assert len(list(tmp_path.glob("*.sql"))) == len(dashboard.datasets)
+    ws.assert_not_called()
+
+
+def test_dashboards_saves_yml_files_to_folder(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
+    dashboard = dashboard_metadata.as_lakeview()
+
+    Dashboards(ws).save_to_folder(dashboard, tmp_path)
+
+    assert len(list(tmp_path.glob("*.yml"))) == len(dashboard.pages)
     ws.assert_not_called()
 
 
