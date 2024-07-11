@@ -25,7 +25,8 @@ def create_dashboard(
     lakeview_dashboards = Dashboards(w)
     folder = Path(folder)
     dashboard_metadata = DashboardMetadata.from_path(folder).replace_database(
-        catalog=catalog or None, database=database or None
+        catalog=catalog or None,
+        database=database or None,
     )
     lakeview_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata)
     sdk_dashboard = lakeview_dashboards.deploy_dashboard(lakeview_dashboard)
