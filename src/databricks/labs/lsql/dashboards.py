@@ -407,7 +407,7 @@ class QueryTile(Tile):
         catalog_to_replace: str | None = None,
         database_to_replace: str | None = None,
     ) -> "QueryTile":
-        """Replace the database in the query.
+        """Replace the catalog and/or database in the query.
 
         Parameters :
             catalog : str
