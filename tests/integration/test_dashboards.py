@@ -92,7 +92,7 @@ def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, make_dash
 
     (tmp_path / "counter.sql").write_text("SELECT 10 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
@@ -110,7 +110,7 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_p
     for i in range(10):
         (tmp_path / f"counter_{i}.sql").write_text(f"SELECT {i} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -124,7 +124,7 @@ def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_p
     (tmp_path / "dashboard.yml").write_text("display_name: Counter")
     (tmp_path / "counter.sql").write_text("SELECT 102132 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -137,7 +137,7 @@ def test_dashboard_deploys_dashboard_with_counter_variation(ws, make_dashboard, 
 
     (tmp_path / "counter.sql").write_text("SELECT 10 AS `Something Else Than Count`")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -151,7 +151,7 @@ def test_dashboard_deploys_dashboard_with_big_widget(ws, make_dashboard, tmp_pat
     query = """-- --width 6 --height 3\nSELECT 82917019218921 AS big_number_needs_big_widget"""
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -168,7 +168,7 @@ def test_dashboards_deploys_dashboard_with_order_overwrite_in_query_header(ws, m
     # order tiebreaker the query name decides the final order.
     (tmp_path / "4.sql").write_text("-- --order 1\nSELECT 4 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -192,7 +192,7 @@ tiles:
     for query_name in range(6):
         (tmp_path / f"query_{query_name}.sql").write_text(f"SELECT {query_name} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -205,7 +205,7 @@ def test_dashboard_deploys_dashboard_with_table(ws, make_dashboard):
 
     dashboard_folder = Path(__file__).parent / "dashboards" / "one_table"
     dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -220,7 +220,7 @@ def test_dashboards_deploys_dashboard_with_invalid_query(ws, make_dashboard, tmp
         (tmp_path / f"{query_name}.sql").write_text(f"SELECT {query_name} AS count")
     (tmp_path / "4.sql").write_text("SELECT COUNT(* AS invalid_column")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -235,7 +235,7 @@ def test_dashboards_deploys_dashboard_with_markdown_header(ws, make_dashboard, t
         (tmp_path / f"{query_name}.sql").write_text(f"SELECT {count} AS count")
     (tmp_path / "z_description.md").write_text("---\norder: -1\n---\nBelow you see counters.")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -249,7 +249,7 @@ def test_dashboards_deploys_dashboard_with_widget_title_and_description(ws, make
     description = "-- --title 'Counting' --description 'The answer to life'\nSELECT 42"
     (tmp_path / "counter.sql").write_text(description)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -269,7 +269,7 @@ def test_dashboards_deploys_dashboard_from_query_with_cte(ws, make_dashboard, tm
     )
     (tmp_path / "table.sql").write_text(query_with_cte)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -284,7 +284,7 @@ def test_dashboards_deploys_dashboard_with_filters(ws, make_dashboard, tmp_path)
     office_locations = table_query_path.read_text()
     (tmp_path / "table.sql").write_text(f"-- --width 2 --filter City State Country\n{office_locations}")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
@@ -298,7 +298,7 @@ def test_dashboard_deploys_dashboard_with_empty_title(ws, make_dashboard, tmp_pa
     query = '-- --overrides \'{"spec": {"frame": {"showTitle": true}}}\'\nSELECT 102132 AS count'
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    lakeview_dashboard = dashboards.as_lakeview(dashboard_metadata)
+    lakeview_dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
