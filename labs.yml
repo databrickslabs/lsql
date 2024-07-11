@@ -11,11 +11,11 @@ commands:
         description: The folder with dashboard files. By default, the current working directory.
       - name: catalog
         description: |
-          Overwrite the catalog in query with given value. Useful when developing with seperated catalogs, for 
-          example, for production and development.
+          Overwrite the catalog in the queries' `FROM` clauses with given value. 
+          Useful when developing with seperated catalogs, for example, for production and development.
       - name: database
         description: |
-          Overwrite the database in query with given value. Useful when developing with seperated databases, for 
-          example, for production and development.
+          Overwrite the database in the queries' `FROM` clauses with given value. 
+          Useful when developing with seperated databases, for example, for production and development.
       - name: no-open
         description: Do not open the dashboard in the browser after creating
