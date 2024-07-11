@@ -72,7 +72,7 @@ fmt         = ["isort .",
                "mypy .",
                "pylint --output-format=colorized -j 0 src"]
 verify      = ["isort . --check-only",
-               "ruff .",
+               "ruff check .",
                "mypy .",
                "pylint --output-format=colorized -j 0 src"]
 
