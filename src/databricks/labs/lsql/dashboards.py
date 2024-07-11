@@ -97,8 +97,8 @@ class QueryHandler(BaseHandler):
         parser = ArgumentParser("TileMetadata", add_help=False, exit_on_error=False)
         parser.add_argument("--id", type=str)
         parser.add_argument("-o", "--order", type=int)
-        parser.add_argument("-w", "--width", type=int)
-        parser.add_argument("-h", "--height", type=int)
+        parser.add_argument("-w", "--width", type=int, default=0)
+        parser.add_argument("-h", "--height", type=int, default=0)
         parser.add_argument("-t", "--title", type=str, default="")
         parser.add_argument("-d", "--description", type=str, default="")
         parser.add_argument(
@@ -124,6 +124,7 @@ class QueryHandler(BaseHandler):
             "--overrides",
             type=json.loads,
             help="Override the low-level Lakeview entities with a json payload.",
+            default={},
         )
         return parser
 
@@ -216,8 +217,8 @@ class TileMetadata:
         if not self.id:
             self.id = self.path.stem if self.path is not None else ""
 
-    def update(self, other: "TileMetadata") -> None:
-        """Update the tile metadata with another tile metadata.
+    def merge(self, other: "TileMetadata") -> "TileMetadata":
+        """Merge the tile metadata with another tile metadata.
 
         Precedence:
         - The other takes precedences, similar to merging dictionaries.
@@ -231,16 +232,20 @@ class TileMetadata:
 
         widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
 
-        self.path = other.path or self.path
-        self.order = other.order if other.order is not None else self.order
-        self.width = other.width or self.width
-        self.height = other.height or self.height
-        self.id = other.id or self.id
-        self.title = other.title or self.title
-        self.description = other.description or self.description
-        self.widget_type = widget_type
-        self.filters = other.filters or self.filters
-        self.overrides = other.overrides or self.overrides
+        merged = dataclasses.replace(
+            self,
+            path=other.path or self.path,
+            order=other.order if other.order is not None else self.order,
+            width=other.width or self.width,
+            height=other.height or self.height,
+            id=other.id or self.id,
+            title=other.title or self.title,
+            description=other.description or self.description,
+            widget_type=widget_type,
+            filters=other.filters or self.filters,
+            overrides=other.overrides or self.overrides,
+        )
+        return merged
 
     def is_markdown(self) -> bool:
         return self.path is not None and self.path.suffix == ".md"
@@ -303,7 +308,15 @@ class Tile:
 
     metadata: TileMetadata
 
+    _content: str = ""
     _position: Position = Position(0, 0, 0, 0)
+
+    @property
+    def content(self) -> str:
+        if len(self._content) == 0:
+            _, content = self.metadata.handler.split()
+            self._content = content
+        return self._content
 
     @property
     def position(self) -> Position:
@@ -313,8 +326,7 @@ class Tile:
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        _, text = self.metadata.handler.split()
-        widget = Widget(name=self.metadata.id, textbox_spec=text)
+        widget = Widget(name=self.metadata.id, textbox_spec=self.content)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
@@ -355,13 +367,6 @@ class MarkdownTile(Tile):
     _position: Position = Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3)
 
 
-def replace_database_in_query(node: sqlglot.Expression, *, database: str) -> sqlglot.Expression:
-    """Replace the database in a query."""
-    if isinstance(node, sqlglot.exp.Table) and node.args.get("db") is not None:
-        node.args["db"].set("this", database)
-    return node
-
-
 @dataclass
 class QueryTile(Tile):
     """A tile based on a sql query."""
@@ -372,29 +377,11 @@ class QueryTile(Tile):
     _FILTER_HEIGHT = 1
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
-        _, query = self.metadata.handler.split()
         try:
-            return sqlglot.parse_one(query, dialect=self._DIALECT)
+            return sqlglot.parse_one(self.content, dialect=self._DIALECT)
         except sqlglot.ParseError as e:
-            logger.warning(f"Parsing {query}: {e}")
+            logger.warning(f"Parsing {self.content}: {e}")
             return None
-
-    def _get_query(self) -> str:
-        _, query = self.metadata.handler.split()
-        if self.query_transformer is None:
-            return query
-        syntax_tree = self._get_abstract_syntax_tree()
-        if syntax_tree is None:
-            return query
-        query_transformed = syntax_tree.transform(self.query_transformer).sql(
-            dialect=self._DIALECT,
-            # A transformer requires to (re)define how to output SQL
-            normalize=True,  # normalize identifiers to lowercase
-            pretty=True,  # format the produced SQL string
-            normalize_functions="upper",  # normalize function names to uppercase
-            max_text_width=80,  # wrap text at 80 characters
-        )
-        return query_transformed
 
     def _find_fields(self) -> list[Field]:
         """Find the fields in a query.
@@ -416,6 +403,52 @@ class QueryTile(Tile):
                 fields.append(field)
         return fields
 
+    def replace_database(
+        self,
+        catalog: str | None = None,
+        database: str | None = None,
+        *,
+        catalog_to_replace: str | None = None,
+        database_to_replace: str | None = None,
+    ) -> "QueryTile":
+        """Replace the catalog and/or database in the query.
+
+        Parameters :
+            catalog : str
+                The value to replace the catalog with
+            database : str
+                The value to replace the database with
+            catalog_to_replace : str | None (default: None)
+                The catalog to replace, if None, all catalogs are replaced
+            database_to_replace : str | None (default: None)
+                The database to replace, if None, all databases are replaced
+        """
+
+        def replace_catalog_and_database_in_query(node: sqlglot.Expression) -> sqlglot.Expression:
+            if isinstance(node, sqlglot.exp.Table):
+                if node.args.get("catalog") is not None and (
+                    catalog_to_replace is None or getattr(node.args.get("catalog"), "this", "") == catalog_to_replace
+                ):
+                    node.args["catalog"].set("this", catalog)
+                if node.args.get("db") is not None and (
+                    database_to_replace is None or getattr(node.args.get("db"), "this", "") == database_to_replace
+                ):
+                    node.args["db"].set("this", database)
+            return node
+
+        syntax_tree = self._get_abstract_syntax_tree()
+        if syntax_tree is None:
+            return dataclasses.replace(self, _content=self.content)
+        content_transformed = syntax_tree.transform(replace_catalog_and_database_in_query).sql(
+            dialect=self._DIALECT,
+            # A transformer requires to (re)define how to output SQL
+            normalize=True,  # normalize identifiers to lowercase
+            pretty=True,  # format the produced SQL string
+            normalize_functions="upper",  # normalize function names to uppercase
+            max_text_width=80,  # wrap text at 80 characters
+        )
+        return dataclasses.replace(self, _content=content_transformed)
+
     def infer_spec_type(self) -> type[WidgetSpec] | None:
         """Infer the spec type from the query."""
         if self.metadata.widget_type != WidgetType.AUTO:
@@ -429,8 +462,7 @@ class QueryTile(Tile):
 
     def get_datasets(self) -> Iterable[Dataset]:
         """Get the dataset belonging to the query."""
-        query = self._get_query()
-        dataset = Dataset(name=self.metadata.id, display_name=self.metadata.id, query=query)
+        dataset = Dataset(name=self.metadata.id, display_name=self.metadata.id, query=self.content)
         yield dataset
 
     def _merge_nested_dictionaries(self, left: dict, right: dict) -> dict:
@@ -606,8 +638,29 @@ class CounterTile(QueryTile):
 class DashboardMetadata:
     """The metadata defining a lakeview dashboard"""
 
-    display_name: str
-    tile_metadatas: list[TileMetadata] = dataclasses.field(default_factory=list)
+    display_name: str  # The dashboard display name
+
+    _tiles: list[Tile] = dataclasses.field(default_factory=list)  # The dashboard tiles
+
+    @property
+    def tiles(self) -> list[Tile]:
+        """The ordered dashboard tiles
+
+        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
+        with the `order` key. Hence, the logic to:
+        i) set the order when not specified;
+        ii) sort the tiles using the order field.
+        """
+        tiles_with_order = []
+        for default_order, tile in enumerate(sorted(self._tiles, key=lambda tile: tile.metadata.id)):
+            order = tile.metadata.order if tile.metadata.order is not None else default_order
+            tiles_with_order.append((order, tile))
+        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
+        for _, tile in sorted(tiles_with_order, key=lambda el: (el[0], el[1].metadata.id)):
+            tile.place_after(position)
+            tiles.append(tile)
+            position = tile.position
+        return tiles
 
     def validate(self) -> None:
         """Validate the dashboard metadata.
@@ -616,94 +669,55 @@ class DashboardMetadata:
             ValueError : If the dashboard metadata is invalid.
         """
         tile_ids = []
-        for tile in self.tile_metadatas:
-            if tile.path is None:
-                raise ValueError(f"Tile path is required: {tile}")
-            tile_ids.append(tile.id)
+        for tile in self.tiles:
+            if len(tile.content) == 0:
+                raise ValueError(f"Tile has empty content: {tile}")
+            tile_ids.append(tile.metadata.id)
         counter = collections.Counter(tile_ids)
         for tile_id, id_count in counter.items():
             if id_count > 1:
                 raise ValueError(f"Duplicate id: {tile_id}")
 
-    def update(self, other: "DashboardMetadata") -> None:
-        """Update the dashboard metadata with another dashboard metadata.
-
-        The other takes precedence, similar to merging dictionaries.
-
-        Resources:
-        - https://docs.python.org/3/library/stdtypes.html#dict.update : Similar to the update method of a dictionary.
-        """
-        if not isinstance(other, DashboardMetadata):
-            raise TypeError(f"Can not merge with {other}")
-
-        self.display_name = other.display_name
-
-        tile_metadatas = []
-        metadata_mapping = {tile.id: tile for tile in self.tile_metadatas}
-        for tile_metadata in other.tile_metadatas:
-            tile_metadata_existing = metadata_mapping.get(tile_metadata.id)
-            if tile_metadata_existing is not None:
-                tile_metadata_existing.update(tile_metadata)
-                tile_metadatas.append(tile_metadata_existing)
+    @classmethod
+    def _merge_tile_metadatas(cls, left: list[TileMetadata], right: list[TileMetadata]) -> list[TileMetadata]:
+        """Merge tile metdatas where the right takes precedence over the left."""
+        metadata_mapping_left = {metadata.id: metadata for metadata in left}
+        metadata_mapping_right = {metadata.id: metadata for metadata in right}
+        metadatas = []
+        for metadata in right:
+            metadata_existing = metadata_mapping_left.get(metadata.id)
+            if metadata_existing is not None:
+                metadata_merged = metadata_existing.merge(metadata)
+                metadatas.append(metadata_merged)
             else:
-                tile_metadatas.append(tile_metadata)
-        metadata_mapping_other = {tile.id: tile for tile in other.tile_metadatas}
-        for tile_metadata in self.tile_metadatas:
-            if tile_metadata.id not in metadata_mapping_other:
-                tile_metadatas.append(tile_metadata)
-        self.tile_metadatas = tile_metadatas
+                metadatas.append(metadata)
+        for metadata in left:
+            if metadata.id not in metadata_mapping_right:
+                metadatas.append(metadata)
+        return metadatas
 
-    def _get_tiles(
-        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
-    ) -> list[Tile]:
-        """Get the tiles from the tiles metadata.
-
-        The order of the tiles is by default the alphanumerically sorted tile ids, however, the order may be overwritten
-        with the `order` key. Hence, the logic to:
-        i) set the order when not specified;
-        ii) sort the tiles using the order field.
-
-        Parameters :
-            query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default: None)
-                A sqlglot transformer applied on the queries (SQL files) before creating the tiles. If None, no
-                transformation is applied.
-        """
-        tile_metadatas_with_order = []
-        for default_order, tile_metadata in enumerate(sorted(self.tile_metadatas, key=lambda wm: wm.id)):
-            order = tile_metadata.order if tile_metadata.order is not None else default_order
-            tile_metadatas_with_order.append(dataclasses.replace(tile_metadata, order=order))
-        tiles, position = [], Position(0, 0, 0, 0)  # Position of first tile
-        for tile_metadata in sorted(tile_metadatas_with_order, key=lambda t: (t.order, t.id)):
-            tile = Tile.from_tile_metadata(tile_metadata)
+    def replace_database(self, *args, **kwargs) -> "DashboardMetadata":
+        """Wrapper around :method:QueryTile.replace_database"""
+        tiles: list[Tile] = []
+        for tile in self.tiles:
             if isinstance(tile, QueryTile):
-                tile.query_transformer = query_transformer
-            tile.place_after(position)
-            tiles.append(tile)
-            position = tile.position
-        return tiles
+                tiles.append(tile.replace_database(*args, **kwargs))
+            else:
+                tiles.append(tile)
+        return dataclasses.replace(self, _tiles=tiles)
 
-    def get_datasets(
-        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
-    ) -> list[Dataset]:
-        """Get the datasets for the dashboard.
-
-        See :meth:`DashboardMetadata._get_tiles` for `query_transformer`.
-        """
+    def get_datasets(self) -> list[Dataset]:
+        """Get the datasets for the dashboard."""
         datasets: list[Dataset] = []
-        for tile in self._get_tiles(query_transformer):
+        for tile in self.tiles:
             if isinstance(tile, QueryTile):
                 datasets.extend(tile.get_datasets())
         return datasets
 
-    def get_layouts(
-        self, query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
-    ) -> list[Layout]:
-        """Get the layouts for the dashboard.
-
-        See :meth:`DashboardMetadata._get_tiles` for `query_transformer`.
-        """
+    def get_layouts(self) -> list[Layout]:
+        """Get the layouts for the dashboard."""
         layouts: list[Layout] = []
-        for tile in self._get_tiles(query_transformer):
+        for tile in self.tiles:
             layouts.extend(tile.get_layouts())
         return layouts
 
@@ -715,34 +729,38 @@ class DashboardMetadata:
             if not isinstance(tile_raw, dict):
                 logger.warning(f"Parsing invalid tile metadata in dashboard.yml: tiles.{tile_id}.{tile_raw}")
                 continue
-            tile = TileMetadata(id=tile_id)
+            tile_metadata = TileMetadata(id=tile_id)
+            # The loop below allows for partial parsing by skipping unsupported fields
             for tile_key, tile_value in tile_raw.items():
                 if tile_key == "id":
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.id")
                     continue
                 try:
-                    tile_new = TileMetadata.from_dict({tile_key: tile_value})
-                    tile.update(tile_new)
+                    tile_metadata_new = TileMetadata.from_dict({tile_key: tile_value})
+                    tile_metadata = tile_metadata.merge(tile_metadata_new)
                 except TypeError:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
+            tile = Tile.from_tile_metadata(tile_metadata)
             tiles.append(tile)
-        return cls(display_name=display_name, tile_metadatas=tiles)
+        return cls(display_name=display_name, _tiles=tiles)
 
     def as_dict(self) -> dict:
         raw: dict = {"display_name": self.display_name}
-        if self.tile_metadatas:
-            raw["tiles"] = {tile.id: tile.as_dict() for tile in self.tile_metadatas}
+        if self.tiles:
+            raw["tiles"] = {tile.metadata.id: tile.metadata.as_dict() for tile in self.tiles}
         return raw
 
     @classmethod
     def from_path(cls, path: Path) -> "DashboardMetadata":
         """Read the dashboard metadata from the dashboard folder."""
         dashboard_metadata_yml = cls._from_dashboard_path(path / "dashboard.yml")
-        display_name = dashboard_metadata_yml.display_name  # Display name in dashboard.yml takes precedence
         dashboard_metadata_folder = cls._from_dashboard_folder(path)
-        dashboard_metadata_yml.update(dashboard_metadata_folder)  # Metadata from file headers takes precedence
-        return dataclasses.replace(dashboard_metadata_yml, display_name=display_name)
+        tile_metadatas_yml = [tile.metadata for tile in dashboard_metadata_yml.tiles]
+        tile_metadatas_folder = [tile.metadata for tile in dashboard_metadata_folder.tiles]
+        tile_metadatas = cls._merge_tile_metadatas(tile_metadatas_yml, tile_metadatas_folder)
+        tiles = [Tile.from_tile_metadata(tile_metadata) for tile_metadata in tile_metadatas]
+        return cls(dashboard_metadata_yml.display_name, _tiles=tiles)
 
     @classmethod
     def _from_dashboard_path(cls, path: Path) -> "DashboardMetadata":
@@ -769,8 +787,10 @@ class DashboardMetadata:
         for path in folder.iterdir():
             if path.suffix not in {".sql", ".md"}:
                 continue
-            tiles.append(TileMetadata.from_path(path))
-        return cls(display_name=folder.name, tile_metadatas=tiles)
+            tile_metadata = TileMetadata.from_path(path)
+            tile = Tile.from_tile_metadata(tile_metadata)
+            tiles.append(tile)
+        return cls(display_name=folder.name, _tiles=tiles)
 
 
 class Dashboards:
@@ -819,30 +839,22 @@ class Dashboards:
         return formatted_query
 
     @staticmethod
-    def create_dashboard(
-        dashboard_folder: Path,
-        *,
-        query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None,
-    ) -> Dashboard:
-        """Create a dashboard from code, i.e. configuration and queries.
+    def create_dashboard(dashboard_metadata: DashboardMetadata) -> Dashboard:
+        """Create a dashboard from the dashboard metadata
 
         Parameters :
-            dashboard_folder : Path
-                The path to the folder with dashboard files.
-            query_transformer : Callable[[sqlglot.Expression], sqlglot.Expression] | None (default | None)
-                A sqlglot transformer applied on the queries (SQL files) before creating the dashboard. If None, no
-                transformation will be applied.
+            dashboard_metadata : DashboardMetadata
+                The dashboard metadata
 
-        Raises:
+        Raises :
             ValueError : If the dashboard metadata is invalid.
 
         Source :
             https://sqlglot.com/sqlglot/transforms.html
         """
-        dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
         dashboard_metadata.validate()
-        datasets = dashboard_metadata.get_datasets(query_transformer)
-        layouts = dashboard_metadata.get_layouts(query_transformer)
+        datasets = dashboard_metadata.get_datasets()
+        layouts = dashboard_metadata.get_layouts()
         page = Page(
             name=dashboard_metadata.display_name,
             display_name=dashboard_metadata.display_name,
