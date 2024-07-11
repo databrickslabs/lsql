@@ -665,7 +665,7 @@ class DashboardMetadata:
             ValueError : If the dashboard metadata is invalid.
         """
         tile_ids = []
-        for tile in self._tiles:
+        for tile in self.tiles:
             if len(tile.content) == 0:
                 raise ValueError(f"Tile has empty content: {tile}")
             tile_ids.append(tile.metadata.id)
