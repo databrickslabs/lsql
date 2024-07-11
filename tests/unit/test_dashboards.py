@@ -557,7 +557,7 @@ def test_dashboard_metadata_creates_datasets_using_query(tmp_path):
     assert dashboard.datasets[0].query == query
 
 
-def test_dashboard_metadata_creates_datasets_with_transformed_query(tmp_path):
+def test_dashboard_metadata_creates_datasets_with_database_replaced(tmp_path):
     # Note that sqlglot sees "$inventory" (convention in ucx) as a parameter thus only replaces "inventory"
     query = """
 WITH raw AS (
@@ -577,7 +577,7 @@ SELECT COALESCE(CONCAT(ROUND(SUM(ready) / COUNT(*) * 100, 1), '%'), 'N/A') AS re
     assert len(dataset.query.split("\n")) != 1  # Without formatting the query transformer results a single line
 
 
-def test_dashboard_metadata_creates_one_counter_widget_per_query():
+def test_dashboard_metadata_creates_one_counter_widget_per_single_column_query():
     queries = Path(__file__).parent / "queries"
     dashboard_metadata = DashboardMetadata.from_path(queries)
 
