@@ -217,8 +217,8 @@ class TileMetadata:
         if not self.id:
             self.id = self.path.stem if self.path is not None else ""
 
-    def update(self, other: "TileMetadata") -> None:
-        """Update the tile metadata with another tile metadata.
+    def merge(self, other: "TileMetadata") -> "TileMetadata":
+        """Merge the tile metadata with another tile metadata.
 
         Precedence:
         - The other takes precedences, similar to merging dictionaries.
@@ -232,16 +232,20 @@ class TileMetadata:
 
         widget_type = other.widget_type if other.widget_type != WidgetType.AUTO else self.widget_type
 
-        self.path = other.path or self.path
-        self.order = other.order if other.order is not None else self.order
-        self.width = other.width or self.width
-        self.height = other.height or self.height
-        self.id = other.id or self.id
-        self.title = other.title or self.title
-        self.description = other.description or self.description
-        self.widget_type = widget_type
-        self.filters = other.filters or self.filters
-        self.overrides = other.overrides or self.overrides
+        merged = dataclasses.replace(
+            self,
+            path=other.path or self.path,
+            order=other.order if other.order is not None else self.order,
+            width=other.width or self.width,
+            height=other.height or self.height,
+            id=other.id or self.id,
+            title=other.title or self.title,
+            description=other.description or self.description,
+            widget_type=widget_type,
+            filters=other.filters or self.filters,
+            overrides=other.overrides or self.overrides,
+        )
+        return merged
 
     def is_markdown(self) -> bool:
         return self.path is not None and self.path.suffix == ".md"
@@ -683,8 +687,8 @@ class DashboardMetadata:
         for metadata in right:
             metadata_existing = metadata_mapping_left.get(metadata.id)
             if metadata_existing is not None:
-                metadata_existing.update(metadata)
-                metadatas.append(metadata_existing)
+                metadata_merged = metadata_existing.merge(metadata)
+                metadatas.append(metadata_merged)
             else:
                 metadatas.append(metadata)
         for metadata in left:
@@ -732,7 +736,7 @@ class DashboardMetadata:
                     continue
                 try:
                     tile_metadata_new = TileMetadata.from_dict({tile_key: tile_value})
-                    tile_metadata.update(tile_metadata_new)
+                    tile_metadata = tile_metadata.merge(tile_metadata_new)
                 except TypeError:
                     logger.warning(f"Parsing unsupported field in dashboard.yml: tiles.{tile_id}.{tile_key}")
                     continue
