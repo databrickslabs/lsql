@@ -377,7 +377,7 @@ class QueryTile(Tile):
     _FILTER_HEIGHT = 1
 
     @staticmethod
-    def format_query(query: str) -> str:
+    def format_query(query: str, max_text_width: int = 120) -> str:
         try:
             parsed_query = sqlglot.parse(query)
         except sqlglot.ParseError:
@@ -393,7 +393,7 @@ class QueryTile(Tile):
                     normalize=True,  # normalize identifiers to lowercase
                     pretty=True,  # format the produced SQL string
                     normalize_functions="upper",  # normalize function names to uppercase
-                    max_text_width=80,  # wrap text at 80 characters
+                    max_text_width=max_text_width,  # wrap text at 120 characters
                 )
             )
         formatted_query = ";\n".join(statements)
