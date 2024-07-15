@@ -17,7 +17,7 @@ def test_deploys_view():
     deployment.deploy_view("some", "some.sql")
 
     assert mock_backend.queries == [
-        "CREATE OR REPLACE VIEW hive_metastore.inventory.some AS SELECT id, name FROM hive_metastore.inventory.something"
+        "CREATE OR REPLACE VIEW hive_metastore.inventory.some AS SELECT\n  id,\n  name\nFROM hive_metastore.inventory.something"
     ]
 
 

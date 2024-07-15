@@ -1,1 +1,4 @@
-SELECT id, name FROM $inventory.something
+SELECT
+  id,
+  name
+FROM $inventory.something

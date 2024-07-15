@@ -376,6 +376,34 @@ class QueryTile(Tile):
     _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
 
+    @staticmethod
+    def format(query: str, max_text_width: int = 120) -> str:
+        try:
+            parsed_query = sqlglot.parse(query, dialect="databricks")
+        except sqlglot.ParseError:
+            return query
+        statements = []
+        for statement in parsed_query:
+            if statement is None:
+                continue
+            # TODO: CASE .. WHEN .. THEN .. formatting is a bit less readable after reformatting.
+            # See https://github.com/tobymao/sqlglot/issues/3770
+            # see https://sqlglot.com/sqlglot/generator.html#Generator
+            statements.append(
+                statement.sql(
+                    dialect="databricks",
+                    normalize=True,  # normalize identifiers to lowercase
+                    pretty=True,  # format the produced SQL string
+                    normalize_functions="upper",  # normalize function names to uppercase
+                    max_text_width=max_text_width,  # wrap text at 120 characters
+                )
+            )
+        formatted_query = ";\n".join(statements)
+        if "$" in query:
+            # replace ${x} with $x, because we use it in UCX view definitions for now
+            formatted_query = re.sub(r"\${(\w+)}", r"$\1", formatted_query)
+        return formatted_query
+
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
         try:
             return sqlglot.parse_one(self.content, dialect=self._DIALECT)
@@ -822,36 +850,13 @@ class Dashboards:
         local_path.mkdir(parents=True, exist_ok=True)
         dashboard = self._with_better_names(dashboard)
         for dataset in dashboard.datasets:
-            query = self._format_query(dataset.query)
+            query = QueryTile.format(dataset.query)
             with (local_path / f"{dataset.name}.sql").open("w") as f:
                 f.write(query)
         for page in dashboard.pages:
             with (local_path / f"{page.name}.yml").open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
         return dashboard
-
-    @staticmethod
-    def _format_query(query: str) -> str:
-        try:
-            parsed_query = sqlglot.parse(query)
-        except sqlglot.ParseError:
-            return query
-        statements = []
-        for statement in parsed_query:
-            if statement is None:
-                continue
-            # see https://sqlglot.com/sqlglot/generator.html#Generator
-            statements.append(
-                statement.sql(
-                    dialect="databricks",
-                    normalize=True,  # normalize identifiers to lowercase
-                    pretty=True,  # format the produced SQL string
-                    normalize_functions="upper",  # normalize function names to uppercase
-                    max_text_width=80,  # wrap text at 80 characters
-                )
-            )
-        formatted_query = ";\n".join(statements)
-        return formatted_query
 
     def deploy_dashboard(
         self,
