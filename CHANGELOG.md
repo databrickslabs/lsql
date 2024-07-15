@@ -1,5 +1,10 @@
 # Version changelog
 
+## 0.7.0
+
+* Added `databricks labs lsql fmt` command ([#221](https://github.com/databrickslabs/lsql/issues/221)). The commit introduces a new command, `databricks labs lsql fmt`, to the open-source library, which formats SQL files in a given folder using the Databricks SDK. This command can be used without authentication and accepts a `folder` flag, which specifies the directory containing SQL files to format. The change also updates the labs.yml file and includes a new method, `format`, in the `QueryTile` class, which formats SQL queries using the `sqlglot` library. This commit enhances the functionality of the CLI for SQL file formatting and improves the readability and consistency of SQL files, making it easier for developers to understand and maintain the code. Additionally, the commit includes changes to various SQL files to demonstrate the improved formatting, such as converting SQL keywords to uppercase, adding appropriate spacing around keywords and operators, and aligning column names in the `VALUES` clause. The purpose of this change is to ensure that the formatting method works correctly and does not introduce any issues in the existing functionality.
+
+
 ## 0.6.0
 
 * Added method to dashboards to get dashboard url ([#211](https://github.com/databrickslabs/lsql/issues/211)). In this release, we have added a new method `get_url` to the `lakeview_dashboards` object in the `laksedashboard` library. This method utilizes the Databricks SDK to retrieve the dashboard URL, simplifying the code and making it more maintainable. Previously, the dashboard URL was constructed by concatenating the host and dashboard ID, but this new method ensures that the URL is obtained correctly, even if the format changes in the future. Additionally, a new unit test has been added for a method that gets the dashboard URL using the workspace client. This new functionality allows users to easily retrieve the URL for a dashboard using its ID and the workspace client.
