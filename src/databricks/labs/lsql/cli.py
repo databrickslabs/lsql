@@ -37,7 +37,7 @@ def create_dashboard(
     print(sdk_dashboard.dashboard_id)
 
 
-@lsql.command
+@lsql.command(is_unauthenticated=True)
 def fmt(folder: Path = Path.cwd()):
     """Format SQL files in a folder"""
     logger.debug("Formatting SQL files ...")
