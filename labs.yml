@@ -4,6 +4,11 @@ description: Lightweight SQL execution wrapper only on top of Databricks SDK
 entrypoint: src/databricks/labs/lsql/cli.py
 min_python: 3.10
 commands:
+  - name: fmt
+    description: Format SQL files in the given folder
+    flags:
+      - name: folder
+        description: The folder with SQL files. By default, the current working directory.
   - name: create-dashboard
     description: Create an unpublished dashboard from code, see [docs](./docs/dashboards.md).
     flags:
