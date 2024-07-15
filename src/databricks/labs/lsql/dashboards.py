@@ -399,6 +399,9 @@ class QueryTile(Tile):
                 )
             )
         formatted_query = ";\n".join(statements)
+        if "$" in query:
+            # replace ${x} with $x, because we use it in UCX view definitions for now
+            formatted_query = re.sub(r"\${(\w+)}", r"$\1", formatted_query)
         return formatted_query
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
