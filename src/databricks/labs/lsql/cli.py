@@ -44,7 +44,7 @@ def fmt(folder: Path = Path.cwd()):
     folder = Path(folder)
     for sql_file in folder.glob("**/*.sql"):
         sql = sql_file.read_text()
-        formatted_sql = QueryTile.format_query(sql)
+        formatted_sql = QueryTile.format(sql)
         sql_file.write_text(formatted_sql)
         logger.debug(f"Formatted {sql_file}")
 

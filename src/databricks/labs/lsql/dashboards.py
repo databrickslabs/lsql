@@ -377,7 +377,7 @@ class QueryTile(Tile):
     _FILTER_HEIGHT = 1
 
     @staticmethod
-    def format_query(query: str, max_text_width: int = 120) -> str:
+    def format(query: str, max_text_width: int = 120) -> str:
         try:
             parsed_query = sqlglot.parse(query)
         except sqlglot.ParseError:
@@ -386,6 +386,8 @@ class QueryTile(Tile):
         for statement in parsed_query:
             if statement is None:
                 continue
+            # TODO: CASE .. WHEN .. THEN .. formatting is a bit less readable after reformatting.
+            # See https://github.com/tobymao/sqlglot/issues/3770
             # see https://sqlglot.com/sqlglot/generator.html#Generator
             statements.append(
                 statement.sql(
@@ -845,7 +847,7 @@ class Dashboards:
         local_path.mkdir(parents=True, exist_ok=True)
         dashboard = self._with_better_names(dashboard)
         for dataset in dashboard.datasets:
-            query = QueryTile.format_query(dataset.query)
+            query = QueryTile.format(dataset.query)
             with (local_path / f"{dataset.name}.sql").open("w") as f:
                 f.write(query)
         for page in dashboard.pages:
