@@ -1,1 +1,2 @@
-SELECT 6217 AS count
+SELECT
+  6217 AS count
