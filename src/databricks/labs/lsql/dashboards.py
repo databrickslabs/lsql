@@ -379,7 +379,7 @@ class QueryTile(Tile):
     @staticmethod
     def format(query: str, max_text_width: int = 120) -> str:
         try:
-            parsed_query = sqlglot.parse(query)
+            parsed_query = sqlglot.parse(query, dialect="databricks")
         except sqlglot.ParseError:
             return query
         statements = []
