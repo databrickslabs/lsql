@@ -66,7 +66,7 @@ def is_assignable(
         return False, None
     # Check if the type is a basic type
     if type_ref in (int, bool, float, str):
-        if type_ref == type(raw):
+        if isinstance(raw, type_ref):
             return True, None
         return False, _explain_why(type_ref, raw, path)
     return False, f'{".".join(path)}: unknown: {raw}'
