@@ -309,7 +309,7 @@ class Tile:
     metadata: TileMetadata
 
     _content: str = ""
-    _position: Position = Position(0, 0, 0, 0)
+    _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 0, 0))
 
     @property
     def content(self) -> str:
@@ -364,7 +364,7 @@ class Tile:
 
 @dataclass
 class MarkdownTile(Tile):
-    _position: Position = Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3)
+    _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3))
 
 
 @dataclass
@@ -640,7 +640,7 @@ class QueryTile(Tile):
 
 @dataclass
 class TableTile(QueryTile):
-    _position: Position = Position(0, 0, 3, 6)
+    _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 3, 6))
 
     @property
     def position(self) -> Position:
@@ -656,7 +656,7 @@ class TableTile(QueryTile):
 
 @dataclass
 class CounterTile(QueryTile):
-    _position: Position = Position(0, 0, 1, 3)
+    _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 1, 3))
 
     @staticmethod
     def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
