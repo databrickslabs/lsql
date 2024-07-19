@@ -332,7 +332,7 @@ class Tile:
             ValueError : If the dashboard metadata is invalid.
         """
         if len(self.content) == 0:
-            raise ValueError(f"Tile has empty content: {tile}")
+            raise ValueError(f"Tile has empty content: {self}")
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
