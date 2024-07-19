@@ -487,6 +487,16 @@ def test_tile_metadata_as_dict(tmp_path):
     assert tile_metadata.as_dict() == raw
 
 
+@pytest.mark.parametrize("tile_class", [Tile, QueryTile])
+def test_tile_validate_raises_value_error_when_content_is_empty(tmp_path, tile_class):
+    tile_metadata_path = tmp_path / "test.sql"
+    tile_metadata_path.touch()
+    tile = tile_class.from_tile_metadata(TileMetadata(tile_metadata_path))
+
+    with pytest.raises(ValueError):
+        tile.validate()
+
+
 def test_tile_places_tile_to_the_right():
     tile_metadata = TileMetadata(Path("test.sql"), 1, 1, 1)
     tile = Tile(tile_metadata)
