@@ -866,8 +866,22 @@ class Dashboards:
         parent_path: str | None = None,
         dashboard_id: str | None = None,
         warehouse_id: str | None = None,
+        publish: bool = False,
     ) -> SDKDashboard:
-        """Create a lakeview dashboard."""
+        """Create a lakeview dashboard.
+
+        Parameters :
+            lakeview_dashboard : Dashboard
+                The dashboard to create
+            parent_path : str | None (default: None)
+                The folder in the Databricks workspace to store the dashboard file in
+            dashboard_id : str | None (default: None)
+                The id of the dashboard to update
+            warehouse_id : str | None (default: None)
+                The id of the warehouse to use
+            publish : bool (default: False)
+                Publish the dashboard after creation, otherwise it is in draft mode
+        """
         serialized_dashboard = json.dumps(lakeview_dashboard.as_dict())
         display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
         if dashboard_id is not None:
@@ -884,6 +898,8 @@ class Dashboards:
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
+        if publish:
+            self._ws.lakeview.publish(dashboard.dashboard_id)
         return dashboard
 
     def deploy_dashboard(self, *args, **kwargs):
