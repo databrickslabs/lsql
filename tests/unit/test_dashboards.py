@@ -1258,7 +1258,7 @@ def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queri
     dashboards = Dashboards(ws)
 
     with pytest.raises(ValueError):
-        dashboards.create_dashboard(dashboard_metadata, publish=True)
+        dashboards.create_dashboard(dashboard_metadata)
     ws.assert_not_called()
 
 
