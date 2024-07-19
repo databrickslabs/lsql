@@ -77,7 +77,7 @@ def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
     dashboard_file = Path(__file__).parent / "dashboards" / "dashboard.lvdash.json"
     lakeview_dashboard = Dashboard.from_dict(json.loads(dashboard_file.read_text()))
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
     assert (
@@ -94,7 +94,7 @@ def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, make_dash
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
     assert (
@@ -112,7 +112,7 @@ def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_p
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -126,7 +126,7 @@ def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_p
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -139,7 +139,7 @@ def test_dashboard_deploys_dashboard_with_counter_variation(ws, make_dashboard, 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -153,7 +153,7 @@ def test_dashboard_deploys_dashboard_with_big_widget(ws, make_dashboard, tmp_pat
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -170,7 +170,7 @@ def test_dashboards_deploys_dashboard_with_order_overwrite_in_query_header(ws, m
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -194,7 +194,7 @@ tiles:
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -207,7 +207,7 @@ def test_dashboard_deploys_dashboard_with_table(ws, make_dashboard):
     dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -222,7 +222,7 @@ def test_dashboards_deploys_dashboard_with_invalid_query(ws, make_dashboard, tmp
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -237,7 +237,7 @@ def test_dashboards_deploys_dashboard_with_markdown_header(ws, make_dashboard, t
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -251,7 +251,7 @@ def test_dashboards_deploys_dashboard_with_widget_title_and_description(ws, make
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -271,7 +271,7 @@ def test_dashboards_deploys_dashboard_from_query_with_cte(ws, make_dashboard, tm
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -286,7 +286,7 @@ def test_dashboards_deploys_dashboard_with_filters(ws, make_dashboard, tmp_path)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
@@ -300,6 +300,6 @@ def test_dashboard_deploys_dashboard_with_empty_title(ws, make_dashboard, tmp_pa
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     lakeview_dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(lakeview_dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)

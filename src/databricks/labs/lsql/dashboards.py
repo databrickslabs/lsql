@@ -858,7 +858,7 @@ class Dashboards:
                 yaml.safe_dump(page.as_dict(), f)
         return dashboard
 
-    def deploy_dashboard(
+    def create_dashboard(
         self,
         lakeview_dashboard: Dashboard,
         *,
@@ -866,7 +866,7 @@ class Dashboards:
         dashboard_id: str | None = None,
         warehouse_id: str | None = None,
     ) -> SDKDashboard:
-        """Deploy a lakeview dashboard."""
+        """Create a lakeview dashboard."""
         serialized_dashboard = json.dumps(lakeview_dashboard.as_dict())
         display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
         if dashboard_id is not None:

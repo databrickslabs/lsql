@@ -1185,7 +1185,7 @@ def test_dashboards_deploy_calls_create_without_dashboard_id():
     dashboards = Dashboards(ws)
 
     dashboard = Dashboard([], [Page("test", [])])
-    dashboards.deploy_dashboard(dashboard, parent_path="/non/existing/path", warehouse_id="warehouse")
+    dashboards.create_dashboard(dashboard, parent_path="/non/existing/path", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_called_with(
         "test",
@@ -1201,7 +1201,7 @@ def test_dashboards_deploy_calls_update_with_dashboard_id():
     dashboards = Dashboards(ws)
 
     dashboard = Dashboard([], [Page("test", [])])
-    dashboards.deploy_dashboard(dashboard, dashboard_id="id", warehouse_id="warehouse")
+    dashboards.create_dashboard(dashboard, dashboard_id="id", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_not_called()
     ws.lakeview.update.assert_called_with(
