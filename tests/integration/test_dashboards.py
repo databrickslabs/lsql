@@ -62,7 +62,7 @@ def tmp_path(tmp_path, make_random):
     The folder name becomes the dashboard name, which then becomes the Lakeview file name with the
     `.lvdash.json` extension. `tmp_path` last subfolder contains the test name cut off at thirty characters plus a
     number starting at zero indicating the test run. `tmp_path` adds randomness in the parent folders. Because most test
-    start with `test_dashboards_deploys_dashboard_`, the dashboard name for most tests ends up being
+    start with `test_dashboards_creates_dashboard_`, the dashboard name for most tests ends up being
     `test_dashboard_deploys_dashboa0.lvdash.json`, causing collisions. This is solved by adding a random subfolder name.
     """
     folder = tmp_path / f"created_by_lsql_{make_random()}"
@@ -70,7 +70,7 @@ def tmp_path(tmp_path, make_random):
     return folder
 
 
-def test_dashboards_deploys_exported_dashboard_definition(ws, make_dashboard):
+def test_dashboards_creates_exported_dashboard_definition(ws, make_dashboard):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
     dashboard_content = (Path(__file__).parent / "dashboards" / "dashboard.lvdash.json").read_text()
@@ -152,7 +152,7 @@ def test_dashboard_deploys_dashboard_with_big_widget(ws, make_dashboard, tmp_pat
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboards_deploys_dashboard_with_order_overwrite_in_query_header(ws, make_dashboard, tmp_path):
+def test_dashboards_creates_dashboard_with_order_overwrite_in_query_header(ws, make_dashboard, tmp_path):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
 
@@ -168,7 +168,7 @@ def test_dashboards_deploys_dashboard_with_order_overwrite_in_query_header(ws, m
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboards_deploys_dashboard_with_order_overwrite_in_dashboard_yaml(ws, make_dashboard, tmp_path):
+def test_dashboards_creates_dashboard_with_order_overwrite_in_dashboard_yaml(ws, make_dashboard, tmp_path):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
 
@@ -203,7 +203,7 @@ def test_dashboard_deploys_dashboard_with_table(ws, make_dashboard):
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboards_deploys_dashboard_with_markdown_header(ws, make_dashboard, tmp_path):
+def test_dashboards_creates_dashboard_with_markdown_header(ws, make_dashboard, tmp_path):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
 
@@ -217,7 +217,7 @@ def test_dashboards_deploys_dashboard_with_markdown_header(ws, make_dashboard, t
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboards_deploys_dashboard_with_widget_title_and_description(ws, make_dashboard, tmp_path):
+def test_dashboards_creates_dashboard_with_widget_title_and_description(ws, make_dashboard, tmp_path):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
 
@@ -230,7 +230,7 @@ def test_dashboards_deploys_dashboard_with_widget_title_and_description(ws, make
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboards_deploys_dashboard_from_query_with_cte(ws, make_dashboard, tmp_path):
+def test_dashboards_creates_dashboard_from_query_with_cte(ws, make_dashboard, tmp_path):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
 
@@ -249,7 +249,7 @@ def test_dashboards_deploys_dashboard_from_query_with_cte(ws, make_dashboard, tm
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboards_deploys_dashboard_with_filters(ws, make_dashboard, tmp_path):
+def test_dashboards_creates_dashboard_with_filters(ws, make_dashboard, tmp_path):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
 
@@ -272,5 +272,20 @@ def test_dashboard_deploys_dashboard_with_empty_title(ws, make_dashboard, tmp_pa
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
     sdk_dashboard = dashboards.create_dashboard(dashboard_metadata, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_creates_dashboard_via_legacy_method(ws, make_dashboard, tmp_path):
+    dashboards = Dashboards(ws)
+    sdk_dashboard = make_dashboard()
+
+    (tmp_path / "a.md").write_text("Below you see counters.")
+    for count, query_name in enumerate("bcdefg"):
+        (tmp_path / f"{query_name}.sql").write_text(f"SELECT {count} AS count")
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+
+    sdk_dashboard = dashboards.deploy_dashboard(dashboard, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)

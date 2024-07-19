@@ -885,11 +885,13 @@ class Dashboards:
         dashboard = self._with_better_names(dashboard)
         for dataset in dashboard.datasets:
             query = QueryTile.format(dataset.query)
-            with (local_path / f"{dataset.name}.sql").open("w") as f:
-                f.write(query)
+            (local_path / f"{dataset.name}.sql").write_text(query)
         for page in dashboard.pages:
             with (local_path / f"{page.name}.yml").open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
+            for layout in page.layout:
+                if layout.widget.textbox_spec is not None:
+                    (local_path / f"{layout.widget.name}.md").write_text(layout.widget.textbox_spec)
         return dashboard
 
     def create_dashboard(
@@ -937,7 +939,7 @@ class Dashboards:
             path = Path(directory)
             self.save_to_folder(dashboard, path)
             dashboard_metadata = DashboardMetadata.from_path(path)
-        return self.create_dashboard(dashboard_metadata, **kwargs)
+            return self.create_dashboard(dashboard_metadata, **kwargs)
 
     def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
