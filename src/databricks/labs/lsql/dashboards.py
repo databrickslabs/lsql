@@ -386,6 +386,18 @@ class QueryTile(Tile):
     _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
 
+    def validate(self) -> None:
+        """Validate the tile
+
+        Raises:
+            ValueError : If the dashboard metadata is invalid.
+        """
+        super().validate()
+        try:
+            sqlglot.parse_one(self.content, dialect=self._DIALECT)
+        except sqlglot.ParseError as e:
+            raise ValueError(f"Invalid query content: {self.content}") from e
+
     @staticmethod
     def format(query: str, max_text_width: int = 120) -> str:
         try:
