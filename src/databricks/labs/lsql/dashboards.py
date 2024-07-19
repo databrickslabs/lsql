@@ -325,6 +325,15 @@ class Tile:
         height = self.metadata.height or self._position.height
         return Position(self._position.x, self._position.y, width, height)
 
+    def validate(self) -> None:
+        """Validate the tile
+
+        Raises:
+            ValueError : If the dashboard metadata is invalid.
+        """
+        if len(self.content) == 0:
+            raise ValueError(f"Tile has empty content: {tile}")
+
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
         widget = Widget(name=self.metadata.id, textbox_spec=self.content)
@@ -702,8 +711,7 @@ class DashboardMetadata:
         """
         tile_ids = []
         for tile in self.tiles:
-            if len(tile.content) == 0:
-                raise ValueError(f"Tile has empty content: {tile}")
+            tile.validate()
             tile_ids.append(tile.metadata.id)
         counter = collections.Counter(tile_ids)
         for tile_id, id_count in counter.items():
