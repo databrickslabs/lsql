@@ -1272,6 +1272,16 @@ def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queri
     ws.assert_not_called()
 
 
+def test_dashboard_warns_deploy_dashboard_is_deprecated(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+    dashboard_metadata = DashboardMetadata("test")
+
+    with pytest.deprecated_call():
+        dashboards.deploy_dashboard(dashboard_metadata)
+    ws.assert_not_called()
+
+
 def test_dashboards_save_to_folder_replaces_dataset_names_with_display_names(tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
