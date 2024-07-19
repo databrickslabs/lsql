@@ -890,8 +890,7 @@ class Dashboards:
             publish : bool (default: False)
                 Publish the dashboard after creation, otherwise it is in draft mode
         """
-        serialized_dashboard = json.dumps(lakeview_dashboard.as_dict())
-        display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
+        dashboard_metadata.validate()
         dashboard = dashboard_metadata.as_lakeview()
         serialized_dashboard = json.dumps(dashboard.as_dict())
         display_name = dashboard.pages[0].display_name or dashboard.pages[0].name
