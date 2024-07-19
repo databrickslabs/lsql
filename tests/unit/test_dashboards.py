@@ -15,6 +15,7 @@ from databricks.labs.lsql.dashboards import (
     DashboardMetadata,
     Dashboards,
     MarkdownHandler,
+    MarkdownTile,
     QueryHandler,
     QueryTile,
     Tile,
@@ -492,6 +493,24 @@ def test_tile_validate_raises_value_error_when_content_is_empty(tmp_path, tile_c
     tile_metadata_path = tmp_path / "test.sql"
     tile_metadata_path.touch()
     tile = tile_class(TileMetadata(tile_metadata_path))
+
+    with pytest.raises(ValueError):
+        tile.validate()
+
+
+def test_markdown_tile_validate_raises_value_error_when_not_from_markdown_file(tmp_path):
+    tile_metadata_path = tmp_path / "test.sql"
+    tile_metadata_path.write_text("# Markdown")
+    tile = MarkdownTile(TileMetadata(tile_metadata_path))
+
+    with pytest.raises(ValueError):
+        tile.validate()
+
+
+def test_query_tile_validate_raises_value_error_when_not_from_query_file(tmp_path):
+    tile_metadata_path = tmp_path / "test.md"
+    tile_metadata_path.write_text("SELECT 1")
+    tile = QueryTile(TileMetadata(tile_metadata_path))
 
     with pytest.raises(ValueError):
         tile.validate()
@@ -1243,7 +1262,7 @@ def test_dashboards_calls_publish():
 
 def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queries(tmp_path):
     (tmp_path / "valid.sql").write_text("SELECT 1")
-    (tmp_path / "invalid.md").write_text("SELCT COUNT(* FROM table")  # Syntax error on purpose
+    (tmp_path / "invalid.md").write_text("SELECT COUNT(* FROM table")  # Missing closing parenthesis on purpose
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)

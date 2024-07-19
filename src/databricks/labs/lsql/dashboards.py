@@ -329,7 +329,7 @@ class Tile:
         """Validate the tile
 
         Raises:
-            ValueError : If the dashboard metadata is invalid.
+            ValueError : If the tile is invalid.
         """
         if len(self.content) == 0:
             raise ValueError(f"Tile has empty content: {self}")
@@ -376,6 +376,15 @@ class Tile:
 class MarkdownTile(Tile):
     _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3))
 
+    def validate(self) -> None:
+        """Validate the tile
+
+        Raises:
+            ValueError : If the tile is invalid.
+        """
+        super().validate()
+        if not self.metadata.is_markdown():
+            raise ValueError(f"Tile is not a markdown file: {self}")
 
 @dataclass
 class QueryTile(Tile):
@@ -390,9 +399,11 @@ class QueryTile(Tile):
         """Validate the tile
 
         Raises:
-            ValueError : If the dashboard metadata is invalid.
+            ValueError : If the tile is invalid.
         """
         super().validate()
+        if not self.metadata.is_query():
+            raise ValueError(f"Tile is not a query file: {self}")
         try:
             sqlglot.parse_one(self.content, dialect=self._DIALECT)
         except sqlglot.ParseError as e:
