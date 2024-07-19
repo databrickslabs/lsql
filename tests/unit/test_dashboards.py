@@ -1262,7 +1262,7 @@ def test_dashboards_calls_publish():
 
 def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queries(tmp_path):
     (tmp_path / "valid.sql").write_text("SELECT 1")
-    (tmp_path / "invalid.md").write_text("SELECT COUNT(* FROM table")  # Missing closing parenthesis on purpose
+    (tmp_path / "invalid.sql").write_text("SELECT COUNT(* FROM table")  # Missing closing parenthesis on purpose
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
