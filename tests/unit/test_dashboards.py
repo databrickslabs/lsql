@@ -1180,7 +1180,7 @@ def test_dashboards_saves_yml_files_to_folder(tmp_path):
     ws.assert_not_called()
 
 
-def test_dashboards_deploy_calls_create_without_dashboard_id():
+def test_dashboards_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
 
@@ -1196,7 +1196,7 @@ def test_dashboards_deploy_calls_create_without_dashboard_id():
     ws.lakeview.update.assert_not_called()
 
 
-def test_dashboards_deploy_calls_update_with_dashboard_id():
+def test_dashboards_calls_update_with_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
 
