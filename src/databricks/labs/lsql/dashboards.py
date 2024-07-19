@@ -6,6 +6,7 @@ import logging
 import math
 import re
 import shlex
+import warnings
 from argparse import ArgumentParser
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
@@ -884,6 +885,11 @@ class Dashboards:
                 warehouse_id=warehouse_id,
             )
         return dashboard
+
+    def deploy_dashboard(self, *args, **kwargs):
+        """Legacy method use :meth:create_dashboard instead."""
+        warnings.warn("Deprecated method use `create_dashboard` instead.", category=DeprecationWarning)
+        self.create_dashboard(*args, **kwargs)
 
     def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
