@@ -386,6 +386,7 @@ class MarkdownTile(Tile):
         if not self.metadata.is_markdown():
             raise ValueError(f"Tile is not a markdown file: {self}")
 
+
 @dataclass
 class QueryTile(Tile):
     """A tile based on a sql query."""
@@ -932,6 +933,7 @@ class Dashboards:
                 warehouse_id=warehouse_id,
             )
         if publish:
+            assert sdk_dashboard.dashboard_id is not None
             self._ws.lakeview.publish(sdk_dashboard.dashboard_id)
         return sdk_dashboard
 
