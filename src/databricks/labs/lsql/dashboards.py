@@ -899,7 +899,7 @@ class Dashboards:
         warehouse_id: str | None = None,
         publish: bool = False,
     ) -> SDKDashboard:
-        """Create a lakeview dashboard.
+        """Create a Lakeview dashboard.
 
         Parameters :
             dashboard_metadata : DashboardMetadata
