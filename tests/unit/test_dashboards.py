@@ -1218,6 +1218,20 @@ def test_dashboards_saves_yml_files_to_folder(tmp_path):
     ws.assert_not_called()
 
 
+def test_dashboards_saves_markdown_files_to_folder(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    (tmp_path / "description.md").write_text("# Description")
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+
+    Dashboards(ws).save_to_folder(dashboard, tmp_path)
+
+    markdown_files = list(tmp_path.glob("*.md"))
+    assert len(markdown_files) == 1
+    assert markdown_files[0].read_text() == "# Description"
+    ws.assert_not_called()
+
+
 def test_dashboards_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
