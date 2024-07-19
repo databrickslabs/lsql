@@ -1183,14 +1183,14 @@ def test_dashboards_saves_yml_files_to_folder(tmp_path):
 def test_dashboards_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
+    dashboard_metadata = DashboardMetadata("test")
 
-    dashboard = Dashboard([], [Page("test", [])])
-    dashboards.create_dashboard(dashboard, parent_path="/non/existing/path", warehouse_id="warehouse")
+    dashboards.create_dashboard(dashboard_metadata, parent_path="/non/existing/path", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_called_with(
         "test",
         parent_path="/non/existing/path",
-        serialized_dashboard=json.dumps({"pages": [{"name": "test"}]}),
+        serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
         warehouse_id="warehouse",
     )
     ws.lakeview.update.assert_not_called()
@@ -1199,15 +1199,15 @@ def test_dashboards_calls_create_without_dashboard_id():
 def test_dashboards_calls_update_with_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
+    dashboard_metadata = DashboardMetadata("test")
 
-    dashboard = Dashboard([], [Page("test", [])])
-    dashboards.create_dashboard(dashboard, dashboard_id="id", warehouse_id="warehouse")
+    dashboards.create_dashboard(dashboard_metadata, dashboard_id="id", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_not_called()
     ws.lakeview.update.assert_called_with(
         "id",
         display_name="test",
-        serialized_dashboard=json.dumps({"pages": [{"name": "test"}]}),
+        serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
         warehouse_id="warehouse",
     )
 
@@ -1215,11 +1215,23 @@ def test_dashboards_calls_update_with_dashboard_id():
 def test_dashboards_calls_publish():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
+    dashboard_metadata = DashboardMetadata("test")
 
-    dashboard = Dashboard([], [Page("test", [])])
-    sdk_dashboard = dashboards.create_dashboard(dashboard, publish=True)
+    sdk_dashboard = dashboards.create_dashboard(dashboard_metadata, publish=True)
 
     ws.lakeview.publish.assert_called_once_with(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queries(tmp_path):
+    (tmp_path / "valid.sql").write_text("SELECT 1")
+    (tmp_path / "invalid.md").write_text("SELCT COUNT(* FROM table")  # Syntax error on purpose
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+
+    with pytest.raises(ValueError):
+        dashboards.create_dashboard(dashboard_metadata, publish=True)
+    ws.assert_not_called()
 
 
 def test_dashboards_save_to_folder_replaces_dataset_names_with_display_names(tmp_path):

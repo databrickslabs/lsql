@@ -869,7 +869,7 @@ class Dashboards:
 
     def create_dashboard(
         self,
-        lakeview_dashboard: Dashboard,
+        dashboard_metadata: DashboardMetadata,
         *,
         parent_path: str | None = None,
         dashboard_id: str | None = None,
@@ -879,8 +879,8 @@ class Dashboards:
         """Create a lakeview dashboard.
 
         Parameters :
-            lakeview_dashboard : Dashboard
-                The dashboard to create
+            dashboard_metadata : DashboardMetadata
+                The dashboard metadata
             parent_path : str | None (default: None)
                 The folder in the Databricks workspace to store the dashboard file in
             dashboard_id : str | None (default: None)
@@ -892,23 +892,26 @@ class Dashboards:
         """
         serialized_dashboard = json.dumps(lakeview_dashboard.as_dict())
         display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
+        dashboard = dashboard_metadata.as_lakeview()
+        serialized_dashboard = json.dumps(dashboard.as_dict())
+        display_name = dashboard.pages[0].display_name or dashboard.pages[0].name
         if dashboard_id is not None:
-            dashboard = self._ws.lakeview.update(
+            sdk_dashboard = self._ws.lakeview.update(
                 dashboard_id,
                 display_name=display_name,
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
         else:
-            dashboard = self._ws.lakeview.create(
+            sdk_dashboard = self._ws.lakeview.create(
                 display_name,
                 parent_path=parent_path,
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
         if publish:
-            self._ws.lakeview.publish(dashboard.dashboard_id)
-        return dashboard
+            self._ws.lakeview.publish(sdk_dashboard.dashboard_id)
+        return sdk_dashboard
 
     def deploy_dashboard(self, *args, **kwargs):
         """Legacy method use :meth:create_dashboard instead."""
