@@ -915,19 +915,17 @@ class Dashboards:
                 Publish the dashboard after creation, otherwise it is in draft mode
         """
         dashboard_metadata.validate()
-        dashboard = dashboard_metadata.as_lakeview()
-        serialized_dashboard = json.dumps(dashboard.as_dict())
-        display_name = dashboard.pages[0].display_name or dashboard.pages[0].name
+        serialized_dashboard = json.dumps(dashboard_metadata.as_lakeview().as_dict())
         if dashboard_id is not None:
             sdk_dashboard = self._ws.lakeview.update(
                 dashboard_id,
-                display_name=display_name,
+                display_name=dashboard_metadata.display_name,
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
         else:
             sdk_dashboard = self._ws.lakeview.create(
-                display_name,
+                dashboard_metadata.display_name,
                 parent_path=parent_path,
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
