@@ -1250,16 +1250,6 @@ def test_dashboards_calls_update_with_dashboard_id():
     )
 
 
-def test_dashboards_calls_publish():
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    dashboard_metadata = DashboardMetadata("test")
-
-    sdk_dashboard = dashboards.create_dashboard(dashboard_metadata, publish=True)
-
-    ws.lakeview.publish.assert_called_once_with(sdk_dashboard.dashboard_id)
-
-
 def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queries(tmp_path):
     (tmp_path / "valid.sql").write_text("SELECT 1")
     (tmp_path / "invalid.sql").write_text("SELECT COUNT(* FROM table")  # Missing closing parenthesis on purpose
