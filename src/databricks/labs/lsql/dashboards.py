@@ -6,6 +6,7 @@ import logging
 import math
 import re
 import shlex
+import tempfile
 import warnings
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -929,10 +930,14 @@ class Dashboards:
             )
         return sdk_dashboard
 
-    def deploy_dashboard(self, *args, **kwargs):
+    def deploy_dashboard(self, dashboard: Dashboard, **kwargs) -> SDKDashboard:
         """Legacy method use :meth:create_dashboard instead."""
         warnings.warn("Deprecated method use `create_dashboard` instead.", category=DeprecationWarning)
-        self.create_dashboard(*args, **kwargs)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            self.save_to_folder(dashboard, path)
+            dashboard_metadata = DashboardMetadata.from_path(path)
+        return self.create_dashboard(dashboard_metadata, **kwargs)
 
     def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
