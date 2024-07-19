@@ -1212,6 +1212,16 @@ def test_dashboards_calls_update_with_dashboard_id():
     )
 
 
+def test_dashboards_calls_publish():
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+
+    dashboard = Dashboard([], [Page("test", [])])
+    sdk_dashboard = dashboards.create_dashboard(dashboard, publish=True)
+
+    ws.lakeview.publish.assert_called_once_with(sdk_dashboard.dashboard_id)
+
+
 def test_dashboards_save_to_folder_replaces_dataset_names_with_display_names(tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
