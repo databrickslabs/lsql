@@ -28,8 +28,7 @@ def create_dashboard(
         catalog=catalog or None,
         database=database or None,
     )
-    lakeview_dashboard = dashboard_metadata.as_lakeview()
-    sdk_dashboard = lakeview_dashboards.deploy_dashboard(lakeview_dashboard)
+    sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata)
     if not no_open:
         assert sdk_dashboard.dashboard_id is not None
         dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)

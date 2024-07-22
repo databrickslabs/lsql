@@ -15,6 +15,7 @@ from databricks.labs.lsql.dashboards import (
     DashboardMetadata,
     Dashboards,
     MarkdownHandler,
+    MarkdownTile,
     QueryHandler,
     QueryTile,
     Tile,
@@ -485,6 +486,43 @@ def test_tile_metadata_as_dict(tmp_path):
         overrides={"spec": {"frame": {"showTitle": True}}},
     )
     assert tile_metadata.as_dict() == raw
+
+
+@pytest.mark.parametrize("tile_class", [Tile, QueryTile])
+def test_tile_validate_raises_value_error_when_content_is_empty(tmp_path, tile_class):
+    tile_metadata_path = tmp_path / "test.sql"
+    tile_metadata_path.touch()
+    tile = tile_class(TileMetadata(tile_metadata_path))
+
+    with pytest.raises(ValueError):
+        tile.validate()
+
+
+def test_markdown_tile_validate_raises_value_error_when_not_from_markdown_file(tmp_path):
+    tile_metadata_path = tmp_path / "test.sql"
+    tile_metadata_path.write_text("# Markdown")
+    tile = MarkdownTile(TileMetadata(tile_metadata_path))
+
+    with pytest.raises(ValueError):
+        tile.validate()
+
+
+def test_query_tile_validate_raises_value_error_when_not_from_query_file(tmp_path):
+    tile_metadata_path = tmp_path / "test.md"
+    tile_metadata_path.write_text("SELECT 1")
+    tile = QueryTile(TileMetadata(tile_metadata_path))
+
+    with pytest.raises(ValueError):
+        tile.validate()
+
+
+def test_query_tile_validate_raises_value_error_when_query_is_incorrect(tmp_path):
+    tile_metadata_path = tmp_path / "test.sql"
+    tile_metadata_path.write_text("SELECT COUNT(* FROM table")  # Missing closing parenthesis on purpose
+    tile = QueryTile(TileMetadata(tile_metadata_path))
+
+    with pytest.raises(ValueError):
+        tile.validate()
 
 
 def test_tile_places_tile_to_the_right():
@@ -1180,36 +1218,81 @@ def test_dashboards_saves_yml_files_to_folder(tmp_path):
     ws.assert_not_called()
 
 
-def test_dashboards_deploy_calls_create_without_dashboard_id():
+def test_dashboards_saves_markdown_files_to_folder(tmp_path):
+    ws = create_autospec(WorkspaceClient)
+    (tmp_path / "description.md").write_text("# Description")
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+
+    Dashboards(ws).save_to_folder(dashboard, tmp_path)
+
+    markdown_files = list(tmp_path.glob("*.md"))
+    assert len(markdown_files) == 1
+    assert markdown_files[0].read_text() == "# Description"
+    ws.assert_not_called()
+
+
+def test_dashboards_calls_create_without_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
+    dashboard_metadata = DashboardMetadata("test")
 
-    dashboard = Dashboard([], [Page("test", [])])
-    dashboards.deploy_dashboard(dashboard, parent_path="/non/existing/path", warehouse_id="warehouse")
+    dashboards.create_dashboard(dashboard_metadata, parent_path="/non/existing/path", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_called_with(
         "test",
         parent_path="/non/existing/path",
-        serialized_dashboard=json.dumps({"pages": [{"name": "test"}]}),
+        serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
         warehouse_id="warehouse",
     )
     ws.lakeview.update.assert_not_called()
 
 
-def test_dashboards_deploy_calls_update_with_dashboard_id():
+def test_dashboards_calls_update_with_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
+    dashboard_metadata = DashboardMetadata("test")
 
-    dashboard = Dashboard([], [Page("test", [])])
-    dashboards.deploy_dashboard(dashboard, dashboard_id="id", warehouse_id="warehouse")
+    dashboards.create_dashboard(dashboard_metadata, dashboard_id="id", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_not_called()
     ws.lakeview.update.assert_called_with(
         "id",
         display_name="test",
-        serialized_dashboard=json.dumps({"pages": [{"name": "test"}]}),
+        serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
         warehouse_id="warehouse",
     )
+
+
+def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queries(tmp_path):
+    (tmp_path / "valid.sql").write_text("SELECT 1")
+    (tmp_path / "invalid.sql").write_text("SELECT COUNT(* FROM table")  # Missing closing parenthesis on purpose
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+
+    with pytest.raises(ValueError):
+        dashboards.create_dashboard(dashboard_metadata)
+    ws.assert_not_called()
+
+
+def test_dashboard_warns_deploy_dashboard_is_deprecated():
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+    dashboard = Dashboard([], [Page("test", [])])
+
+    with pytest.deprecated_call():
+        dashboards.deploy_dashboard(dashboard)
+    ws.lakeview.create.assert_called_once()
+
+
+def test_dashboard_deploys_dashboard():
+    ws = create_autospec(WorkspaceClient)
+    dashboards = Dashboards(ws)
+    dashboard = Dashboard([], [Page("test", [])])
+
+    dashboards.deploy_dashboard(dashboard)
+    ws.assert_not_called()
 
 
 def test_dashboards_save_to_folder_replaces_dataset_names_with_display_names(tmp_path):

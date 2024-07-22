@@ -6,6 +6,8 @@ import logging
 import math
 import re
 import shlex
+import tempfile
+import warnings
 from argparse import ArgumentParser
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
@@ -324,6 +326,15 @@ class Tile:
         height = self.metadata.height or self._position.height
         return Position(self._position.x, self._position.y, width, height)
 
+    def validate(self) -> None:
+        """Validate the tile
+
+        Raises:
+            ValueError : If the tile is invalid.
+        """
+        if len(self.content) == 0:
+            raise ValueError(f"Tile has empty content: {self}")
+
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
         widget = Widget(name=self.metadata.id, textbox_spec=self.content)
@@ -366,6 +377,16 @@ class Tile:
 class MarkdownTile(Tile):
     _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3))
 
+    def validate(self) -> None:
+        """Validate the tile
+
+        Raises:
+            ValueError : If the tile is invalid.
+        """
+        super().validate()
+        if not self.metadata.is_markdown():
+            raise ValueError(f"Tile is not a markdown file: {self}")
+
 
 @dataclass
 class QueryTile(Tile):
@@ -375,6 +396,20 @@ class QueryTile(Tile):
 
     _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
+
+    def validate(self) -> None:
+        """Validate the tile
+
+        Raises:
+            ValueError : If the tile is invalid.
+        """
+        super().validate()
+        if not self.metadata.is_query():
+            raise ValueError(f"Tile is not a query file: {self}")
+        try:
+            sqlglot.parse_one(self.content, dialect=self._DIALECT)
+        except sqlglot.ParseError as e:
+            raise ValueError(f"Invalid query content: {self.content}") from e
 
     @staticmethod
     def format(query: str, max_text_width: int = 120) -> str:
@@ -701,8 +736,7 @@ class DashboardMetadata:
         """
         tile_ids = []
         for tile in self.tiles:
-            if len(tile.content) == 0:
-                raise ValueError(f"Tile has empty content: {tile}")
+            tile.validate()
             tile_ids.append(tile.metadata.id)
         counter = collections.Counter(tile_ids)
         for tile_id, id_count in counter.items():
@@ -851,39 +885,61 @@ class Dashboards:
         dashboard = self._with_better_names(dashboard)
         for dataset in dashboard.datasets:
             query = QueryTile.format(dataset.query)
-            with (local_path / f"{dataset.name}.sql").open("w") as f:
-                f.write(query)
+            (local_path / f"{dataset.name}.sql").write_text(query)
         for page in dashboard.pages:
             with (local_path / f"{page.name}.yml").open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
+            for layout in page.layout:
+                if layout.widget.textbox_spec is not None:
+                    (local_path / f"{layout.widget.name}.md").write_text(layout.widget.textbox_spec)
         return dashboard
 
-    def deploy_dashboard(
+    def create_dashboard(
         self,
-        lakeview_dashboard: Dashboard,
+        dashboard_metadata: DashboardMetadata,
         *,
         parent_path: str | None = None,
         dashboard_id: str | None = None,
         warehouse_id: str | None = None,
     ) -> SDKDashboard:
-        """Deploy a lakeview dashboard."""
-        serialized_dashboard = json.dumps(lakeview_dashboard.as_dict())
-        display_name = lakeview_dashboard.pages[0].display_name or lakeview_dashboard.pages[0].name
+        """Create a Lakeview dashboard.
+
+        Parameters :
+            dashboard_metadata : DashboardMetadata
+                The dashboard metadata
+            parent_path : str | None (default: None)
+                The folder in the Databricks workspace to store the dashboard file in
+            dashboard_id : str | None (default: None)
+                The id of the dashboard to update
+            warehouse_id : str | None (default: None)
+                The id of the warehouse to use
+        """
+        dashboard_metadata.validate()
+        serialized_dashboard = json.dumps(dashboard_metadata.as_lakeview().as_dict())
         if dashboard_id is not None:
-            dashboard = self._ws.lakeview.update(
+            sdk_dashboard = self._ws.lakeview.update(
                 dashboard_id,
-                display_name=display_name,
+                display_name=dashboard_metadata.display_name,
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
         else:
-            dashboard = self._ws.lakeview.create(
-                display_name,
+            sdk_dashboard = self._ws.lakeview.create(
+                dashboard_metadata.display_name,
                 parent_path=parent_path,
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
-        return dashboard
+        return sdk_dashboard
+
+    def deploy_dashboard(self, dashboard: Dashboard, **kwargs) -> SDKDashboard:
+        """Legacy method use :meth:create_dashboard instead."""
+        warnings.warn("Deprecated method use `create_dashboard` instead.", category=DeprecationWarning)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            self.save_to_folder(dashboard, path)
+            dashboard_metadata = DashboardMetadata.from_path(path)
+            return self.create_dashboard(dashboard_metadata, **kwargs)
 
     def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
