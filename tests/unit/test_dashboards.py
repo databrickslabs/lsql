@@ -1247,6 +1247,7 @@ def test_dashboards_calls_create_without_dashboard_id():
         warehouse_id="warehouse",
     )
     ws.lakeview.update.assert_not_called()
+    ws.lakeview.publish.assert_not_called()
 
 
 def test_dashboards_calls_update_with_dashboard_id():
@@ -1263,9 +1264,10 @@ def test_dashboards_calls_update_with_dashboard_id():
         serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
         warehouse_id="warehouse",
     )
+    ws.lakeview.publish.assert_not_called()
 
 
-def test_dashboards_calls_publish_with_dashboard_id(warehouse_id):
+def test_dashboards_calls_publish_with_dashboard_id():
     ws = create_autospec(WorkspaceClient)
     ws.lakeview.create.return_value = SDKDashboard(dashboard_id="id")
     dashboards = Dashboards(ws)
