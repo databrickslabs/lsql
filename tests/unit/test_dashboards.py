@@ -9,6 +9,7 @@ import pytest
 import sqlglot
 import yaml
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 
 from databricks.labs.lsql.dashboards import (
     BaseHandler,
@@ -1262,6 +1263,17 @@ def test_dashboards_calls_update_with_dashboard_id():
         serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
         warehouse_id="warehouse",
     )
+
+
+def test_dashboards_calls_publish_with_dashboard_id(warehouse_id):
+    ws = create_autospec(WorkspaceClient)
+    ws.lakeview.create.return_value = SDKDashboard(dashboard_id="id")
+    dashboards = Dashboards(ws)
+    dashboard_metadata = DashboardMetadata("test")
+
+    dashboards.create_dashboard(dashboard_metadata, warehouse_id="warehouse", publish=True)
+
+    ws.lakeview.publish.assert_called_with("id", warehouse_id="warehouse")
 
 
 def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queries(tmp_path):
