@@ -26,6 +26,6 @@ commands:
           Overwrite the database in the queries' `FROM` clauses with given value. 
           Useful when developing with seperated databases, for example, for production and development.
       - name: publish
-        description: Publish the dashboard after creating
-      - name: no-open
-        description: Do not open the dashboard in the browser after creating
+        description: Publish the dashboard after creating by setting to `yes` or `y`.
+      - name: open-browser
+        description: Open the dashboard in the browser after creating by setting to `yes` or `y`.

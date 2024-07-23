@@ -10,6 +10,7 @@ from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards, Query
 logger = get_logger(__file__)
 lsql = App(__file__)
 
+STRING_AFFIRMATIVES = {"yes", "y", "true", "t", "1"}
 
 @lsql.command
 def create_dashboard(
@@ -18,10 +19,13 @@ def create_dashboard(
     *,
     catalog: str = "",
     database: str = "",
-    publish: bool = False,
-    no_open: bool = False,
+    publish: str = "false",
+    open_browser: str = "false",
 ):
     """Create a dashboard from queries"""
+    publish = publish.lower() in STRING_AFFIRMATIVES
+    open_browser = open_browser.lower() in STRING_AFFIRMATIVES
+
     logger.debug("Creating dashboard ...")
     lakeview_dashboards = Dashboards(w)
     folder = Path(folder)
@@ -30,7 +34,7 @@ def create_dashboard(
         database=database or None,
     )
     sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata, publish=publish)
-    if not no_open:
+    if open_browser:
         assert sdk_dashboard.dashboard_id is not None
         dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)
         webbrowser.open(dashboard_url)
