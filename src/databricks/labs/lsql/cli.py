@@ -18,6 +18,7 @@ def create_dashboard(
     *,
     catalog: str = "",
     database: str = "",
+    publish: bool = False,
     no_open: bool = False,
 ):
     """Create a dashboard from queries"""
@@ -28,7 +29,7 @@ def create_dashboard(
         catalog=catalog or None,
         database=database or None,
     )
-    sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata)
+    sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata, publish=publish)
     if not no_open:
         assert sdk_dashboard.dashboard_id is not None
         dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)

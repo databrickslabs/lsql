@@ -901,6 +901,7 @@ class Dashboards:
         parent_path: str | None = None,
         dashboard_id: str | None = None,
         warehouse_id: str | None = None,
+        publish: bool = False,
     ) -> SDKDashboard:
         """Create a Lakeview dashboard.
 
@@ -913,6 +914,8 @@ class Dashboards:
                 The id of the dashboard to update
             warehouse_id : str | None (default: None)
                 The id of the warehouse to use
+            publish : bool (default: False)
+                If True, publish the dashboard. If False, save it as a draft.
         """
         dashboard_metadata.validate()
         serialized_dashboard = json.dumps(dashboard_metadata.as_lakeview().as_dict())
@@ -930,6 +933,9 @@ class Dashboards:
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
+        if publish:
+            assert sdk_dashboard.dashboard_id is not None
+            self._ws.lakeview.publish(sdk_dashboard.dashboard_id, warehouse_id=warehouse_id)
         return sdk_dashboard
 
     def deploy_dashboard(self, dashboard: Dashboard, **kwargs) -> SDKDashboard:
