@@ -933,8 +933,8 @@ class Dashboards:
                 serialized_dashboard=serialized_dashboard,
                 warehouse_id=warehouse_id,
             )
-        assert sdk_dashboard.dashboard_id is not None
         if publish:
+            assert sdk_dashboard.dashboard_id is not None
             self._ws.lakeview.publish(sdk_dashboard.dashboard_id, warehouse_id=warehouse_id)
         return sdk_dashboard
 
