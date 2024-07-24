@@ -773,6 +773,49 @@ JOIN hive_metastore.other_database.table AS right
   ON left.id = right.id
 """.strip(),
         ),
+        (
+                """
+WITH data AS (
+  SELECT * FROM hive_metastore.database.table
+)
+SELECT a, b FROM data
+""",
+                """
+WITH data AS (
+  SELECT
+    *
+  FROM hive_metastore.database.table
+)
+SELECT
+  a,
+  b
+FROM data
+""".strip(),
+        ),
+        (
+                """
+/* first comment */
+WITH data AS (
+  SELECT * FROM hive_metastore.database.table
+)
+/* second comment */
+SELECT 
+  a  /* third comment */
+FROM data
+""",
+                """
+/* first comment */
+WITH data AS (
+  SELECT
+    *
+  FROM hive_metastore.database.table
+)
+/* second comment */
+SELECT
+  a  /* third comment */
+FROM data
+""".strip(),
+        ),
     ],
 )
 def test_query_formats(query, query_formatted):
