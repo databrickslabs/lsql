@@ -435,7 +435,7 @@ class QueryTile(Tile):
                 The maximum text width to wrap at
         """
         try:
-            parsed_query = sqlglot.parse(content, dialect=self._DIALECT)
+            parsed_query = sqlglot.parse(content, dialect=QueryTile._DIALECT)
         except sqlglot.ParseError:
             return content
         statements = []
@@ -447,7 +447,7 @@ class QueryTile(Tile):
             # see https://sqlglot.com/sqlglot/generator.html#Generator
             statements.append(
                 statement.sql(
-                    dialect=self._DIALECT,
+                    dialect=QueryTile._DIALECT,
                     normalize=True,  # normalize identifiers to lowercase
                     pretty=True,  # format the produced SQL string
                     normalize_functions="upper",  # normalize function names to uppercase
