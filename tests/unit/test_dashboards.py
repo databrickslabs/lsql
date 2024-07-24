@@ -745,6 +745,41 @@ def test_query_tile_keeps_original_query(tmp_path):
 
 
 @pytest.mark.parametrize(
+    "query, query_formatted",
+    [
+        (
+            "SELECT count FROM catalog.database.table",
+            """
+SELECT
+  count
+FROM catalog.database.table
+""".strip(),
+        ),
+        (
+            "SELECT a FROM server.database.table JOIN remote_server.other_database.table",
+            """
+SELECT
+  a
+FROM server.database.table, remote_server.other_database.table
+""".strip(),
+        ),
+        (
+            "SELECT left.a FROM hive_metastore.database.table AS left JOIN hive_metastore.other_database.table AS right ON left.id = right.id",
+            """
+SELECT
+  left.a
+FROM hive_metastore.database.table AS left
+JOIN hive_metastore.other_database.table AS right
+  ON left.id = right.id
+""".strip(),
+        ),
+    ],
+)
+def test_query_formats(query, query_formatted):
+    assert QueryTile.format(query) == query_formatted
+
+
+@pytest.mark.parametrize(
     "query, query_transformed, database_to_replace",
     [
         ("SELECT count FROM table", "SELECT count FROM table", None),
