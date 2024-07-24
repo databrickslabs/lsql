@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 import logging
 import webbrowser
@@ -7,11 +8,25 @@ import pytest
 from databricks.labs.blueprint.entrypoint import is_in_debug
 from databricks.sdk.core import DatabricksError
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
+from databricks.sdk.service.catalog import SchemaInfo
 
+from databricks.labs.lsql.backends import StatementExecutionBackend
 from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards
 from databricks.labs.lsql.lakeview.model import Dashboard
 
+
 logger = logging.getLogger(__name__)
+TEST_JOBS_PURGE_TIMEOUT = dt.timedelta(hours=1, minutes=15)
+
+
+def get_test_purge_time() -> str:
+    return (dt.datetime.utcnow() + TEST_JOBS_PURGE_TIMEOUT).strftime("%Y%m%d%H")
+
+
+@pytest.fixture
+def sql_backend(ws, env_or_skip) -> StatementExecutionBackend:
+    warehouse_id = env_or_skip("TEST_DEFAULT_WAREHOUSE_ID")
+    return StatementExecutionBackend(ws, warehouse_id)
 
 
 def factory(name, create, remove):
@@ -53,6 +68,32 @@ def make_dashboard(ws, make_random):
         ws.lakeview.trash(dashboard.dashboard_id)
 
     yield from factory("dashboard", create, delete)
+
+
+@pytest.fixture
+def make_schema(ws, sql_backend, make_random):
+    def create(*, catalog_name: str = "hive_metastore", name: str | None = None) -> SchemaInfo:
+        if name is None:
+            name = f"lsql_S{make_random(4)}".lower()
+        full_name = f"{catalog_name}.{name}".lower()
+        sql_backend.execute(f"CREATE SCHEMA {full_name} WITH DBPROPERTIES (RemoveAfter={get_test_purge_time()})")
+        schema_info = SchemaInfo(catalog_name=catalog_name, name=name, full_name=full_name)
+        logger.info(
+            f"Schema {schema_info.full_name}: "
+            f"{ws.config.host}/explore/data/{schema_info.catalog_name}/{schema_info.name}"
+        )
+        return schema_info
+
+    def remove(schema_info: SchemaInfo):
+        try:
+            sql_backend.execute(f"DROP SCHEMA IF EXISTS {schema_info.full_name} CASCADE")
+        except RuntimeError as e:
+            if "SCHEMA_NOT_FOUND" in str(e):
+                logger.warning("Schema was already dropped while executing the test", exc_info=e)
+            else:
+                raise e
+
+    yield from factory("schema", create, remove)
 
 
 @pytest.fixture
@@ -284,6 +325,29 @@ def test_dashboards_creates_dashboard_via_legacy_method(ws, make_dashboard, tmp_
     for count, query_name in enumerate("bcdefg"):
         (tmp_path / f"{query_name}.sql").write_text(f"SELECT {count} AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+
+    sdk_dashboard = dashboards.deploy_dashboard(dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboards_creates_dashboard_with_replace_database(ws, make_dashboard, tmp_path, sql_backend, make_schema):
+    dashboards = Dashboards(ws)
+    sdk_dashboard = make_dashboard()
+    schema = make_schema()
+
+    sql_backend.execute(f"CREATE TABLE {schema.full_name}.table AS SELECT 1 AS count")
+    query = """
+    -- Example query with CTA
+    WITH data (
+        SELECT count FROM inventory.table -- `inventory` will be replaced with the schema name
+    )
+    -- --title 'Count'
+    SELECT count FROM data
+    """
+    (tmp_path / "counter.sql").write_text(query)
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(database=schema.full_name)
     dashboard = dashboard_metadata.as_lakeview()
 
     sdk_dashboard = dashboards.deploy_dashboard(dashboard, dashboard_id=sdk_dashboard.dashboard_id)
