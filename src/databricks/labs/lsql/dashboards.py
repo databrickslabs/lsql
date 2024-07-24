@@ -335,6 +335,19 @@ class Tile:
         if len(self.content) == 0:
             raise ValueError(f"Tile has empty content: {self}")
 
+    @staticmethod
+    def format(content: str, max_text_width: int = 120) -> str:
+        """Format the content
+
+        Args:
+            content : str
+                The content to format
+            max_text_width : int
+                The maximum text width to wrap at
+        """
+        _ = max_text_width
+        return content
+
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
         widget = Widget(name=self.metadata.id, textbox_spec=self.content)
@@ -412,11 +425,19 @@ class QueryTile(Tile):
             raise ValueError(f"Invalid query content: {self.content}") from e
 
     @staticmethod
-    def format(query: str, max_text_width: int = 120) -> str:
+    def format(content: str, max_text_width: int = 120) -> str:
+        """Format the content
+
+        Args:
+            content : str
+                The content to format
+            max_text_width : int
+                The maximum text width to wrap at
+        """
         try:
-            parsed_query = sqlglot.parse(query, dialect="databricks")
+            parsed_query = sqlglot.parse(content, dialect="databricks")
         except sqlglot.ParseError:
-            return query
+            return content
         statements = []
         for statement in parsed_query:
             if statement is None:
@@ -434,7 +455,7 @@ class QueryTile(Tile):
                 )
             )
         formatted_query = ";\n".join(statements)
-        if "$" in query:
+        if "$" in content:
             # replace ${x} with $x, because we use it in UCX view definitions for now
             formatted_query = re.sub(r"\${(\w+)}", r"$\1", formatted_query)
         return formatted_query
