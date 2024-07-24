@@ -774,13 +774,13 @@ JOIN hive_metastore.other_database.table AS right
 """.strip(),
         ),
         (
-                """
+            """
 WITH data AS (
   SELECT * FROM hive_metastore.database.table
 )
 SELECT a, b FROM data
 """,
-                """
+            """
 WITH data AS (
   SELECT
     *
@@ -792,8 +792,8 @@ SELECT
 FROM data
 """.strip(),
         ),
-        (
-                """
+        pytest.param(
+            """
 /* first comment */
 WITH data AS (
   SELECT * FROM hive_metastore.database.table
@@ -803,7 +803,7 @@ SELECT
   a  /* third comment */
 FROM data
 """,
-                """
+            """
 /* first comment */
 WITH data AS (
   SELECT
@@ -815,6 +815,7 @@ SELECT
   a  /* third comment */
 FROM data
 """.strip(),
+            marks=pytest.mark.skip(reason="Wait for resolution on: https://github.com/tobymao/sqlglot/issues/3810"),
         ),
     ],
 )
