@@ -317,7 +317,7 @@ class Tile:
     def content(self) -> str:
         if len(self._content) == 0:
             _, content = self.metadata.handler.split()
-            self._content = content
+            self._content = self.format(content)
         return self._content
 
     @property

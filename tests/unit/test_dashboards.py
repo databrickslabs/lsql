@@ -589,7 +589,11 @@ def test_dashboard_metadata_creates_one_dataset_per_query():
 
 
 def test_dashboard_metadata_creates_datasets_using_query(tmp_path):
-    query = "SELECT count FROM database.table"
+    query = """
+SELECT
+  count
+FROM database.table
+""".strip()
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     dashboard = dashboard_metadata.as_lakeview()
@@ -732,7 +736,12 @@ def test_query_tile_finds_fields(tmp_path, query, names):
 
 
 def test_query_tile_keeps_original_query(tmp_path):
-    query = "SELECT x, y FROM a JOIN b"
+    query = """
+SELECT
+  x,
+  y
+FROM a, b
+""".strip()
     query_path = tmp_path / "counter.sql"
     query_path.write_text(query)
 
