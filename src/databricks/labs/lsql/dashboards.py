@@ -49,6 +49,7 @@ from databricks.labs.lsql.lakeview import (
 )
 
 _MAXIMUM_DASHBOARD_WIDTH = 6
+_SQL_DIALECT = sqlglot.dialects.Databricks
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
@@ -143,19 +144,27 @@ class QueryHandler(BaseHandler):
     def split(self) -> tuple[str, str]:
         """Split the query file header from the contents.
 
-        The optional header is the first comment at the top of the file.
+        The optional header is the first comment at the top of the file or above the first SELECT below the CTEs.
         """
+        comments = self._find_comments()
+        if len(comments) == 0:
+            return "", self._content
+        return comments[0].strip(), self._content
+
+    def _find_comments(self) -> list[str]:
+        """Find the comments in a query."""
         try:
-            parsed_query = sqlglot.parse_one(self._content, dialect=sqlglot.dialects.Databricks)
+            parsed_query = sqlglot.parse_one(self._content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {self._path}: {e}")
-            return "", self._content
-
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return "", self._content
-
-        first_comment = parsed_query.comments[0]
-        return first_comment.strip(), self._content
+            return []
+        comments = parsed_query.comments or []
+        # The comments might be above a CTE's, for example, after formatting a query
+        # https://github.com/tobymao/sqlglot/issues/3810
+        with_expression = parsed_query.find(sqlglot.exp.With)
+        if with_expression is not None:
+            comments.extend(with_expression.comments or [])
+        return comments
 
 
 class MarkdownHandler(BaseHandler):
@@ -394,7 +403,6 @@ class QueryTile(Tile):
 
     query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
 
-    _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
 
     def validate(self) -> None:
@@ -407,16 +415,24 @@ class QueryTile(Tile):
         if not self.metadata.is_query():
             raise ValueError(f"Tile is not a query file: {self}")
         try:
-            sqlglot.parse_one(self.content, dialect=self._DIALECT)
+            sqlglot.parse_one(self.content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
             raise ValueError(f"Invalid query content: {self.content}") from e
 
     @staticmethod
-    def format(query: str, max_text_width: int = 120) -> str:
+    def format(content: str, *, max_text_width: int = 120) -> str:
+        """Format the content
+
+        Args:
+            content : str
+                The content to format
+            max_text_width : int
+                The maximum text width to wrap at
+        """
         try:
-            parsed_query = sqlglot.parse(query, dialect="databricks")
+            parsed_query = sqlglot.parse(content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError:
-            return query
+            return content
         statements = []
         for statement in parsed_query:
             if statement is None:
@@ -426,7 +442,7 @@ class QueryTile(Tile):
             # see https://sqlglot.com/sqlglot/generator.html#Generator
             statements.append(
                 statement.sql(
-                    dialect="databricks",
+                    dialect=_SQL_DIALECT,
                     normalize=True,  # normalize identifiers to lowercase
                     pretty=True,  # format the produced SQL string
                     normalize_functions="upper",  # normalize function names to uppercase
@@ -434,14 +450,14 @@ class QueryTile(Tile):
                 )
             )
         formatted_query = ";\n".join(statements)
-        if "$" in query:
+        if "$" in content:
             # replace ${x} with $x, because we use it in UCX view definitions for now
             formatted_query = re.sub(r"\${(\w+)}", r"$\1", formatted_query)
         return formatted_query
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
         try:
-            return sqlglot.parse_one(self.content, dialect=self._DIALECT)
+            return sqlglot.parse_one(self.content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {self.content}: {e}")
             return None
@@ -513,7 +529,7 @@ class QueryTile(Tile):
         if syntax_tree is None:
             return dataclasses.replace(self, _content=self.content)
         content_transformed = syntax_tree.transform(replace_catalog_and_database_in_query).sql(
-            dialect=self._DIALECT,
+            dialect=_SQL_DIALECT,
             # A transformer requires to (re)define how to output SQL
             normalize=True,  # normalize identifiers to lowercase
             pretty=True,  # format the produced SQL string
