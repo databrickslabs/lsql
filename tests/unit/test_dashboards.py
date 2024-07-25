@@ -824,7 +824,7 @@ SELECT
   a  /* third comment */
 FROM data
 """.strip(),
-            marks=pytest.mark.skip(reason="Wait for resolution on: https://github.com/tobymao/sqlglot/issues/3810"),
+            marks=pytest.mark.skip(reason="https://github.com/tobymao/sqlglot/issues/3810"),
         ),
     ],
 )
