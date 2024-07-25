@@ -7,13 +7,12 @@ from pathlib import Path
 import pytest
 from databricks.labs.blueprint.entrypoint import is_in_debug
 from databricks.sdk.core import DatabricksError
-from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.catalog import SchemaInfo
+from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 
 from databricks.labs.lsql.backends import StatementExecutionBackend
 from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards
 from databricks.labs.lsql.lakeview.model import Dashboard
-
 
 logger = logging.getLogger(__name__)
 TEST_JOBS_PURGE_TIMEOUT = dt.timedelta(hours=1, minutes=15)

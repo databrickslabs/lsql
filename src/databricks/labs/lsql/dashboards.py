@@ -166,6 +166,7 @@ class QueryHandler(BaseHandler):
             comments.extend(with_expression.comments or [])
         return comments
 
+
 class MarkdownHandler(BaseHandler):
     """Handle Markdown files."""
 

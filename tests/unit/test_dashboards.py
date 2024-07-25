@@ -1366,11 +1366,11 @@ def test_dashboard_metadata_reads_markdown_header(tmp_path):
         "-- --width 6 --height 6\n/* another comment */\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data",
         "-- --width 6 --height 6 /* another comment */\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data",
         "-- --width 6 --height 6\nWITH data AS (\n-- another comment\nSELECT 1 AS count)\nSELECT count FROM data",
-    ]
+    ],
 )
 @pytest.mark.parametrize("format", [True, False])
 def test_query_tile_handles_cte(tmp_path, query, format):
-    widget_path = (tmp_path / "widget.sql")
+    widget_path = tmp_path / "widget.sql"
     if format:
         query = QueryTile.format(query)
     widget_path.write_text(query)
