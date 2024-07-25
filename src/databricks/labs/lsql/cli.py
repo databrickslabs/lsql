@@ -12,6 +12,7 @@ lsql = App(__file__)
 
 STRING_AFFIRMATIVES = {"yes", "y", "true", "t", "1"}
 
+
 @lsql.command
 def create_dashboard(
     w: WorkspaceClient,
@@ -23,8 +24,8 @@ def create_dashboard(
     open_browser: str = "false",
 ):
     """Create a dashboard from queries"""
-    publish = publish.lower() in STRING_AFFIRMATIVES
-    open_browser = open_browser.lower() in STRING_AFFIRMATIVES
+    should_publish = publish.lower() in STRING_AFFIRMATIVES
+    should_open_browser = open_browser.lower() in STRING_AFFIRMATIVES
 
     logger.debug("Creating dashboard ...")
     lakeview_dashboards = Dashboards(w)
@@ -33,8 +34,8 @@ def create_dashboard(
         catalog=catalog or None,
         database=database or None,
     )
-    sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata, publish=publish)
-    if open_browser:
+    sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata, publish=should_publish)
+    if should_open_browser:
         assert sdk_dashboard.dashboard_id is not None
         dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)
         webbrowser.open(dashboard_url)
