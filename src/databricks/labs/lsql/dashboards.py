@@ -160,6 +160,7 @@ class QueryHandler(BaseHandler):
             return []
         comments = parsed_query.comments or []
         # The comments might be above a CTE's, for example, after formatting a query
+        # https://github.com/tobymao/sqlglot/issues/3810
         with_expression = parsed_query.find(sqlglot.exp.With)
         if with_expression is not None:
             comments.extend(with_expression.comments or [])
