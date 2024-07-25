@@ -1358,7 +1358,7 @@ def test_dashboard_metadata_reads_markdown_header(tmp_path):
 
 
 def test_dashboard_metadata_reads_header_above_select_when_query_has_cte(tmp_path):
-    query = "WITH data AS (SELECT 1 AS count)\n" "-- --width 6 --height 6\n" "SELECT count FROM data"
+    query = "WITH data AS (SELECT 1 AS count)\n-- --width 6 --height 6\nSELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
@@ -1370,7 +1370,7 @@ def test_dashboard_metadata_reads_header_above_select_when_query_has_cte(tmp_pat
 
 
 def test_dashboard_metadata_ignores_first_line_metadata_when_query_has_cte(tmp_path):
-    query = "-- --width 6 --height 6\n" "WITH data AS (SELECT 1 AS count)\n" "SELECT count FROM data"
+    query = "-- --width 6 --height 6\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
