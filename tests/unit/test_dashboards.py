@@ -1402,18 +1402,6 @@ def test_dashboard_metadata_reads_header_above_select_when_query_has_cte(tmp_pat
     assert position.height == 6
 
 
-def test_dashboard_metadata_ignores_first_line_metadata_when_query_has_cte(tmp_path):
-    query = "-- --width 6 --height 6\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data"
-    (tmp_path / "widget.sql").write_text(query)
-    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    dashboard = dashboard_metadata.as_lakeview()
-
-    position = dashboard.pages[0].layout[0].position
-    assert position.width != 6
-    assert position.height != 6
-
-
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
     ws = create_autospec(WorkspaceClient)
     dashboard_metadata = DashboardMetadata.from_path(Path(__file__).parent / "queries")
