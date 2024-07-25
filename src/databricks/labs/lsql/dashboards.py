@@ -144,7 +144,7 @@ class QueryHandler(BaseHandler):
     def split(self) -> tuple[str, str]:
         """Split the query file header from the contents.
 
-        The optional header is the first comment at the top of the file.
+        The optional header is the first comment at the top of the file or above the first SELECT below the CTEs.
         """
         comments = self._find_comments()
         if len(comments) == 0:
