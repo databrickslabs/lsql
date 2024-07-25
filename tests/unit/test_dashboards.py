@@ -1357,6 +1357,17 @@ def test_dashboard_metadata_reads_markdown_header(tmp_path):
     assert position.height == 3
 
 
+def test_query_tile_handles_cta(tmp_path):
+    widget_path = (tmp_path / "widget.sql")
+    query = "WITH data AS (SELECT 1 AS count)\n-- --width 6 --height 6\nSELECT count FROM data"
+    widget_path.write_text(query)
+    tile_metadata = TileMetadata.from_path(widget_path)
+    tile = Tile.from_tile_metadata(tile_metadata)
+
+    assert tile.position.width == 6
+    assert tile.position.height == 6
+
+
 def test_dashboard_metadata_reads_header_above_select_when_query_has_cte(tmp_path):
     query = "WITH data AS (SELECT 1 AS count)\n-- --width 6 --height 6\nSELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
