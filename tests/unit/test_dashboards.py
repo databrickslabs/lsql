@@ -745,6 +745,102 @@ def test_query_tile_keeps_original_query(tmp_path):
 
 
 @pytest.mark.parametrize(
+    "query, query_transformed, database_to_replace",
+    [
+        ("SELECT count FROM table", "SELECT count FROM table", None),
+        ("SELECT count FROM database.table", "SELECT count FROM development.table", None),
+        ("SELECT database FROM database.table", "SELECT database FROM development.table", None),
+        ("SELECT count FROM hive_metastore.database.table", "SELECT count FROM hive_metastore.development.table", None),
+        (
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM server.development.table, remote_server.development.table",
+            None,
+        ),
+        (
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM server.database.table, remote_server.development.table",
+            "other_database",
+        ),
+        (
+            "SELECT left.a FROM hive_metastore.database.table AS left JOIN hive_metastore.other_database.table AS right ON left.id = right.id",
+            "SELECT left.a FROM hive_metastore.development.table AS left JOIN hive_metastore.development.table AS right ON left.id = right.id",
+            None,
+        ),
+        (
+            "SELECT left.name FROM database.table AS left JOIN other_database.table AS right ON left.id = right.id",
+            "SELECT left.name FROM development.table AS left JOIN other_database.table AS right ON left.id = right.id",
+            "database",
+        ),
+    ],
+)
+def test_query_tile_creates_database_with_database_overwrite(
+    tmp_path,
+    query,
+    query_transformed,
+    database_to_replace,
+):
+    (tmp_path / "counter.sql").write_text(query)
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(
+        database="development",
+        database_to_replace=database_to_replace,
+    )
+
+    dashboard = dashboard_metadata.as_lakeview()
+
+    datasets = dashboard.datasets
+    assert len(datasets) == 1
+    assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+
+
+@pytest.mark.parametrize(
+    "query, query_transformed, catalog_to_replace",
+    [
+        ("SELECT count FROM table", "SELECT count FROM table", None),
+        ("SELECT count FROM database.table", "SELECT count FROM database.table", None),
+        ("SELECT count FROM catalog.database.table", "SELECT count FROM development.database.table", None),
+        ("SELECT catalog FROM catalog.database.table", "SELECT catalog FROM development.database.table", None),
+        (
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM development.database.table, development.other_database.table",
+            None,
+        ),
+        (
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM server.database.table, development.other_database.table",
+            "remote_server",
+        ),
+        (
+            "SELECT left.a FROM hive_metastore.database.table AS left JOIN hive_metastore.other_database.table AS right ON left.id = right.id",
+            "SELECT left.a FROM development.database.table AS left JOIN development.other_database.table AS right ON left.id = right.id",
+            None,
+        ),
+        (
+            "SELECT left.name FROM hive_metastore.database.table AS left JOIN remote_server.other_database.table AS right ON left.id = right.id",
+            "SELECT left.name FROM development.database.table AS left JOIN remote_server.other_database.table AS right ON left.id = right.id",
+            "hive_metastore",
+        ),
+    ],
+)
+def test_query_tile_creates_database_with_catalog_overwrite(
+    tmp_path,
+    query,
+    query_transformed,
+    catalog_to_replace,
+):
+    (tmp_path / "counter.sql").write_text(query)
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(
+        catalog="development",
+        catalog_to_replace=catalog_to_replace,
+    )
+
+    dashboard = dashboard_metadata.as_lakeview()
+
+    datasets = dashboard.datasets
+    assert len(datasets) == 1
+    assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+
+
+@pytest.mark.parametrize(
     "query, query_transformed, catalog_to_replace, database_to_replace",
     [
         ("SELECT count FROM table", "SELECT count FROM table", None, None),
@@ -771,7 +867,7 @@ def test_query_tile_keeps_original_query(tmp_path):
         ),
     ],
 )
-def test_query_tile_creates_database_with_database_overwrite(
+def test_query_tile_creates_database_with_database_and_catalog_overwrite(
     tmp_path,
     query,
     query_transformed,

@@ -492,12 +492,19 @@ class QueryTile(Tile):
 
         def replace_catalog_and_database_in_query(node: sqlglot.Expression) -> sqlglot.Expression:
             if isinstance(node, sqlglot.exp.Table):
-                if node.args.get("catalog") is not None and (
-                    catalog_to_replace is None or getattr(node.args.get("catalog"), "this", "") == catalog_to_replace
+                if (
+                    node.args.get("catalog") is not None
+                    and catalog is not None
+                    and (
+                        catalog_to_replace is None
+                        or getattr(node.args.get("catalog"), "this", "") == catalog_to_replace
+                    )
                 ):
                     node.args["catalog"].set("this", catalog)
-                if node.args.get("db") is not None and (
-                    database_to_replace is None or getattr(node.args.get("db"), "this", "") == database_to_replace
+                if (
+                    node.args.get("db") is not None
+                    and database is not None
+                    and (database_to_replace is None or getattr(node.args.get("db"), "this", "") == database_to_replace)
                 ):
                     node.args["db"].set("this", database)
             return node
