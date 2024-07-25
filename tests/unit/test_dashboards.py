@@ -342,9 +342,18 @@ def test_query_handler_splits_no_header(tmp_path, query):
     assert content == query
 
 
-def test_query_handler_splits_header(tmp_path):
-    query = "-- --order 10\nSELECT 1"
-
+@pytest.mark.parametrize(
+    "query",
+    [
+        "-- --order 10\nSELECT 1",
+        "WITH data AS (SELECT 1 AS count)\n-- --order 10\nSELECT count FROM data",
+        # Next query is the query after formatting the above query
+        "-- --order 10\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data",
+        "-- --order 10\n/* another comment */\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data",
+        "-- --order 10\nWITH data AS (\n-- another comment\nSELECT 1 AS count)\nSELECT count FROM data",
+    ],
+)
+def test_query_handler_splits_header(tmp_path, query):
     path = tmp_path / "query.sql"
     path.write_text(query)
     handler = QueryHandler(path)
@@ -732,7 +741,7 @@ def test_query_tile_finds_fields(tmp_path, query, names):
 
 
 def test_query_tile_keeps_original_query(tmp_path):
-    query = "SELECT x, y FROM a JOIN b"
+    query = "SELECT x, y FROM a, b"
     query_path = tmp_path / "counter.sql"
     query_path.write_text(query)
 
@@ -742,6 +751,181 @@ def test_query_tile_keeps_original_query(tmp_path):
     dataset = next(query_tile.get_datasets())
 
     assert dataset.query == query
+
+
+@pytest.mark.parametrize(
+    "query, query_formatted",
+    [
+        (
+            "SELECT count FROM catalog.database.table",
+            """
+SELECT
+  count
+FROM catalog.database.table
+""".strip(),
+        ),
+        (
+            "SELECT a FROM server.database.table JOIN remote_server.other_database.table",
+            """
+SELECT
+  a
+FROM server.database.table, remote_server.other_database.table
+""".strip(),
+        ),
+        (
+            "SELECT left.a FROM hive_metastore.database.table AS left JOIN hive_metastore.other_database.table AS right ON left.id = right.id",
+            """
+SELECT
+  left.a
+FROM hive_metastore.database.table AS left
+JOIN hive_metastore.other_database.table AS right
+  ON left.id = right.id
+""".strip(),
+        ),
+        (
+            """
+WITH data AS (
+  SELECT * FROM hive_metastore.database.table
+)
+SELECT a, b FROM data
+""",
+            """
+WITH data AS (
+  SELECT
+    *
+  FROM hive_metastore.database.table
+)
+SELECT
+  a,
+  b
+FROM data
+""".strip(),
+        ),
+        pytest.param(
+            """
+/* first comment */
+WITH data AS (
+  SELECT * FROM hive_metastore.database.table
+)
+/* second comment */
+SELECT 
+  a  /* third comment */
+FROM data
+""",
+            """
+/* first comment */
+WITH data AS (
+  SELECT
+    *
+  FROM hive_metastore.database.table
+)
+/* second comment */
+SELECT
+  a  /* third comment */
+FROM data
+""".strip(),
+            marks=pytest.mark.skip(reason="https://github.com/tobymao/sqlglot/issues/3810"),
+        ),
+    ],
+)
+def test_query_formats(query, query_formatted):
+    assert QueryTile.format(query) == query_formatted
+
+
+@pytest.mark.parametrize(
+    "query, query_transformed, database_to_replace",
+    [
+        ("SELECT count FROM table", "SELECT count FROM table", None),
+        ("SELECT count FROM database.table", "SELECT count FROM development.table", None),
+        ("SELECT database FROM database.table", "SELECT database FROM development.table", None),
+        ("SELECT count FROM hive_metastore.database.table", "SELECT count FROM hive_metastore.development.table", None),
+        (
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM server.development.table, remote_server.development.table",
+            None,
+        ),
+        (
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM server.database.table, remote_server.development.table",
+            "other_database",
+        ),
+        (
+            "SELECT left.a FROM hive_metastore.database.table AS left JOIN hive_metastore.other_database.table AS right ON left.id = right.id",
+            "SELECT left.a FROM hive_metastore.development.table AS left JOIN hive_metastore.development.table AS right ON left.id = right.id",
+            None,
+        ),
+        (
+            "SELECT left.name FROM database.table AS left JOIN other_database.table AS right ON left.id = right.id",
+            "SELECT left.name FROM development.table AS left JOIN other_database.table AS right ON left.id = right.id",
+            "database",
+        ),
+    ],
+)
+def test_query_tile_creates_database_with_database_overwrite(
+    tmp_path,
+    query,
+    query_transformed,
+    database_to_replace,
+):
+    (tmp_path / "counter.sql").write_text(query)
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(
+        database="development",
+        database_to_replace=database_to_replace,
+    )
+
+    dashboard = dashboard_metadata.as_lakeview()
+
+    datasets = dashboard.datasets
+    assert len(datasets) == 1
+    assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+
+
+@pytest.mark.parametrize(
+    "query, query_transformed, catalog_to_replace",
+    [
+        ("SELECT count FROM table", "SELECT count FROM table", None),
+        ("SELECT count FROM database.table", "SELECT count FROM database.table", None),
+        ("SELECT count FROM catalog.database.table", "SELECT count FROM development.database.table", None),
+        ("SELECT catalog FROM catalog.database.table", "SELECT catalog FROM development.database.table", None),
+        (
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM development.database.table, development.other_database.table",
+            None,
+        ),
+        (
+            "SELECT a FROM server.database.table, remote_server.other_database.table",
+            "SELECT a FROM server.database.table, development.other_database.table",
+            "remote_server",
+        ),
+        (
+            "SELECT left.a FROM hive_metastore.database.table AS left JOIN hive_metastore.other_database.table AS right ON left.id = right.id",
+            "SELECT left.a FROM development.database.table AS left JOIN development.other_database.table AS right ON left.id = right.id",
+            None,
+        ),
+        (
+            "SELECT left.name FROM hive_metastore.database.table AS left JOIN remote_server.other_database.table AS right ON left.id = right.id",
+            "SELECT left.name FROM development.database.table AS left JOIN remote_server.other_database.table AS right ON left.id = right.id",
+            "hive_metastore",
+        ),
+    ],
+)
+def test_query_tile_creates_database_with_catalog_overwrite(
+    tmp_path,
+    query,
+    query_transformed,
+    catalog_to_replace,
+):
+    (tmp_path / "counter.sql").write_text(query)
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(
+        catalog="development",
+        catalog_to_replace=catalog_to_replace,
+    )
+
+    dashboard = dashboard_metadata.as_lakeview()
+
+    datasets = dashboard.datasets
+    assert len(datasets) == 1
+    assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
 
 
 @pytest.mark.parametrize(
@@ -771,7 +955,7 @@ def test_query_tile_keeps_original_query(tmp_path):
         ),
     ],
 )
-def test_query_tile_creates_database_with_database_overwrite(
+def test_query_tile_creates_database_with_database_and_catalog_overwrite(
     tmp_path,
     query,
     query_transformed,
@@ -1173,8 +1357,32 @@ def test_dashboard_metadata_reads_markdown_header(tmp_path):
     assert position.height == 3
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        "WITH data AS (SELECT 1 AS count)\n-- --width 6 --height 6\nSELECT count FROM data",
+        # Next query is the query after formatting the above query
+        "-- --width 6 --height 6\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data",
+        "-- --width 6 --height 6\n/* another comment */\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data",
+        "-- --width 6 --height 6 /* another comment */\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data",
+        "-- --width 6 --height 6\nWITH data AS (\n-- another comment\nSELECT 1 AS count)\nSELECT count FROM data",
+    ],
+)
+@pytest.mark.parametrize("format", [True, False])
+def test_query_tile_handles_cte(tmp_path, query, format):
+    widget_path = tmp_path / "widget.sql"
+    if format:
+        query = QueryTile.format(query)
+    widget_path.write_text(query)
+    tile_metadata = TileMetadata.from_path(widget_path)
+    tile = Tile.from_tile_metadata(tile_metadata)
+
+    assert tile.position.width == 6
+    assert tile.position.height == 6
+
+
 def test_dashboard_metadata_reads_header_above_select_when_query_has_cte(tmp_path):
-    query = "WITH data AS (SELECT 1 AS count)\n" "-- --width 6 --height 6\n" "SELECT count FROM data"
+    query = "WITH data AS (SELECT 1 AS count)\n-- --width 6 --height 6\nSELECT count FROM data"
     (tmp_path / "widget.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
@@ -1183,18 +1391,6 @@ def test_dashboard_metadata_reads_header_above_select_when_query_has_cte(tmp_pat
     position = dashboard.pages[0].layout[0].position
     assert position.width == 6
     assert position.height == 6
-
-
-def test_dashboard_metadata_ignores_first_line_metadata_when_query_has_cte(tmp_path):
-    query = "-- --width 6 --height 6\n" "WITH data AS (SELECT 1 AS count)\n" "SELECT count FROM data"
-    (tmp_path / "widget.sql").write_text(query)
-    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-
-    dashboard = dashboard_metadata.as_lakeview()
-
-    position = dashboard.pages[0].layout[0].position
-    assert position.width != 6
-    assert position.height != 6
 
 
 def test_dashboards_saves_sql_files_to_folder(tmp_path):
