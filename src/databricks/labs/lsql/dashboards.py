@@ -325,7 +325,7 @@ class Tile:
     def content(self) -> str:
         if len(self._content) == 0:
             _, content = self.metadata.handler.split()
-            self._content = self.format(content)
+            self._content = content
         return self._content
 
     @property
@@ -342,19 +342,6 @@ class Tile:
         """
         if len(self.content) == 0:
             raise ValueError(f"Tile has empty content: {self}")
-
-    @staticmethod
-    def format(content: str, max_text_width: int = 120) -> str:
-        """Format the content
-
-        Args:
-            content : str
-                The content to format
-            max_text_width : int
-                The maximum text width to wrap at
-        """
-        _ = max_text_width
-        return content
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
@@ -432,7 +419,7 @@ class QueryTile(Tile):
             raise ValueError(f"Invalid query content: {self.content}") from e
 
     @staticmethod
-    def format(content: str, max_text_width: int = 120) -> str:
+    def format(content: str, *, max_text_width: int = 120) -> str:
         """Format the content
 
         Args:
