@@ -146,18 +146,24 @@ class QueryHandler(BaseHandler):
 
         The optional header is the first comment at the top of the file.
         """
+        comments = self._find_comments()
+        if len(comments) == 0:
+            return "", self._content
+        return comments[0].strip(), self._content
+
+    def _find_comments(self) -> list[str]:
+        """Find the comments in a query."""
         try:
             parsed_query = sqlglot.parse_one(self._content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {self._path}: {e}")
-            return "", self._content
-
-        if parsed_query.comments is None or len(parsed_query.comments) == 0:
-            return "", self._content
-
-        first_comment = parsed_query.comments[0]
-        return first_comment.strip(), self._content
-
+            return []
+        comments = parsed_query.comments or []
+        # The comments might be above a CTE's, for example, after formatting a query
+        with_expression = parsed_query.find(sqlglot.exp.With)
+        if with_expression is not None:
+            comments.extend(with_expression.comments or [])
+        return comments
 
 class MarkdownHandler(BaseHandler):
     """Handle Markdown files."""

@@ -342,9 +342,16 @@ def test_query_handler_splits_no_header(tmp_path, query):
     assert content == query
 
 
-def test_query_handler_splits_header(tmp_path):
-    query = "-- --order 10\nSELECT 1"
-
+@pytest.mark.parametrize(
+    "query",
+    [
+        "-- --order 10\nSELECT 1",
+        "WITH data AS (SELECT 1 AS count)\n-- --order 10\nSELECT count FROM data",
+        # Below shows the query after formatting the above query
+        "-- --order 10\nWITH data AS (SELECT 1 AS count)\nSELECT count FROM data",
+    ],
+)
+def test_query_handler_splits_header(tmp_path, query):
     path = tmp_path / "query.sql"
     path.write_text(query)
     handler = QueryHandler(path)
