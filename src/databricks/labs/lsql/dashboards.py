@@ -49,6 +49,7 @@ from databricks.labs.lsql.lakeview import (
 )
 
 _MAXIMUM_DASHBOARD_WIDTH = 6
+_SQL_DIALECT = sqlglot.dialects.Databricks
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
@@ -146,7 +147,7 @@ class QueryHandler(BaseHandler):
         The optional header is the first comment at the top of the file.
         """
         try:
-            parsed_query = sqlglot.parse_one(self._content, dialect=sqlglot.dialects.Databricks)
+            parsed_query = sqlglot.parse_one(self._content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {self._path}: {e}")
             return "", self._content
@@ -407,7 +408,6 @@ class QueryTile(Tile):
 
     query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
 
-    _DIALECT = sqlglot.dialects.Databricks
     _FILTER_HEIGHT = 1
 
     def validate(self) -> None:
@@ -420,7 +420,7 @@ class QueryTile(Tile):
         if not self.metadata.is_query():
             raise ValueError(f"Tile is not a query file: {self}")
         try:
-            sqlglot.parse_one(self.content, dialect=self._DIALECT)
+            sqlglot.parse_one(self.content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
             raise ValueError(f"Invalid query content: {self.content}") from e
 
@@ -435,7 +435,7 @@ class QueryTile(Tile):
                 The maximum text width to wrap at
         """
         try:
-            parsed_query = sqlglot.parse(content, dialect=QueryTile._DIALECT)
+            parsed_query = sqlglot.parse(content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError:
             return content
         statements = []
@@ -447,7 +447,7 @@ class QueryTile(Tile):
             # see https://sqlglot.com/sqlglot/generator.html#Generator
             statements.append(
                 statement.sql(
-                    dialect=QueryTile._DIALECT,
+                    dialect=_SQL_DIALECT,
                     normalize=True,  # normalize identifiers to lowercase
                     pretty=True,  # format the produced SQL string
                     normalize_functions="upper",  # normalize function names to uppercase
@@ -462,7 +462,7 @@ class QueryTile(Tile):
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
         try:
-            return sqlglot.parse_one(self.content, dialect=self._DIALECT)
+            return sqlglot.parse_one(self.content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {self.content}: {e}")
             return None
@@ -534,7 +534,7 @@ class QueryTile(Tile):
         if syntax_tree is None:
             return dataclasses.replace(self, _content=self.content)
         content_transformed = syntax_tree.transform(replace_catalog_and_database_in_query).sql(
-            dialect=self._DIALECT,
+            dialect=_SQL_DIALECT,
             # A transformer requires to (re)define how to output SQL
             normalize=True,  # normalize identifiers to lowercase
             pretty=True,  # format the produced SQL string
