@@ -1358,7 +1358,7 @@ def test_dashboard_metadata_reads_markdown_header(tmp_path):
 
 
 @pytest.mark.parametrize("format", [True, False])
-def test_query_tile_handles_cta(tmp_path, format):
+def test_query_tile_handles_cte(tmp_path, format):
     widget_path = (tmp_path / "widget.sql")
     query = "WITH data AS (SELECT 1 AS count)\n-- --width 6 --height 6\nSELECT count FROM data"
     if format:
