@@ -346,7 +346,7 @@ class Tile:
 
     def get_layouts(self) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        widget = Widget(name=self.metadata.id, textbox_spec=self.content)
+        widget = Widget(name=f"{self.metadata.id}_widget", textbox_spec=self.content)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
@@ -914,7 +914,8 @@ class Dashboards:
                 yaml.safe_dump(page.as_dict(), f)
             for layout in page.layout:
                 if layout.widget.textbox_spec is not None:
-                    (local_path / f"{layout.widget.name}.md").write_text(layout.widget.textbox_spec)
+                    name = layout.widget.name.removesuffix("_widget")
+                    (local_path / f"{name}.md").write_text(layout.widget.textbox_spec)
         return dashboard
 
     def create_dashboard(
