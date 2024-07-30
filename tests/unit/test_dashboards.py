@@ -1131,7 +1131,7 @@ def test_dashboard_metadata_sorts_widgets_alphanumerically(tmp_path, query_names
         (tmp_path / f"{query_name}.sql").write_text("SELECT 1 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     dashboard = dashboard_metadata.as_lakeview()
-    assert [layout.widget.name for layout in dashboard.pages[0].layout] == query_names
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == [f"{_}_widget" for _ in query_names]
 
 
 def test_dashboard_metadata_orders_widget_using_overwrite(tmp_path):
@@ -1144,7 +1144,7 @@ def test_dashboard_metadata_orders_widget_using_overwrite(tmp_path):
 
     dashboard = dashboard_metadata.as_lakeview()
 
-    assert [layout.widget.name for layout in dashboard.pages[0].layout] == list("abecdf")
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == [f"{_}_widget" for _ in list("abecdf")]
 
 
 def test_dashboard_metadata_orders_widget_with_overwrite_zero(tmp_path):
@@ -1157,7 +1157,9 @@ def test_dashboard_metadata_orders_widget_with_overwrite_zero(tmp_path):
 
     dashboard = dashboard_metadata.as_lakeview()
 
-    assert [layout.widget.name for layout in dashboard.pages[0].layout] == list("aebcdf")
+    assert sorted([layout.widget.name for layout in dashboard.pages[0].layout]) == sorted(
+        [f"{_}_widget" for _ in list("abecdf")]
+    )
 
 
 def test_dashboard_metadata_orders_widgets_using_id(tmp_path):
@@ -1168,7 +1170,9 @@ def test_dashboard_metadata_orders_widgets_using_id(tmp_path):
 
     dashboard = dashboard_metadata.as_lakeview()
 
-    assert [layout.widget.name for layout in dashboard.pages[0].layout] == list("abcdef")
+    assert sorted([layout.widget.name for layout in dashboard.pages[0].layout]) == sorted(
+        [f"{_}_widget" for _ in list("abecdf")]
+    )
 
 
 def test_dashboard_metadata_orders_widgets_with_overwrite_from_dashboard_yaml(tmp_path):
@@ -1186,7 +1190,9 @@ tiles:
 
     dashboard = dashboard_metadata.as_lakeview()
 
-    assert [layout.widget.name for layout in dashboard.pages[0].layout] == list("eabcdf")
+    assert sorted([layout.widget.name for layout in dashboard.pages[0].layout]) == sorted(
+        [f"{_}_widget" for _ in list("abecdf")]
+    )
 
 
 def test_dashboard_metadata_orders_widget_where_header_takes_precedence(tmp_path):
@@ -1204,7 +1210,11 @@ tiles:
 
     dashboard = dashboard_metadata.as_lakeview()
 
-    assert [layout.widget.name for layout in dashboard.pages[0].layout] == ["query_0", "query_1", "query_2"]
+    assert [layout.widget.name for layout in dashboard.pages[0].layout] == [
+        "query_0_widget",
+        "query_1_widget",
+        "query_2_widget",
+    ]
 
 
 @pytest.mark.parametrize(

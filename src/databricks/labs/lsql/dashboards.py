@@ -590,7 +590,7 @@ class QueryTile(Tile):
             show_description=len(self.metadata.description) > 0,
         )
         spec = self._get_query_widget_spec(fields, frame=frame)
-        widget = Widget(name=self.metadata.id, queries=[named_query], spec=spec)
+        widget = Widget(name=f"{self.metadata.id}_widget", queries=[named_query], spec=spec)
         widget = self._merge_widget_with_overrides(widget)
         height = self.position.height
         if len(self.metadata.filters) > 0 and self.position.width > 0:
