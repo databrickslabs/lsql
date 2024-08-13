@@ -316,21 +316,6 @@ def test_dashboard_deploys_dashboard_with_empty_title(ws, make_dashboard, tmp_pa
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
-def test_dashboards_creates_dashboard_via_legacy_method(ws, make_dashboard, tmp_path):
-    dashboards = Dashboards(ws)
-    sdk_dashboard = make_dashboard()
-
-    (tmp_path / "a.md").write_text("Below you see counters.")
-    for count, query_name in enumerate("bcdefg"):
-        (tmp_path / f"{query_name}.sql").write_text(f"SELECT {count} AS count")
-    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    dashboard = dashboard_metadata.as_lakeview()
-
-    sdk_dashboard = dashboards.deploy_dashboard(dashboard, dashboard_id=sdk_dashboard.dashboard_id)
-
-    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
-
-
 def test_dashboards_creates_dashboard_with_replace_database(ws, make_dashboard, tmp_path, sql_backend, make_schema):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
@@ -347,8 +332,7 @@ def test_dashboards_creates_dashboard_with_replace_database(ws, make_dashboard, 
     """
     (tmp_path / "counter.sql").write_text(query)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path).replace_database(database=schema.full_name)
-    dashboard = dashboard_metadata.as_lakeview()
 
-    sdk_dashboard = dashboards.deploy_dashboard(dashboard, dashboard_id=sdk_dashboard.dashboard_id)
+    sdk_dashboard = dashboards.create_dashboard(dashboard_metadata, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
