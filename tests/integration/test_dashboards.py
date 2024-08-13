@@ -316,6 +316,7 @@ def test_dashboard_deploys_dashboard_with_empty_title(ws, make_dashboard, tmp_pa
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
 
 
+@pytest.mark.skip(reason="Missing permissions to create schema")
 def test_dashboards_creates_dashboard_with_replace_database(ws, make_dashboard, tmp_path, sql_backend, make_schema):
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
