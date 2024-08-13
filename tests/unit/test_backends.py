@@ -16,11 +16,11 @@ from databricks.sdk.errors import (
 from databricks.sdk.service.sql import (
     ColumnInfo,
     ColumnInfoTypeName,
-    ExecuteStatementResponse,
     Format,
     ResultData,
     ResultManifest,
     ResultSchema,
+    StatementResponse,
     StatementState,
     StatementStatus,
 )
@@ -56,7 +56,7 @@ class Bar:
 
 def test_statement_execution_backend_execute_happy():
     ws = create_autospec(WorkspaceClient)
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED)
     )
 
@@ -78,7 +78,7 @@ def test_statement_execution_backend_execute_happy():
 
 def test_statement_execution_backend_with_overrides():
     ws = create_autospec(WorkspaceClient)
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED)
     )
 
@@ -101,7 +101,7 @@ def test_statement_execution_backend_with_overrides():
 def test_statement_execution_backend_fetch_happy():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["1"], ["2"], ["3"]]),
@@ -117,7 +117,7 @@ def test_statement_execution_backend_fetch_happy():
 
 def test_statement_execution_backend_save_table_overwrite_empty_table():
     ws = create_autospec(WorkspaceClient)
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED)
     )
     seb = StatementExecutionBackend(ws, "abc")
@@ -161,7 +161,7 @@ def test_statement_execution_backend_save_table_overwrite_empty_table():
 def test_statement_execution_backend_save_table_empty_records():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED)
     )
 
@@ -185,7 +185,7 @@ def test_statement_execution_backend_save_table_empty_records():
 def test_statement_execution_backend_save_table_two_records():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED)
     )
 
@@ -222,7 +222,7 @@ def test_statement_execution_backend_save_table_two_records():
 def test_statement_execution_backend_save_table_in_batches_of_two(mocker):
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED)
     )
 
