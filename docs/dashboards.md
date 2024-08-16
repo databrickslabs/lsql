@@ -267,10 +267,9 @@ An example filter would be:
 
 ```json
 {
-  'column': 'Country',
-  'title': 'Countries',
-  'description': 'Filter which countries are visualized',
-  'order': 0
+  "column": "Country",
+  "title": "Countries",
+  "description": "Filter which countries are vizualized"
 }
 ```
 
