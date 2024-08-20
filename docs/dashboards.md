@@ -247,6 +247,32 @@ The following text tile arguments are supported:
 
 [[back to top](#dashboards-as-code)]
 
+## `.filter.json` files
+
+The filter files contain filter definition for filters linked to multiple widgets. The filter is applied to all widget that have the given column. The schema is defined as follows:
+
+| Flag          | Description                                        | Type       | Optional |
+|---------------|----------------------------------------------------|------------|----------|
+| column        | The columns the filter is applied.                 | str.       | No*      |
+| columns       | The columns the filter is applied.                 | list[str]  | No*      |
+| type          | The filter type, by default multi-select drop down | str        | Yes      |
+| title         | The filter title                                   | str        | Yes      |
+| description   | The filter description                             | str        | Yes      |
+| order         | The widget order                                   | str        | Yes      |
+| id            | The widget id                                      | str        | Yes      |
+
+> *column and columns are exclusive, one is required. 
+
+An example filter would be:
+
+```json
+{
+  "column": "Country",
+  "title": "Countries",
+  "description": "Filter which countries are vizualized"
+}
+```
+
 ## `dashboard.yml` file
 
 The `dashboard.yml` file is used to define a top-level metadata for the dashboard, such as the display name. Also,
