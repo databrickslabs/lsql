@@ -418,7 +418,7 @@ class QueryTile(Tile):
             raise ValueError(f"Invalid query content: {self.content}") from e
 
     @staticmethod
-    def format(content: str, *, max_text_width: int = 120) -> str:
+    def format(content: str, normalize_case: bool = True, *, max_text_width: int = 120) -> str:
         """Format the content
 
         Args:
@@ -426,6 +426,8 @@ class QueryTile(Tile):
                 The content to format
             max_text_width : int
                 The maximum text width to wrap at
+            normalize_case : bool
+                If the query should be normalized to lower case
         """
         try:
             parsed_query = sqlglot.parse(content, dialect=_SQL_DIALECT)
@@ -441,7 +443,7 @@ class QueryTile(Tile):
             statements.append(
                 statement.sql(
                     dialect=_SQL_DIALECT,
-                    normalize=True,  # normalize identifiers to lowercase
+                    normalize=normalize_case,  # normalize identifiers to lowercase
                     pretty=True,  # format the produced SQL string
                     normalize_functions="upper",  # normalize function names to uppercase
                     max_text_width=max_text_width,  # wrap text at 120 characters
