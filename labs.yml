@@ -12,6 +12,9 @@ commands:
     flags:
       - name: folder
         description: The folder with SQL files. By default, the current working directory.
+      - name: normalize-case
+        description: If the query text should be normalized to lower case.
+
   - name: create-dashboard
     description: Create an unpublished dashboard from code, see [docs](./docs/dashboards.md).
     flags:
