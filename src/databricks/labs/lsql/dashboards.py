@@ -6,8 +6,6 @@ import logging
 import math
 import re
 import shlex
-import tempfile
-import warnings
 from argparse import ArgumentParser
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
@@ -420,7 +418,7 @@ class QueryTile(Tile):
             raise ValueError(f"Invalid query content: {self.content}") from e
 
     @staticmethod
-    def format(content: str, *, max_text_width: int = 120) -> str:
+    def format(content: str, normalize_case: bool = True, *, max_text_width: int = 120) -> str:
         """Format the content
 
         Args:
@@ -428,6 +426,8 @@ class QueryTile(Tile):
                 The content to format
             max_text_width : int
                 The maximum text width to wrap at
+            normalize_case : bool
+                If the query should be normalized to lower case
         """
         try:
             parsed_query = sqlglot.parse(content, dialect=_SQL_DIALECT)
@@ -443,7 +443,7 @@ class QueryTile(Tile):
             statements.append(
                 statement.sql(
                     dialect=_SQL_DIALECT,
-                    normalize=True,  # normalize identifiers to lowercase
+                    normalize=normalize_case,  # normalize identifiers to lowercase
                     pretty=True,  # format the produced SQL string
                     normalize_functions="upper",  # normalize function names to uppercase
                     max_text_width=max_text_width,  # wrap text at 120 characters
@@ -961,15 +961,6 @@ class Dashboards:
             assert sdk_dashboard.dashboard_id is not None
             self._ws.lakeview.publish(sdk_dashboard.dashboard_id, warehouse_id=warehouse_id)
         return sdk_dashboard
-
-    def deploy_dashboard(self, dashboard: Dashboard, **kwargs) -> SDKDashboard:
-        """Legacy method use :meth:create_dashboard instead."""
-        warnings.warn("Deprecated method use `create_dashboard` instead.", category=DeprecationWarning)
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory)
-            self.save_to_folder(dashboard, path)
-            dashboard_metadata = DashboardMetadata.from_path(path)
-            return self.create_dashboard(dashboard_metadata, **kwargs)
 
     def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""

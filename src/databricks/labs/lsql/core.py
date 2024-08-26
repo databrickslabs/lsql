@@ -8,7 +8,7 @@ import time
 import types
 from collections.abc import Callable, Iterator
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 import sqlglot
@@ -17,7 +17,6 @@ from databricks.sdk.errors import DataLoss, NotFound
 from databricks.sdk.service.sql import (
     ColumnInfoTypeName,
     Disposition,
-    ExecuteStatementResponse,
     Format,
     ServiceError,
     ServiceErrorCode,
@@ -25,6 +24,19 @@ from databricks.sdk.service.sql import (
     StatementState,
     StatementStatus,
 )
+
+if TYPE_CHECKING:  # MyPy complains about the double import
+    from databricks.sdk.service.sql import StatementResponse
+else:
+    try:
+        # databricks-sdk>=0.30.0
+        from databricks.sdk.service.sql import StatementResponse
+    except ImportError:
+        # databricks-sdk<0.30.0
+        from databricks.sdk.service.sql import (
+            ExecuteStatementResponse as StatementResponse,
+        )
+
 
 MAX_SLEEP_PER_ATTEMPT = 10
 
@@ -179,7 +191,7 @@ class StatementExecutionExt:
         catalog: str | None = None,
         schema: str | None = None,
         timeout: timedelta | None = None,
-    ) -> ExecuteStatementResponse:
+    ) -> StatementResponse:
         """Execute a SQL statement and block until results are ready, including starting
         the warehouse if needed.
 
@@ -214,7 +226,7 @@ class StatementExecutionExt:
             it is handled on the server side. If the timeout is greater than 50 seconds,
             Databricks SDK for Python cancels the statement execution and throws `TimeoutError`.
             If not given, it will use the timeout specified in the constructor.
-        :return: ExecuteStatementResponse
+        :return: StatementResponse
         """
         # The wait_timeout field must be 0 seconds (disables wait),
         # or between 5 seconds and 50 seconds.
@@ -259,7 +271,7 @@ class StatementExecutionExt:
             if not state:
                 state = StatementState.FAILED
             if state == StatementState.SUCCEEDED:
-                return ExecuteStatementResponse(
+                return StatementResponse(
                     manifest=res.manifest, result=res.result, statement_id=statement_id, status=result_status
                 )
             status_message = f"current status: {state.value}"
@@ -378,7 +390,7 @@ class StatementExecutionExt:
             return v
         return None
 
-    def _result_converter(self, execute_response: ExecuteStatementResponse):
+    def _result_converter(self, execute_response: StatementResponse):
         """Get the result schema from the execute response."""
         manifest = execute_response.manifest
         if not manifest:

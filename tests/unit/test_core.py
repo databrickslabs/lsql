@@ -8,16 +8,15 @@ from databricks.sdk.service.sql import (
     ColumnInfo,
     ColumnInfoTypeName,
     EndpointInfo,
-    ExecuteStatementResponse,
     ExternalLink,
     Format,
-    GetStatementResponse,
     ResultData,
     ResultManifest,
     ResultSchema,
     ServiceError,
     ServiceErrorCode,
     State,
+    StatementResponse,
     StatementState,
     StatementStatus,
     timedelta,
@@ -67,7 +66,7 @@ def test_row_factory_with_generator():
 def test_selects_warehouse_from_config():
     ws = create_autospec(WorkspaceClient)
     ws.config.warehouse_id = "abc"
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         statement_id="bcd",
     )
@@ -96,7 +95,7 @@ def test_selects_warehouse_from_existing_first_running():
         EndpointInfo(id="cde", state=State.RUNNING),
     ]
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
     )
 
@@ -125,7 +124,7 @@ def test_selects_warehouse_from_existing_not_running():
         EndpointInfo(id="cde", state=State.STARTING),
     ]
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
     )
 
@@ -155,11 +154,11 @@ def test_no_warehouse_given():
 
 def test_execute_poll_succeeds():
     ws = create_autospec(WorkspaceClient)
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.PENDING),
         statement_id="bcd",
     )
-    ws.statement_execution.get_statement.return_value = GetStatementResponse(
+    ws.statement_execution.get_statement.return_value = StatementResponse(
         manifest=ResultManifest(),
         result=ResultData(byte_count=100500),
         statement_id="bcd",
@@ -202,7 +201,7 @@ def test_execute_poll_succeeds():
 def test_execute_fails(status_error, platform_error_type):
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.FAILED, error=status_error),
         statement_id="bcd",
     )
@@ -216,14 +215,14 @@ def test_execute_fails(status_error, platform_error_type):
 def test_execute_poll_waits():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.PENDING),
         statement_id="bcd",
     )
 
     ws.statement_execution.get_statement.side_effect = [
-        GetStatementResponse(status=StatementStatus(state=StatementState.RUNNING), statement_id="bcd"),
-        GetStatementResponse(
+        StatementResponse(status=StatementStatus(state=StatementState.RUNNING), statement_id="bcd"),
+        StatementResponse(
             manifest=ResultManifest(),
             result=ResultData(byte_count=100500),
             statement_id="bcd",
@@ -242,12 +241,12 @@ def test_execute_poll_waits():
 def test_execute_poll_timeouts_on_client():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.PENDING),
         statement_id="bcd",
     )
 
-    ws.statement_execution.get_statement.return_value = GetStatementResponse(
+    ws.statement_execution.get_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.RUNNING),
         statement_id="bcd",
     )
@@ -262,7 +261,7 @@ def test_execute_poll_timeouts_on_client():
 def test_fetch_all_no_chunks():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(
             schema=ResultSchema(
@@ -298,7 +297,7 @@ def test_fetch_all_no_chunks():
 def test_fetch_all_no_chunks_no_converter():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(
             schema=ResultSchema(
@@ -323,7 +322,7 @@ def test_fetch_all_no_chunks_no_converter():
 def test_fetch_all_two_chunks():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(
             schema=ResultSchema(
@@ -361,7 +360,7 @@ def test_fetch_all_two_chunks():
 def test_fetch_one():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["4"]]),
@@ -389,7 +388,7 @@ def test_fetch_one():
 def test_fetch_one_none():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         statement_id="bcd",
@@ -405,7 +404,7 @@ def test_fetch_one_none():
 def test_fetch_one_disable_magic():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["4"], ["5"], ["6"]]),
@@ -433,7 +432,7 @@ def test_fetch_one_disable_magic():
 def test_fetch_value():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["4"]]),
@@ -450,7 +449,7 @@ def test_fetch_value():
 def test_fetch_value_none():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         statement_id="bcd",
@@ -466,7 +465,7 @@ def test_fetch_value_none():
 def test_callable_returns_iterator():
     ws = create_autospec(WorkspaceClient)
 
-    ws.statement_execution.execute_statement.return_value = ExecuteStatementResponse(
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.SUCCEEDED),
         manifest=ResultManifest(schema=ResultSchema(columns=[ColumnInfo(name="id", type_name=ColumnInfoTypeName.INT)])),
         result=ResultData(data_array=[["4"], ["5"], ["6"]]),

@@ -43,13 +43,13 @@ def create_dashboard(
 
 
 @lsql.command(is_unauthenticated=True)
-def fmt(folder: Path = Path.cwd()):
+def fmt(folder: Path = Path.cwd(), normalize_case: bool = True):
     """Format SQL files in a folder"""
     logger.debug("Formatting SQL files ...")
     folder = Path(folder)
     for sql_file in folder.glob("**/*.sql"):
         sql = sql_file.read_text()
-        formatted_sql = QueryTile.format(sql)
+        formatted_sql = QueryTile.format(sql, normalize_case)
         sql_file.write_text(formatted_sql)
         logger.debug(f"Formatted {sql_file}")
 

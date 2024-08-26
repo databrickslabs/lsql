@@ -832,6 +832,20 @@ def test_query_formats(query, query_formatted):
     assert QueryTile.format(query) == query_formatted
 
 
+def test_query_formats_no_normalize():
+    query = """ select a.request_params.clusterId, 
+    a.request_params.notebookId 
+    from system.access.audit AS a left outer join inventory.clusters AS c
+ON a.request_params.clusterId = c.cluster_id AND a.action_name = 'runCommand'"""
+    query_formatted = """SELECT
+  a.request_params.clusterId,
+  a.request_params.notebookId
+FROM system.access.audit AS a
+LEFT OUTER JOIN inventory.clusters AS c
+  ON a.request_params.clusterId = c.cluster_id AND a.action_name = 'runCommand'"""
+    assert QueryTile.format(query, False) == query_formatted
+
+
 @pytest.mark.parametrize(
     "query, query_transformed, database_to_replace",
     [
@@ -1493,25 +1507,6 @@ def test_dashboard_raises_value_error_when_creating_dashboard_with_invalid_queri
 
     with pytest.raises(ValueError):
         dashboards.create_dashboard(dashboard_metadata)
-    ws.assert_not_called()
-
-
-def test_dashboard_warns_deploy_dashboard_is_deprecated():
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [Page("test", [])])
-
-    with pytest.deprecated_call():
-        dashboards.deploy_dashboard(dashboard)
-    ws.lakeview.create.assert_called_once()
-
-
-def test_dashboard_deploys_dashboard():
-    ws = create_autospec(WorkspaceClient)
-    dashboards = Dashboards(ws)
-    dashboard = Dashboard([], [Page("test", [])])
-
-    dashboards.deploy_dashboard(dashboard)
     ws.assert_not_called()
 
 
