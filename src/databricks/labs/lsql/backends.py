@@ -75,8 +75,8 @@ class SqlBackend(ABC):
             if isinstance(field_type, str):
                 try:
                     field_type = __builtins__[field_type]
-                except:
-                    logger.warning(f"Could not load type {field_type}")
+                except TypeError as e:
+                    logger.warning(f"Could not load type {field_type}", exc_info=e)
             if isinstance(field_type, UnionType):
                 field_type = field_type.__args__[0]
             if field_type not in cls._builtin_type_mapping:
