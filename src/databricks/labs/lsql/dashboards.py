@@ -418,16 +418,16 @@ class QueryTile(Tile):
             raise ValueError(f"Invalid query content: {self.content}") from e
 
     @staticmethod
-    def format(content: str, normalize_case: bool = True, *, max_text_width: int = 120) -> str:
+    def format(content: str, *, max_text_width: int = 120, normalize_case: bool = True) -> str:
         """Format the content
 
         Args:
             content : str
                 The content to format
-            max_text_width : int
+            max_text_width : int, optional (default: 120)
                 The maximum text width to wrap at
-            normalize_case : bool
-                If the query should be normalized to lower case
+            normalize_case : bool, optional (default: True)
+                If the query identifiers should be normalized to lower case
         """
         try:
             parsed_query = sqlglot.parse(content, dialect=_SQL_DIALECT)

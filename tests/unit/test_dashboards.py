@@ -843,7 +843,7 @@ ON a.request_params.clusterId = c.cluster_id AND a.action_name = 'runCommand'"""
 FROM system.access.audit AS a
 LEFT OUTER JOIN inventory.clusters AS c
   ON a.request_params.clusterId = c.cluster_id AND a.action_name = 'runCommand'"""
-    assert QueryTile.format(query, False) == query_formatted
+    assert QueryTile.format(query, normalize_case=False) == query_formatted
 
 
 @pytest.mark.parametrize(
