@@ -50,7 +50,7 @@ def fmt(folder: Path = Path.cwd(), *, normalize_case: str = "true"):
     should_normalize_case = normalize_case in STRING_AFFIRMATIVES
     for sql_file in folder.glob("**/*.sql"):
         sql = sql_file.read_text()
-        formatted_sql = QueryTile.format(sql, should_normalize_case)
+        formatted_sql = QueryTile.format(sql, normalize_case=should_normalize_case)
         sql_file.write_text(formatted_sql)
         logger.debug(f"Formatted {sql_file}")
 
