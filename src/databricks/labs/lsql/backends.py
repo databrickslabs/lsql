@@ -70,6 +70,13 @@ class SqlBackend(ABC):
         fields = []
         for f in dataclasses.fields(klass):
             field_type = f.type
+            # workaround rare (Python?) issue where f.type is the type name instead of the type itself
+            # this seems to happen when the dataclass is first used from a file importing it
+            if isinstance(field_type, str):
+                try:
+                    field_type = __builtins__[field_type]
+                except TypeError as e:
+                    logger.warning(f"Could not load type {field_type}", exc_info=e)
             if isinstance(field_type, UnionType):
                 field_type = field_type.__args__[0]
             if field_type not in cls._builtin_type_mapping:
