@@ -832,6 +832,11 @@ def test_query_formats(query, query_formatted):
     assert QueryTile.format(query) == query_formatted
 
 
+def test_query_format_preserves_eol():
+    assert not QueryTile.format("SELECT x, y FROM a, b").endswith("\n")
+    assert QueryTile.format("SELECT x, y FROM a, b\n").endswith("\n")
+
+
 def test_query_formats_no_normalize():
     query = """ select a.request_params.clusterId, 
     a.request_params.notebookId 
