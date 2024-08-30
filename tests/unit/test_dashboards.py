@@ -829,7 +829,12 @@ FROM data
     ],
 )
 def test_query_formats(query, query_formatted):
-    assert QueryTile.format(query) == query_formatted
+    assert QueryTile.format(query).strip() == query_formatted.strip()
+
+
+def test_query_format_preserves_eol():
+    assert not QueryTile.format("SELECT x, y FROM a, b").endswith("\n")
+    assert QueryTile.format("SELECT x, y FROM a, b\n").endswith("\n")
 
 
 def test_query_formats_no_normalize():
