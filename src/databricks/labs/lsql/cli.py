@@ -1,4 +1,5 @@
 import webbrowser
+from collections.abc import Iterable
 from pathlib import Path
 
 from databricks.labs.blueprint.cli import App
@@ -43,12 +44,15 @@ def create_dashboard(
 
 
 @lsql.command(is_unauthenticated=True)
-def fmt(folder: Path = Path.cwd(), *, normalize_case: str = "true"):
+def fmt(folder: Path = Path.cwd(), *, normalize_case: str = "true", exclude: Iterable[str] = ()):
     """Format SQL files in a folder"""
     logger.debug("Formatting SQL files ...")
     folder = Path(folder)
+    exclusions = list(Path(folder, excluded) for excluded in exclude)
     should_normalize_case = normalize_case in STRING_AFFIRMATIVES
     for sql_file in folder.glob("**/*.sql"):
+        if any(sql_file.is_relative_to(exclusion) for exclusion in exclusions):
+            continue
         sql = sql_file.read_text()
         formatted_sql = QueryTile.format(sql, normalize_case=should_normalize_case)
         sql_file.write_text(formatted_sql)
