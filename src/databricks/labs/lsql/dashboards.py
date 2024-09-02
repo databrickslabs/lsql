@@ -429,6 +429,7 @@ class QueryTile(Tile):
             normalize_case : bool, optional (default: True)
                 If the query identifiers should be normalized to lower case
         """
+        has_eol = content.endswith("\n")
         try:
             parsed_query = sqlglot.parse(content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError:
@@ -453,7 +454,7 @@ class QueryTile(Tile):
         if "$" in content:
             # replace ${x} with $x, because we use it in UCX view definitions for now
             formatted_query = re.sub(r"\${(\w+)}", r"$\1", formatted_query)
-        return formatted_query
+        return formatted_query + ("\n" if has_eol else "")
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
         try:
