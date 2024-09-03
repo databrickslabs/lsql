@@ -47,7 +47,9 @@ jobs:
         uses: actions/checkout@v4.1.7
 
       - name: Format all files
-        run: make dev fmt
+        run: |
+          pip install hatch==1.9.4
+          make dev fmt
 
       - name: Fail on differences
         run: git diff --exit-code
