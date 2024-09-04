@@ -14,6 +14,8 @@ commands:
         description: The folder with SQL files. By default, the current working directory.
       - name: normalize-case
         description: If the query text should be normalized to lower case.
+      - name: exclude
+        description: Path to exclude from formatting.
 
   - name: create-dashboard
     description: Create an unpublished dashboard from code, see [docs](./docs/dashboards.md).
@@ -23,11 +25,11 @@ commands:
       - name: catalog
         description: |
           Overwrite the catalog in the queries' `FROM` clauses with given value. 
-          Useful when developing with seperated catalogs, for example, for production and development.
+          Useful when developing with separate catalogs, for example, for production and development.
       - name: database
         description: |
           Overwrite the database in the queries' `FROM` clauses with given value. 
-          Useful when developing with seperated databases, for example, for production and development.
+          Useful when developing with separate databases, for example, for production and development.
       - name: publish
         description: Publish the dashboard after creating by setting to `yes` or `y`.
       - name: open-browser
