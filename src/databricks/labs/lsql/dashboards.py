@@ -30,6 +30,7 @@ from databricks.labs.lsql.lakeview import (
     CounterSpec,
     Dashboard,
     Dataset,
+    DateRangePickerSpec,
     DisplayType,
     Field,
     Layout,
@@ -189,6 +190,23 @@ class MarkdownHandler(BaseHandler):
         return "", self._content
 
 
+class FilterHandler(BaseHandler):
+    """Handle filter files."""
+
+    def _parse_header(self, header: str) -> dict:
+        if not header:
+            return {}
+        metadata = json.loads(header)
+        metadata.pop("column", None)
+        metadata.pop("columns", None)
+        metadata.pop("type", None)
+        return metadata
+
+    def split(self) -> tuple[str, str]:
+        trimmed_content = self._content.strip()
+        return trimmed_content, trimmed_content
+
+
 @unique
 class WidgetType(str, Enum):
     """The query widget type"""
@@ -262,6 +280,9 @@ class TileMetadata:
     def is_query(self) -> bool:
         return self.path is not None and self.path.suffix == ".sql"
 
+    def is_filter(self) -> bool:
+        return self.path is not None and self.path.name.endswith(".filter.json")
+
     @property
     def handler(self) -> BaseHandler:
         handler = BaseHandler
@@ -269,6 +290,8 @@ class TileMetadata:
             handler = MarkdownHandler
         elif self.is_query():
             handler = QueryHandler
+        elif self.is_filter():
+            handler = FilterHandler
         return handler(self.path)
 
     @classmethod
@@ -368,6 +391,8 @@ class Tile:
         """Create a tile given the tile metadata."""
         if tile_metadata.is_markdown():
             return MarkdownTile(tile_metadata)
+        if tile_metadata.is_filter():
+            return FilterTile(tile_metadata)
         query_tile = QueryTile(tile_metadata)
         spec_type = query_tile.infer_spec_type()
         if spec_type is None:
@@ -724,6 +749,72 @@ class CounterTile(QueryTile):
         return spec
 
 
+@unique
+class FilterType(str, Enum):
+    """The filter widget type"""
+
+    DATE_RANGE_PICKER = "DATE_RANGE_PICKER"
+    MULTI_SELECT = "MULTI_SELECT"
+    NONE = "NONE"
+
+    def as_widget_spec(self):
+        widget_spec_mapping = {
+            "DATE_RANGE_PICKER": DateRangePickerSpec,
+            "MULTI_SELECT": MultiSelectSpec,
+        }
+        if self.name not in widget_spec_mapping:
+            raise ValueError(f"Can not convert to filter widget spec: {self}")
+        return widget_spec_mapping[self.name]
+
+
+@dataclass
+class FilterTile(Tile):
+    _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 3, 1))
+    dataset_columns: list[tuple[str, str]] = dataclasses.field(default_factory=list)  # (column, dataset_name)
+
+    def validate(self) -> None:
+        """Validate the tile
+
+        Raises:
+            ValueError : If the tile is invalid.
+        """
+        super().validate()
+        if not self.metadata.is_filter():
+            raise ValueError(f"Tile is not a filter file: {self}")
+
+    def get_layouts(self) -> Iterable[Layout]:
+        """Get the layout(s) reflecting this tile in the dashboard."""
+        if not self.dataset_columns:
+            logger.warning(f"Filter tile for path {self.metadata.path} has no matching dataset columns")
+            return
+        config = json.loads(self.content)
+        filter_type = FilterType[config.get("type", "MULTI_SELECT").upper()]
+        control_encodings: list[ControlEncoding] = []
+        queries = []
+        for idx, (column, dataset_name) in enumerate(self.dataset_columns):
+            filter_fields = [
+                Field(name=column, expression=f"`{column}`"),
+                Field(name=f"{column}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
+            ]
+            filter_query = Query(dataset_name=dataset_name, fields=filter_fields, disaggregated=False)
+            filter_named_query = NamedQuery(name=f"{filter_type}_{column}_{idx}", query=filter_query)
+            queries.append(filter_named_query)
+            control_encodings.append(ControlFieldEncoding(column, filter_named_query.name, display_name=column))
+
+        frame = WidgetFrameSpec(
+            title=self.metadata.title,
+            show_title=len(self.metadata.title) > 0,
+            description=self.metadata.description,
+            show_description=len(self.metadata.description) > 0,
+        )
+        control_encoding_map = ControlEncodingMap(control_encodings)
+        filter_spec = filter_type.as_widget_spec()
+        spec = filter_spec(encodings=control_encoding_map, frame=frame)
+        widget = Widget(name=f"{self.metadata.id}_widget", queries=queries, spec=spec)
+        layout = Layout(widget=widget, position=self.position)
+        yield layout
+
+
 @dataclass
 class DashboardMetadata:
     """The metadata defining a lakeview dashboard"""
@@ -861,6 +952,8 @@ class DashboardMetadata:
         tile_metadatas_folder = [tile.metadata for tile in dashboard_metadata_folder.tiles]
         tile_metadatas = cls._merge_tile_metadatas(tile_metadatas_yml, tile_metadatas_folder)
         tiles = [Tile.from_tile_metadata(tile_metadata) for tile_metadata in tile_metadatas]
+        filter_tiles = cls._filter_tiles_from_folder(path, [tile for tile in tiles if isinstance(tile, QueryTile)])
+        tiles.extend(filter_tiles)
         return cls(dashboard_metadata_yml.display_name, _tiles=tiles)
 
     @classmethod
@@ -892,6 +985,42 @@ class DashboardMetadata:
             tile = Tile.from_tile_metadata(tile_metadata)
             tiles.append(tile)
         return cls(display_name=folder.name, _tiles=tiles)
+
+    @classmethod
+    def _filter_tiles_from_folder(cls, folder: Path, query_tiles: Iterable[QueryTile]) -> list[FilterTile]:
+        queries_from_tiles: list[NamedQuery] = []
+        for tile in query_tiles:
+            for layout in tile.get_layouts():
+                if layout.widget.queries:
+                    queries_from_tiles.extend(layout.widget.queries)
+
+        filter_tiles = []
+        for path in folder.iterdir():
+            if not path.name.endswith(".filter.json"):
+                continue
+            logger.debug(f"Loading filter spec from {path}")
+            filter_metadata = json.loads(path.read_text())
+            column = filter_metadata.get("column")
+            columns = filter_metadata.get("columns")
+            if not column and not columns:
+                raise ValueError(f"Neither column nor columns set in {path}")
+            # Only one of column or columns should be set
+            if column and columns:
+                raise ValueError(f"Both column and columns set in {path}")
+            if column:
+                columns = [column]
+
+            dataset_columns = set()
+            for col in columns:
+                for named_query in queries_from_tiles:
+                    if col in [field.name for field in named_query.query.fields]:
+                        dataset_columns.add((col, named_query.query.dataset_name))
+
+            if dataset_columns:
+                filter_tiles.append(
+                    FilterTile(metadata=TileMetadata.from_path(path), dataset_columns=list(dataset_columns))
+                )
+        return filter_tiles
 
 
 class Dashboards:
