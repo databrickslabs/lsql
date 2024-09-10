@@ -1610,8 +1610,10 @@ def test_dashboards_export_to_zipped_csv(tmp_path):
     export_path = tmp_path / "export"
     export_path.mkdir(parents=True, exist_ok=True)
 
-    dash_meta = DashboardMetadata(display_name="External Locations")
+    dash_metadata = DashboardMetadata(display_name="External Locations")
 
-    dash_meta.export_to_zipped_csv(mock_backend, tmp_path, export_path, catalog="test_catalog", database="test_db")
+    dash = dash_metadata.from_path(tmp_path)
+    dash = dash.replace_database(catalog="hive_metastore", database="ucx")
+    dash.export_to_zipped_csv(mock_backend, export_path)
 
-    assert len(list(export_path.glob("*.zip"))) == 1
+    assert len(list(export_path.glob("export_to_zipped_csv.zip"))) == 1

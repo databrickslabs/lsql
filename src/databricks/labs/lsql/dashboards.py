@@ -12,6 +12,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
 from enum import Enum, unique
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import TypeVar
 from zipfile import ZipFile
@@ -896,45 +897,34 @@ class DashboardMetadata:
             tiles.append(tile)
         return cls(display_name=folder.name, _tiles=tiles)
 
-    @staticmethod
-    def _add_to_zip(file_path: Path) -> None:
-        """Add a file to a ZIP archive, handling duplicates by renaming."""
-        zip_path = file_path.parent / "export_to_zipped_csv.zip"
+    def export_to_zipped_csv(self, sql_backend: SqlBackend, export_path: Path) -> Path:
+        """Export the dashboard queries to CSV files directly into a ZIP archive."""
+        zip_export = export_path / "export_to_zipped_csv.zip"
 
-        try:
-            with ZipFile(zip_path, "a") as zip_file:
-                zip_file.write(file_path, arcname=file_path)
+        with ZipFile(zip_export, mode="w") as zip_file:
+            for tile in self.tiles:
+                if tile.metadata.is_query():
+                    rows = sql_backend.fetch(tile.content)
 
-        except FileNotFoundError:
-            logger.warning(f"File {file_path} not found.")
-        except PermissionError:
-            logger.warning(f"Permission denied for {file_path} or {zip_path}.")
+                    if not rows:
+                        continue
 
-        # Clean up the file if it was successfully added
-        if file_path.exists():
-            file_path.unlink()
+                    buffer = StringIO()
+                    writer = None
 
-    def export_to_zipped_csv(
-        self, sql_backend: SqlBackend, queries_path: Path, export_path: Path, catalog: str, database: str
-    ) -> Path:
-        """Export the dashboard queries to CSV files in a ZIP archive."""
-        dashboard = self.from_path(queries_path)
-        dashboard = dashboard.replace_database(catalog=catalog, database=database)
-        for tile in dashboard.tiles:
-            if not tile.metadata.is_query():
-                continue
-            tile_export = export_path / f"{tile.metadata.id}.csv"
-            with tile_export.open(mode="w", newline="", encoding="utf-8") as handle:
-                writer = csv.writer(handle)
-                rows = sql_backend.fetch(tile.content)
-                for idx, row in enumerate(rows):
-                    row_dict = row.asDict()
-                    if idx == 0:
-                        writer.writerow(row_dict.keys())
-                    writer.writerow(row_dict.values())
-            self._add_to_zip(tile_export)
+                    for row in rows:
+                        if writer is None:
+                            headers = row.asDict().keys()
+                            writer = csv.DictWriter(buffer, fieldnames=headers)
+                            writer.writeheader()
+                        writer.writerow(row.asDict())
 
-        return export_path
+                    bytes_buffer = BytesIO(buffer.getvalue().encode("utf-8"))
+
+                    with zip_file.open(f"{tile.metadata.id}.csv", "w") as csv_file:
+                        csv_file.write(bytes_buffer.getvalue())
+
+        return zip_export
 
 
 class Dashboards:
