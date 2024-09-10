@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from enum import Enum, unique
 from pathlib import Path
 from typing import TypeVar
+from zipfile import ZipFile
 
 import sqlglot
 import yaml
@@ -21,6 +22,7 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
+from databricks.labs.lsql.backends import SqlBackend
 from databricks.labs.lsql.lakeview import (
     ColumnType,
     ControlEncoding,
@@ -894,6 +896,46 @@ class DashboardMetadata:
             tiles.append(tile)
         return cls(display_name=folder.name, _tiles=tiles)
 
+    @staticmethod
+    def _add_to_zip(file_path: Path) -> None:
+        """Add a file to a ZIP archive, handling duplicates by renaming."""
+        zip_path = file_path.parent / "export_to_zipped_csv.zip"
+
+        try:
+            with ZipFile(zip_path, "a") as zip_file:
+                zip_file.write(file_path, arcname=file_path)
+
+        except FileNotFoundError:
+            logger.warning(f"File {file_path} not found.")
+        except PermissionError:
+            logger.warning(f"Permission denied for {file_path} or {zip_path}.")
+
+        # Clean up the file if it was successfully added
+        if file_path.exists():
+            file_path.unlink()
+
+    def export_to_zipped_csv(
+        self, sql_backend: SqlBackend, queries_path: Path, export_path: Path, catalog: str, database: str
+    ) -> Path:
+        """Export the dashboard queries to CSV files in a ZIP archive."""
+        dashboard = self.from_path(queries_path)
+        dashboard = dashboard.replace_database(catalog=catalog, database=database)
+        for tile in dashboard.tiles:
+            if not tile.metadata.is_query():
+                continue
+            tile_export = export_path / f"{tile.metadata.id}.csv"
+            with tile_export.open(mode="w", newline="", encoding="utf-8") as handle:
+                writer = csv.writer(handle)
+                rows = sql_backend.fetch(tile.content)
+                for idx, row in enumerate(rows):
+                    row_dict = row.asDict()
+                    if idx == 0:
+                        writer.writerow(row_dict.keys())
+                    writer.writerow(row_dict.values())
+            self._add_to_zip(tile_export)
+
+        return export_path
+
 
 class Dashboards:
     def __init__(self, ws: WorkspaceClient):
@@ -1019,36 +1061,3 @@ class Dashboards:
         # The /published redirects to the draft if the dashboard is not published
         dashboard_url = f"{self._ws.config.host}/dashboardsv3/{dashboard_id}/published"
         return dashboard_url
-
-
-class ExportDashboard(DashboardMetadata):
-    def __init__(self, sql_backend, config):
-        self._sql_backend = sql_backend
-        self._config = config
-        super().__init__(display_name="")
-
-    def export_dashboard(
-        self,
-        queries_path: Path,
-        export_path: Path,
-        catalog: str = "hive_metastore",
-        database: None = None,
-    ) -> None:
-        """Export the dashboard queries to CSV files."""
-        if database is None:
-            database = self._config.inventory_database
-
-        dashboard = DashboardMetadata.from_path(queries_path)
-        dashboard = dashboard.replace_database(catalog=catalog, database=database)
-        for tile in dashboard.tiles:
-            if not tile.metadata.is_query():
-                continue
-            file_name = f"{export_path}/{tile.metadata.id}.csv"
-            with open(file_name, mode="w", newline="", encoding="utf-8") as file:
-                writer = csv.writer(file)
-                rows = self._sql_backend.fetch(tile.content)
-                for idx, row in enumerate(rows):
-                    row_dict = row.asDict()
-                    if idx == 0:
-                        writer.writerow(row_dict.keys())
-                    writer.writerow(row_dict.values())

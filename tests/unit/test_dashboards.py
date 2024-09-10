@@ -17,7 +17,6 @@ from databricks.labs.lsql.dashboards import (
     BaseHandler,
     DashboardMetadata,
     Dashboards,
-    ExportDashboard,
     MarkdownHandler,
     MarkdownTile,
     QueryHandler,
@@ -1596,7 +1595,7 @@ def test_dashboards_get_dashboard_url():
     assert dashboard_url == dashboard_url_expected
 
 
-def test_dashboards_export(tmp_path):
+def test_dashboards_export_to_zipped_csv(tmp_path):
     query = {
         "SELECT\n  one\nFROM ucx.external_locations": [
             Row(location="s3://bucket1/folder1", table_count=1),
@@ -1605,14 +1604,14 @@ def test_dashboards_export(tmp_path):
         ]
     }
 
-    ws = create_autospec(WorkspaceClient)
-    ws.inventory_database = "ucx"
     mock_backend = MockBackend(rows=query)
 
     (tmp_path / "external_locations.sql").write_text(list(query.keys())[0])
     export_path = tmp_path / "export"
     export_path.mkdir(parents=True, exist_ok=True)
 
-    exp_dash = ExportDashboard(mock_backend, ws)
+    dash_meta = DashboardMetadata(display_name="External Locations")
 
-    exp_dash.export_dashboard(tmp_path, export_path)
+    dash_meta.export_to_zipped_csv(mock_backend, tmp_path, export_path, catalog="test_catalog", database="test_db")
+
+    assert len(list(export_path.glob("*.zip"))) == 1
