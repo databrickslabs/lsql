@@ -1,5 +1,6 @@
 import argparse
 import collections
+import csv
 import dataclasses
 import json
 import logging
@@ -1018,3 +1019,36 @@ class Dashboards:
         # The /published redirects to the draft if the dashboard is not published
         dashboard_url = f"{self._ws.config.host}/dashboardsv3/{dashboard_id}/published"
         return dashboard_url
+
+
+class ExportDashboard(DashboardMetadata):
+    def __init__(self, sql_backend, config):
+        self._sql_backend = sql_backend
+        self._config = config
+        super().__init__(display_name="")
+
+    def export_dashboard(
+        self,
+        queries_path: Path,
+        export_path: Path,
+        catalog: str = "hive_metastore",
+        database: None = None,
+    ) -> None:
+        """Export the dashboard queries to CSV files."""
+        if database is None:
+            database = self._config.inventory_database
+
+        dashboard = DashboardMetadata.from_path(queries_path)
+        dashboard = dashboard.replace_database(catalog=catalog, database=database)
+        for tile in dashboard.tiles:
+            if not tile.metadata.is_query():
+                continue
+            file_name = f"{export_path}/{tile.metadata.id}.csv"
+            with open(file_name, mode="w", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                rows = self._sql_backend.fetch(tile.content)
+                for idx, row in enumerate(rows):
+                    row_dict = row.asDict()
+                    if idx == 0:
+                        writer.writerow(row_dict.keys())
+                    writer.writerow(row_dict.values())

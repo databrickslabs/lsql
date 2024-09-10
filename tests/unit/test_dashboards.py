@@ -11,10 +11,13 @@ import yaml
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 
+from databricks.labs.lsql.backends import MockBackend
+from databricks.labs.lsql.core import Row
 from databricks.labs.lsql.dashboards import (
     BaseHandler,
     DashboardMetadata,
     Dashboards,
+    ExportDashboard,
     MarkdownHandler,
     MarkdownTile,
     QueryHandler,
@@ -1591,3 +1594,25 @@ def test_dashboards_get_dashboard_url():
     ws.config.host = "https://adb-0123456789.12.azuredatabricks.net"
     dashboard_url = Dashboards(ws).get_url("1234")
     assert dashboard_url == dashboard_url_expected
+
+
+def test_dashboards_export(tmp_path):
+    query = {
+        "SELECT\n  one\nFROM ucx.external_locations": [
+            Row(location="s3://bucket1/folder1", table_count=1),
+            Row(location="abfss://container1@storage1.dfs.core.windows.net/folder1", table_count=1),
+            Row(location="gcp://folder1", table_count=2),
+        ]
+    }
+
+    ws = create_autospec(WorkspaceClient)
+    ws.inventory_database = "ucx"
+    mock_backend = MockBackend(rows=query)
+
+    (tmp_path / "external_locations.sql").write_text(list(query.keys())[0])
+    export_path = tmp_path / "export"
+    export_path.mkdir(parents=True, exist_ok=True)
+
+    exp_dash = ExportDashboard(mock_backend, ws)
+
+    exp_dash.export_dashboard(tmp_path, export_path)
