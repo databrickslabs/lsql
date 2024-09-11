@@ -337,3 +337,15 @@ def test_dashboards_creates_dashboard_with_replace_database(ws, make_dashboard, 
     sdk_dashboard = dashboards.create_dashboard(dashboard_metadata, dashboard_id=sdk_dashboard.dashboard_id)
 
     assert ws.lakeview.get(sdk_dashboard.dashboard_id)
+
+
+def test_dashboard_deploys_dashboard_with_filters(ws, make_dashboard):
+    dashboards = Dashboards(ws)
+    sdk_dashboard = make_dashboard()
+
+    dashboard_folder = Path(__file__).parent / "dashboards" / "filter_spec_basic"
+    dashboard_metadata = DashboardMetadata.from_path(dashboard_folder)
+
+    sdk_dashboard = dashboards.create_dashboard(dashboard_metadata, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert ws.lakeview.get(sdk_dashboard.dashboard_id)
