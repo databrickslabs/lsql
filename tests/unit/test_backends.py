@@ -1,3 +1,4 @@
+import datetime
 import os
 import sys
 from dataclasses import dataclass
@@ -219,7 +220,7 @@ def test_statement_execution_backend_save_table_two_records():
     )
 
 
-def test_statement_execution_backend_save_table_in_batches_of_two(mocker):
+def test_statement_execution_backend_save_table_in_batches_of_two():
     ws = create_autospec(WorkspaceClient)
 
     ws.statement_execution.execute_statement.return_value = StatementResponse(
@@ -430,3 +431,39 @@ def test_mock_backend_overwrite():
         Row(first="aaa", second=True),
         Row(first="bbb", second=False),
     ]
+
+
+@dataclass
+class Nested:
+    foo: Foo
+    since: datetime.date
+    created: datetime.datetime
+    mapping: dict[str, int]
+    array: list[int]
+    some: float | None = None
+
+
+def test_supports_complex_types():
+    ws = create_autospec(WorkspaceClient)
+
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
+        status=StatementStatus(state=StatementState.SUCCEEDED)
+    )
+
+    seb = StatementExecutionBackend(ws, "abc", max_records_per_batch=2)
+
+    today = datetime.date(2024, 9, 11)
+    now = datetime.datetime(2024, 9, 11, 12, 13, 14, tzinfo=datetime.timezone.utc)
+    seb.save_table(
+        "x",
+        [
+            Nested(Foo("a", True), today, now, {"a": 1, "b": 2}, [1, 2, 3], 0.342532),
+        ],
+        Nested,
+    )
+
+    queries = [_.kwargs["statement"] for _ in ws.statement_execution.method_calls]
+    assert [
+        "CREATE TABLE IF NOT EXISTS x (foo STRUCT<first:STRING,second:BOOLEAN> NOT NULL, since DATE NOT NULL, created TIMESTAMP NOT NULL, mapping MAP<STRING,LONG> NOT NULL, array ARRAY<LONG> NOT NULL, some FLOAT) USING DELTA",
+        "INSERT INTO x (foo, since, created, mapping, array, some) VALUES (STRUCT('a' AS first, TRUE AS second), DATE '2024-9-11', TIMESTAMP '2024-09-11 12:13:14+0000', MAP('a', 1, 'b', 2), ARRAY(1, 2, 3), 0.342532)",
+    ] == queries
