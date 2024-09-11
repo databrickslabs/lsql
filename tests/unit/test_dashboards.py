@@ -11,6 +11,8 @@ import yaml
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 
+from databricks.labs.lsql.backends import MockBackend
+from databricks.labs.lsql.core import Row
 from databricks.labs.lsql.dashboards import (
     BaseHandler,
     DashboardMetadata,
@@ -1591,3 +1593,27 @@ def test_dashboards_get_dashboard_url():
     ws.config.host = "https://adb-0123456789.12.azuredatabricks.net"
     dashboard_url = Dashboards(ws).get_url("1234")
     assert dashboard_url == dashboard_url_expected
+
+
+def test_dashboards_export_to_zipped_csv(tmp_path):
+    query = {
+        "SELECT\n  one\nFROM ucx.external_locations": [
+            Row(location="s3://bucket1/folder1", table_count=1),
+            Row(location="abfss://container1@storage1.dfs.core.windows.net/folder1", table_count=1),
+            Row(location="gcp://folder1", table_count=2),
+        ]
+    }
+
+    mock_backend = MockBackend(rows=query)
+
+    (tmp_path / "external_locations.sql").write_text(list(query.keys())[0])
+    export_path = tmp_path / "export"
+    export_path.mkdir(parents=True, exist_ok=True)
+
+    dash_metadata = DashboardMetadata(display_name="External Locations")
+
+    dash = dash_metadata.from_path(tmp_path)
+    dash = dash.replace_database(catalog="hive_metastore", database="ucx")
+    dash.export_to_zipped_csv(mock_backend, export_path)
+
+    assert len(list(export_path.glob("export_to_zipped_csv.zip"))) == 1

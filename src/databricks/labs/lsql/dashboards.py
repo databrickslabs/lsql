@@ -1,5 +1,6 @@
 import argparse
 import collections
+import csv
 import dataclasses
 import json
 import logging
@@ -11,8 +12,10 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
 from enum import Enum, unique
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import TypeVar
+from zipfile import ZipFile
 
 import sqlglot
 import yaml
@@ -20,6 +23,7 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
+from databricks.labs.lsql.backends import SqlBackend
 from databricks.labs.lsql.lakeview import (
     ColumnType,
     ControlEncoding,
@@ -892,6 +896,35 @@ class DashboardMetadata:
             tile = Tile.from_tile_metadata(tile_metadata)
             tiles.append(tile)
         return cls(display_name=folder.name, _tiles=tiles)
+
+    def export_to_zipped_csv(self, sql_backend: SqlBackend, export_path: Path) -> Path:
+        """Export the dashboard queries to CSV files directly into a ZIP archive."""
+        zip_export = export_path / "export_to_zipped_csv.zip"
+
+        with ZipFile(zip_export, mode="w") as zip_file:
+            for tile in self.tiles:
+                if tile.metadata.is_query():
+                    rows = sql_backend.fetch(tile.content)
+
+                    if not rows:
+                        continue
+
+                    buffer = StringIO()
+                    writer = None
+
+                    for row in rows:
+                        if writer is None:
+                            headers = row.asDict().keys()
+                            writer = csv.DictWriter(buffer, fieldnames=headers)
+                            writer.writeheader()
+                        writer.writerow(row.asDict())
+
+                    bytes_buffer = BytesIO(buffer.getvalue().encode("utf-8"))
+
+                    with zip_file.open(f"{tile.metadata.id}.csv", "w") as csv_file:
+                        csv_file.write(bytes_buffer.getvalue())
+
+        return zip_export
 
 
 class Dashboards:
