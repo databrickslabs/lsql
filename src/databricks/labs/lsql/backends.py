@@ -1,10 +1,10 @@
 import dataclasses
+import datetime
 import logging
 import os
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from types import UnionType
 from typing import Any, ClassVar, Protocol, TypeVar
 
 from databricks.labs.blueprint.commands import CommandExecutor
@@ -20,6 +20,7 @@ from databricks.sdk.errors import (
 from databricks.sdk.service.compute import Language
 
 from databricks.labs.lsql.core import Row, StatementExecutionExt
+from databricks.labs.lsql.structs import StructInference
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,8 @@ class SqlBackend(ABC):
     execute SQL statements, fetch results from SQL statements, and save data
     to tables."""
 
+    _STRUCTS = StructInference()
+
     @abstractmethod
     def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
         raise NotImplementedError
@@ -55,32 +58,8 @@ class SqlBackend(ABC):
         raise NotImplementedError
 
     def create_table(self, full_name: str, klass: Dataclass):
-        ddl = f"CREATE TABLE IF NOT EXISTS {full_name} ({self._schema_for(klass)}) USING DELTA"
+        ddl = f"CREATE TABLE IF NOT EXISTS {full_name} ({self._STRUCTS.as_schema(klass)}) USING DELTA"
         self.execute(ddl)
-
-    _builtin_type_mapping: ClassVar[dict[type, str]] = {
-        str: "STRING",
-        int: "LONG",
-        bool: "BOOLEAN",
-        float: "FLOAT",
-    }
-
-    @classmethod
-    def _schema_for(cls, klass: Dataclass):
-        fields = []
-        for f in dataclasses.fields(klass):
-            field_type = cls._field_type(f)
-            if isinstance(field_type, UnionType):
-                field_type = field_type.__args__[0]
-            if field_type not in cls._builtin_type_mapping:
-                msg = f"Cannot auto-convert {field_type}"
-                raise SyntaxError(msg)
-            not_null = " NOT NULL"
-            if f.default is None:
-                not_null = ""
-            spark_type = cls._builtin_type_mapping[field_type]
-            fields.append(f"{f.name} {spark_type}{not_null}")
-        return ", ".join(fields)
 
     @classmethod
     def _field_type(cls, field: dataclasses.Field):
@@ -177,22 +156,44 @@ class ExecutionBackend(SqlBackend):
         data = []
         for f in fields:
             value = getattr(row, f.name)
-            field_type = cls._field_type(f)
-            if isinstance(field_type, UnionType):
-                field_type = field_type.__args__[0]
-            if value is None:
-                data.append("NULL")
-            elif field_type is bool:
-                data.append("TRUE" if value else "FALSE")
-            elif field_type is str:
-                value = str(value).replace("'", "''")
-                data.append(f"'{value}'")
-            elif field_type is int:
-                data.append(f"{value}")
-            else:
-                msg = f"unknown type: {field_type}"
-                raise ValueError(msg)
+            data.append(cls._value_to_sql(value))
         return ", ".join(data)
+
+    @classmethod
+    def _value_to_sql(cls, value: Any) -> str:
+        if value is None:
+            return "NULL"
+        if isinstance(value, int):
+            return f"{value}"
+        if isinstance(value, float):
+            return f"{value:0.2f}"
+        if isinstance(value, str):
+            value = str(value).replace("'", "''")
+            return f"'{value}'"
+        if isinstance(value, bool):
+            return "TRUE" if value else "FALSE"
+        if isinstance(value, datetime.date):
+            return f"'{value.year}-{value.month}-{value.day}'"
+        if isinstance(value, datetime.datetime):
+            return f"'{value.strftime('%Y-%m-%d %H:%M:%S')}'"
+        if isinstance(value, list):
+            values = ", ".join(cls._value_to_sql(v) for v in value)
+            return f"ARRAY({values})"
+        if isinstance(value, dict):
+            map_values: list[str] = []
+            for k, v in value.items():
+                map_values.append(cls._value_to_sql(k))
+                map_values.append(cls._value_to_sql(v))
+            return f"MAP({', '.join(map_values)})"
+        if dataclasses.is_dataclass(value):
+            struct = []
+            for f in dataclasses.fields(value):
+                v = getattr(value, f.name)
+                sql_value = f"{cls._value_to_sql(v)} AS {f.name}"
+                struct.append(sql_value)
+            return f"STRUCT({', '.join(struct)})"
+        msg = f"unsupported: {value}"
+        raise ValueError(msg)
 
 
 class StatementExecutionBackend(ExecutionBackend):
@@ -273,7 +274,7 @@ class _SparkBackend(SqlBackend):
             self.create_table(full_name, klass)
             return
         # pyspark deals well with lists of dataclass instances, as long as schema is provided
-        df = self._spark.createDataFrame(rows, self._schema_for(klass))
+        df = self._spark.createDataFrame(rows, self._STRUCTS.as_schema(klass))
         df.write.saveAsTable(full_name, mode=mode)
 
 

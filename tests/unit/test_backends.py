@@ -430,3 +430,17 @@ def test_mock_backend_overwrite():
         Row(first="aaa", second=True),
         Row(first="bbb", second=False),
     ]
+
+
+@dataclass
+class Nested:
+    foo: Foo
+    mapping: dict[str, int]
+    array: list[int]
+
+
+def test_supports_complex_types():
+    mock_backend = MockBackend()
+    mock_backend.create_table("nested", Nested)
+    expected = [...]
+    assert expected == mock_backend.queries
