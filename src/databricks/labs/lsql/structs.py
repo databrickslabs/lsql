@@ -11,11 +11,15 @@ class StructInferError(TypeError):
 
 
 class SqlType(Protocol):
+    """Represents a Spark SQL type."""
+
     def as_sql(self) -> str: ...
 
 
 @dataclass
 class NullableType(SqlType):
+    """Represents a nullable type."""
+
     inner_type: SqlType
 
     def as_sql(self) -> str:
@@ -24,6 +28,8 @@ class NullableType(SqlType):
 
 @dataclass
 class ArrayType(SqlType):
+    """Represents an array type."""
+
     element_type: SqlType
 
     def as_sql(self) -> str:
@@ -32,6 +38,8 @@ class ArrayType(SqlType):
 
 @dataclass
 class MapType(SqlType):
+    """Represents a map type."""
+
     key_type: SqlType
     value_type: SqlType
 
@@ -41,6 +49,8 @@ class MapType(SqlType):
 
 @dataclass
 class PrimitiveType(SqlType):
+    """Represents a primitive type."""
+
     name: str
 
     def as_sql(self) -> str:
@@ -49,6 +59,8 @@ class PrimitiveType(SqlType):
 
 @dataclass
 class StructField:
+    """Represents a field in a struct type."""
+
     name: str
     type: SqlType
 
@@ -62,13 +74,17 @@ class StructField:
 
 @dataclass
 class StructType(SqlType):
+    """Represents a struct type."""
+
     fields: list[StructField]
 
     def as_sql(self) -> str:
+        """Returns a DDL representation of the struct type."""
         fields = ",".join(f.as_sql() for f in self.fields)
         return f"STRUCT<{fields}>"
 
     def as_schema(self) -> str:
+        """Returns a schema representation of the struct type."""
         fields = []
         for field in self.fields:
             not_null = "" if field.nullable else " NOT NULL"
@@ -77,6 +93,8 @@ class StructType(SqlType):
 
 
 class StructInference:
+    """Infers Spark SQL types from Python types."""
+
     _PRIMITIVES: ClassVar[dict[type, str]] = {
         str: "STRING",
         int: "LONG",
@@ -87,16 +105,19 @@ class StructInference:
     }
 
     def as_ddl(self, type_ref: type) -> str:
+        """Returns a DDL representation of the type."""
         v = self._infer(type_ref, [])
         return v.as_sql()
 
     def as_schema(self, type_ref: type) -> str:
+        """Returns a schema representation of the type."""
         v = self._infer(type_ref, [])
         if hasattr(v, "as_schema"):
             return v.as_schema()
         raise StructInferError(f"Cannot generate schema for {type_ref}")
 
     def _infer(self, type_ref: type, path: list[str]) -> SqlType:
+        """Infers the SQL type from the Python type. Raises StructInferError if the type is not supported."""
         if dataclasses.is_dataclass(type_ref):
             return self._infer_struct(type_ref, path)
         if isinstance(type_ref, enum.EnumMeta):
@@ -112,11 +133,13 @@ class StructInference:
         return self._infer_generic(type_ref, path)
 
     def _infer_primitive(self, type_ref: type, path: list[str]) -> PrimitiveType:
+        """Infers the primitive SQL type from the Python type. Raises StructInferError if the type is not supported."""
         if type_ref in self._PRIMITIVES:
             return PrimitiveType(self._PRIMITIVES[type_ref])
         raise StructInferError(f'{".".join(path)}: unknown: {type_ref}')
 
     def _infer_generic(self, type_ref: type, path: list[str]) -> SqlType:
+        """Infers the SQL type from the generic Python type. Uses internal APIs to handle generic types."""
         # pylint: disable-next=import-outside-toplevel
         from typing import (  # type: ignore[attr-defined]
             _GenericAlias,
@@ -125,7 +148,7 @@ class StructInference:
 
         if isinstance(type_ref, (types.UnionType, _UnionGenericAlias)):  # type: ignore[attr-defined]
             return self._infer_nullable(type_ref, path)
-        if isinstance(type_ref, (_GenericAlias, types.GenericAlias)):  # type: ignore[attr-defined]
+        if isinstance(type_ref, (types.GenericAlias, _GenericAlias)):  # type: ignore[attr-defined]
             if type_ref.__origin__ in (dict, list) or isinstance(type_ref, types.GenericAlias):
                 return self._infer_container(type_ref, path)
         prefix = ".".join(path)
@@ -134,6 +157,7 @@ class StructInference:
         raise StructInferError(f"{prefix}unsupported type: {type_ref.__name__}")
 
     def _infer_nullable(self, type_ref: type, path: list[str]) -> SqlType:
+        """Infers nullability from Optional[x] or `x | None` types."""
         type_args = get_args(type_ref)
         if len(type_args) > 2:
             raise StructInferError(f'{".".join(path)}: union: too many variants: {type_args}')
@@ -144,6 +168,7 @@ class StructInference:
         return NullableType(first_type)
 
     def _infer_container(self, type_ref: type, path: list[str]) -> SqlType:
+        """Infers the SQL type from the generic container Python type."""
         type_args = get_args(type_ref)
         if not type_args:
             raise StructInferError(f"Missing type arguments: {type_args} in {type_ref}")
@@ -156,6 +181,7 @@ class StructInference:
         return ArrayType(element_type)
 
     def _infer_struct(self, type_ref: type, path: list[str]) -> StructType:
+        """Infers the struct type from the Python dataclass type."""
         fields = []
         for field, hint in get_type_hints(type_ref).items():
             origin = getattr(hint, "__origin__", None)

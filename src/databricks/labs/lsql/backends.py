@@ -43,6 +43,8 @@ class SqlBackend(ABC):
     execute SQL statements, fetch results from SQL statements, and save data
     to tables."""
 
+    # singleton shared across all SQL backends, used to infer schema from dataclasses.
+    # no state is stored in this class, so it can be shared across all instances.
     _STRUCTS = StructInference()
 
     @abstractmethod
@@ -60,17 +62,6 @@ class SqlBackend(ABC):
     def create_table(self, full_name: str, klass: Dataclass):
         ddl = f"CREATE TABLE IF NOT EXISTS {full_name} ({self._STRUCTS.as_schema(klass)}) USING DELTA"
         self.execute(ddl)
-
-    @classmethod
-    def _field_type(cls, field: dataclasses.Field):
-        # workaround rare (Python?) issue where f.type is the type name instead of the type itself
-        # this seems to happen when the dataclass is first used from a file importing it
-        if isinstance(field.type, str):
-            try:
-                return __builtins__[field.type]
-            except TypeError as e:
-                logger.warning(f"Could not load type {field.type}", exc_info=e)
-        return field.type
 
     @classmethod
     def _filter_none_rows(cls, rows, klass):
@@ -161,21 +152,22 @@ class ExecutionBackend(SqlBackend):
 
     @classmethod
     def _value_to_sql(cls, value: Any) -> str:
+        """Converts a Python value to a SQL string representation."""
         if value is None:
             return "NULL"
+        if isinstance(value, bool):
+            return "TRUE" if value else "FALSE"
         if isinstance(value, int):
             return f"{value}"
         if isinstance(value, float):
-            return f"{value:0.2f}"
+            return f"{value}"
         if isinstance(value, str):
             value = str(value).replace("'", "''")
             return f"'{value}'"
-        if isinstance(value, bool):
-            return "TRUE" if value else "FALSE"
-        if isinstance(value, datetime.date):
-            return f"'{value.year}-{value.month}-{value.day}'"
         if isinstance(value, datetime.datetime):
-            return f"'{value.strftime('%Y-%m-%d %H:%M:%S')}'"
+            return f"TIMESTAMP '{value.strftime('%Y-%m-%d %H:%M:%S%z')}'"
+        if isinstance(value, datetime.date):
+            return f"DATE '{value.year}-{value.month}-{value.day}'"
         if isinstance(value, list):
             values = ", ".join(cls._value_to_sql(v) for v in value)
             return f"ARRAY({values})"
