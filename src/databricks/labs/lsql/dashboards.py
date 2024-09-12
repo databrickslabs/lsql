@@ -897,17 +897,17 @@ class DashboardMetadata:
             tiles.append(tile)
         return cls(display_name=folder.name, _tiles=tiles)
 
-    def export_to_zipped_csv(self, sql_backend: SqlBackend, export_path: Path, zip_file_name: str) -> Path:
+    def export_to_zipped_csv(self, sql_backend: SqlBackend, export_path: Path) -> Path:
         """Export the dashboard queries to CSV files directly into a ZIP archive."""
-        zip_export = export_path / f"{zip_file_name}.zip"
+        if not export_path.suffix == '.zip':
+            logger.error("The export_path must point to a .zip file.")
 
-        with ZipFile(zip_export, mode="w") as zip_file:
+        with ZipFile(export_path, mode="w") as zip_file:
             for tile in self.tiles:
                 if not tile.metadata.is_query():
                     continue
 
                 rows = list(sql_backend.fetch(tile.content))
-
                 if not rows:
                     continue
 
@@ -924,7 +924,7 @@ class DashboardMetadata:
                 with zip_file.open(f"{tile.metadata.id}.csv", "w") as csv_file:
                     csv_file.write(buffer.getvalue().encode("utf-8"))
 
-        return zip_export
+        return export_path
 
 
 class Dashboards:
