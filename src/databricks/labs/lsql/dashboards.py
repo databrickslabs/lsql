@@ -12,7 +12,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
 from enum import Enum, unique
-from io import BytesIO, StringIO
+from io import StringIO
 from pathlib import Path
 from typing import TypeVar
 from zipfile import ZipFile
@@ -897,32 +897,32 @@ class DashboardMetadata:
             tiles.append(tile)
         return cls(display_name=folder.name, _tiles=tiles)
 
-    def export_to_zipped_csv(self, sql_backend: SqlBackend, export_path: Path) -> Path:
+    def export_to_zipped_csv(self, sql_backend: SqlBackend, export_path: Path, zip_file_name: str) -> Path:
         """Export the dashboard queries to CSV files directly into a ZIP archive."""
-        zip_export = export_path / "export_to_zipped_csv.zip"
+        zip_export = export_path / f"{zip_file_name}.zip"
 
         with ZipFile(zip_export, mode="w") as zip_file:
             for tile in self.tiles:
-                if tile.metadata.is_query():
-                    rows = sql_backend.fetch(tile.content)
+                if not tile.metadata.is_query():
+                    continue
 
-                    if not rows:
-                        continue
+                rows = list(sql_backend.fetch(tile.content))
 
-                    buffer = StringIO()
-                    writer = None
+                if not rows:
+                    continue
 
-                    for row in rows:
-                        if writer is None:
-                            headers = row.asDict().keys()
-                            writer = csv.DictWriter(buffer, fieldnames=headers)
-                            writer.writeheader()
-                        writer.writerow(row.asDict())
+                buffer = StringIO()
+                writer = None
 
-                    bytes_buffer = BytesIO(buffer.getvalue().encode("utf-8"))
+                for row in rows:
+                    if writer is None:
+                        headers = row.asDict().keys()
+                        writer = csv.DictWriter(buffer, fieldnames=headers)
+                        writer.writeheader()
+                    writer.writerow(row.asDict())
 
-                    with zip_file.open(f"{tile.metadata.id}.csv", "w") as csv_file:
-                        csv_file.write(bytes_buffer.getvalue())
+                with zip_file.open(f"{tile.metadata.id}.csv", "w") as csv_file:
+                    csv_file.write(buffer.getvalue().encode("utf-8"))
 
         return zip_export
 
