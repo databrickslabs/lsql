@@ -708,6 +708,7 @@ class QueryTile(Tile):
 
     def get_layouts(self, datasets: list[Dataset]) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
+        _ = datasets
         yield from self._get_query_layouts()
         yield from self._get_filters_layouts()
 
@@ -779,19 +780,20 @@ class FilterTile(Tile):
         if not self.metadata.is_filter():
             raise ValueError(f"Tile is not a filter file: {self}")
         if len(self.metadata.filters) == 0:
-            raise ValueError(f"Filter tile with path {self.metadata.path} has no filters defined")
+            raise ValueError(f"Filter tile has no filters defined: {self}")
 
     def get_layouts(self, datasets: list[Dataset]) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        dataset_columns = self._get_dataset_columns(datasets)
-        if len(dataset_columns) == 0:
-            err_msg = f"Filter tile with path {self.metadata.path} has no matching dataset columns"
-            raise ValueError(err_msg)
-        widget = self._create_filter_widget(dataset_columns)
+        widget = self._create_filter_widget(datasets)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
-    def _create_filter_widget(self, dataset_columns: set[tuple[str, str]]) -> Widget:
+    def _create_filter_widget(self, datasets: list[Dataset]) -> Widget:
+        dataset_columns = self._get_dataset_columns(datasets)
+        if len(dataset_columns) == 0:
+            err_msg = f"Filter tile has no matching dataset columns: {self}"
+            raise ValueError(err_msg)
+
         filter_type = self.metadata.widget_type
         match filter_type:
             case WidgetType.MULTI_SELECT:
@@ -812,7 +814,8 @@ class FilterTile(Tile):
             filter_query = Query(dataset_name=dataset_name, fields=filter_fields, disaggregated=False)
             filter_named_query = NamedQuery(name=f"multi_select_{column}_{idx}", query=filter_query)
             queries.append(filter_named_query)
-            control_encodings.append(ControlFieldEncoding(column, filter_named_query.name, display_name=column))
+            control_encoding = ControlFieldEncoding(column, filter_named_query.name, display_name=column)
+            control_encodings.append(control_encoding)
 
         frame = WidgetFrameSpec(
             title=self.metadata.title,
@@ -960,8 +963,9 @@ class DashboardMetadata:
     def _get_layouts(self) -> list[Layout]:
         """Get the layouts for the dashboard."""
         layouts: list[Layout] = []
+        datasets = self._get_datasets()
         for tile in self.tiles:
-            layouts.extend(tile.get_layouts(self._get_datasets()))
+            layouts.extend(tile.get_layouts(datasets))
         return layouts
 
     def as_lakeview(self) -> Dashboard:
