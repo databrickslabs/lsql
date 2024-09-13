@@ -899,9 +899,6 @@ class DashboardMetadata:
 
     def export_to_zipped_csv(self, sql_backend: SqlBackend, export_path: Path) -> Path:
         """Export the dashboard queries to CSV files directly into a ZIP archive."""
-        if not export_path.suffix == '.zip':
-            logger.error("The export_path must point to a .zip file.")
-
         with ZipFile(export_path, mode="w") as zip_file:
             for tile in self.tiles:
                 if not tile.metadata.is_query():
