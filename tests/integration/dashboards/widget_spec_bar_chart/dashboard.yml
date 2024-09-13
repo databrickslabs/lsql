@@ -1,0 +1,30 @@
+display_name: LSQL Test Dashboards for Bar Chart
+tiles:
+  01_1_product_sales_bar_chart:
+    title: Sales by date
+    description: Demo of bar chart
+    overrides:
+      spec:
+        version: 3
+        widgetType: bar
+        encodings:
+          x:
+            fieldName: daily(sales_date)
+            scale:
+              type: temporal
+            displayName: sales_date
+          'y':
+            fieldName: sum(sales_amount)
+            scale:
+              type: quantitative
+            displayName: Sum of sales_amount
+      queries:
+        - name: main_query
+          query:
+            datasetName: 01_1_product_sales_bar_chart
+            fields:
+              - name: daily(sales_date)
+                expression: 'DATE_TRUNC("DAY", `sales_date`)'
+              - name: sum(sales_amount)
+                expression: SUM(`sales_amount`)
+            disaggregated: false
