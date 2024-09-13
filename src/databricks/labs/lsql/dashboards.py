@@ -12,7 +12,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sized
 from dataclasses import dataclass
 from enum import Enum, unique
-from io import BytesIO, StringIO
+from io import StringIO
 from pathlib import Path
 from typing import TypeVar
 from zipfile import ZipFile
@@ -899,32 +899,29 @@ class DashboardMetadata:
 
     def export_to_zipped_csv(self, sql_backend: SqlBackend, export_path: Path) -> Path:
         """Export the dashboard queries to CSV files directly into a ZIP archive."""
-        zip_export = export_path / "export_to_zipped_csv.zip"
-
-        with ZipFile(zip_export, mode="w") as zip_file:
+        with ZipFile(export_path, mode="w") as zip_file:
             for tile in self.tiles:
-                if tile.metadata.is_query():
-                    rows = sql_backend.fetch(tile.content)
+                if not tile.metadata.is_query():
+                    continue
 
-                    if not rows:
-                        continue
+                rows = list(sql_backend.fetch(tile.content))
+                if not rows:
+                    continue
 
-                    buffer = StringIO()
-                    writer = None
+                buffer = StringIO()
+                writer = None
 
-                    for row in rows:
-                        if writer is None:
-                            headers = row.asDict().keys()
-                            writer = csv.DictWriter(buffer, fieldnames=headers)
-                            writer.writeheader()
-                        writer.writerow(row.asDict())
+                for row in rows:
+                    if writer is None:
+                        headers = row.asDict().keys()
+                        writer = csv.DictWriter(buffer, fieldnames=headers)
+                        writer.writeheader()
+                    writer.writerow(row.asDict())
 
-                    bytes_buffer = BytesIO(buffer.getvalue().encode("utf-8"))
+                with zip_file.open(f"{tile.metadata.id}.csv", "w") as csv_file:
+                    csv_file.write(buffer.getvalue().encode("utf-8"))
 
-                    with zip_file.open(f"{tile.metadata.id}.csv", "w") as csv_file:
-                        csv_file.write(bytes_buffer.getvalue())
-
-        return zip_export
+        return export_path
 
 
 class Dashboards:
