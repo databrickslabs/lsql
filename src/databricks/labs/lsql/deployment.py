@@ -1,8 +1,11 @@
+import datetime as dt
 import logging
 import pkgutil
 from typing import Any
 
 from databricks.labs.lsql.backends import Dataclass, SqlBackend
+from databricks.sdk.errors import InternalError
+from databricks.sdk.retries import retried
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +16,8 @@ class SchemaDeployer:
         self._inventory_schema = inventory_schema
         self._module = mod
 
+    # InternalError are retried for resilience on sporadic Databricks issues
+    @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_schema(self):
         logger.info(f"Ensuring {self._inventory_schema} database exists")
         self._sql_backend.execute(f"CREATE SCHEMA IF NOT EXISTS hive_metastore.{self._inventory_schema}")
