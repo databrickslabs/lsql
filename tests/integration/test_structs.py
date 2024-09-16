@@ -1,6 +1,8 @@
 import datetime
 from dataclasses import dataclass
 
+import pytest
+
 from databricks.labs.lsql.backends import StatementExecutionBackend
 
 
@@ -26,6 +28,7 @@ class Nesting:
     struct_array: list[NestedWithDict]
 
 
+@pytest.mark.skip(reason="Missing permissions to create table")
 def test_appends_complex_types(ws, env_or_skip, make_random) -> None:
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
     today = datetime.date.today()
