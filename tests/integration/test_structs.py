@@ -1,6 +1,7 @@
 import datetime
-import pytest
 from dataclasses import dataclass
+
+import pytest
 
 from databricks.labs.lsql.backends import StatementExecutionBackend
 

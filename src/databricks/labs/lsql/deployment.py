@@ -3,9 +3,10 @@ import logging
 import pkgutil
 from typing import Any
 
-from databricks.labs.lsql.backends import Dataclass, SqlBackend
 from databricks.sdk.errors import InternalError
 from databricks.sdk.retries import retried
+
+from databricks.labs.lsql.backends import Dataclass, SqlBackend
 
 logger = logging.getLogger(__name__)
 
