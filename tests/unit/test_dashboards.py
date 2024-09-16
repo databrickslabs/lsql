@@ -4,6 +4,7 @@ import logging
 import string
 from pathlib import Path
 from unittest.mock import create_autospec
+from zipfile import ZipFile
 
 import pytest
 import sqlglot
@@ -1595,7 +1596,7 @@ def test_dashboards_get_dashboard_url():
     assert dashboard_url == dashboard_url_expected
 
 
-def test_dashboards_export_to_zipped_csv(tmp_path):
+def test_dashboards_export_to_zipped_csv_contains_csv_for_query(tmp_path):
     query = {
         "SELECT\n  one\nFROM ucx.external_locations": [
             Row(location="s3://bucket1/folder1", table_count=1),
@@ -1607,8 +1608,7 @@ def test_dashboards_export_to_zipped_csv(tmp_path):
     mock_backend = MockBackend(rows=query)
 
     (tmp_path / "external_locations.sql").write_text(list(query.keys())[0])
-    export_path = tmp_path / "export"
-    export_path.mkdir(parents=True, exist_ok=True)
+    export_path = tmp_path / "export.zip"
 
     dash_metadata = DashboardMetadata(display_name="External Locations")
 
@@ -1616,4 +1616,5 @@ def test_dashboards_export_to_zipped_csv(tmp_path):
     dash = dash.replace_database(catalog="hive_metastore", database="ucx")
     dash.export_to_zipped_csv(mock_backend, export_path)
 
-    assert len(list(export_path.glob("export_to_zipped_csv.zip"))) == 1
+    zipped_files = ZipFile(export_path).namelist()
+    assert zipped_files == ["external_locations.csv"]
