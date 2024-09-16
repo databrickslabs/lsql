@@ -34,7 +34,14 @@ def test_appends_complex_types(ws, env_or_skip, make_random) -> None:
     sql_backend.save_table(
         full_name,
         [
-            Nesting(Nested("a", True), today, now, {"a": 1, "b": 2}, [1, 2, 3], [NestedWithDict("s", {"f1": "v1", "f2": "v2"})]),
+            Nesting(
+                Nested("a", True),
+                today,
+                now,
+                {"a": 1, "b": 2},
+                [1, 2, 3],
+                [NestedWithDict("s", {"f1": "v1", "f2": "v2"})],
+            ),
             Nesting(Nested("b", False), today, now, {"c": 3, "d": 4}, [4, 5, 6], []),
         ],
         Nesting,
