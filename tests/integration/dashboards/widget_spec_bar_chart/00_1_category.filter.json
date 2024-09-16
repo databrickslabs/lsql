@@ -1,0 +1,5 @@
+{
+  "columns": ["product_category", "category"],
+  "title": "Category",
+  "description": "Filter by category"
+}
