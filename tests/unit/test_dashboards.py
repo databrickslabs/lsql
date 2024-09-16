@@ -31,6 +31,7 @@ from databricks.labs.lsql.lakeview import (
     Dashboard,
     Dataset,
     DateRangePickerSpec,
+    DropdownSpec,
     Layout,
     MultiSelectSpec,
     NamedQuery,
@@ -1655,13 +1656,32 @@ def test_filter_load_filter_tile_no_applicable_column(tmp_path):
     assert len(dashboard_metadata.tiles) == 2
 
 
-def test_filter_widget_spec_defaults_to_multiselect(tmp_path):
+def test_filter_widget_spec_defaults_to_dropdown(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
     filter_spec = """
     {
       "column": "dimension_1",
       "title": "Dimension Filter",
       "description": "Filter by dimension"
+    }
+    """.lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+    filter_spec = dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(filter_spec, DropdownSpec)
+    assert filter_spec.encodings.fields[0].field_name == "dimension_1"
+
+
+def test_filter_widget_spec_multi_select(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
+    filter_spec = """
+    {
+      "column": "dimension_1",
+      "title": "Dimension Filter",
+      "description": "Filter by dimension",
+      "type": "MULTI_SELECT"
     }
     """.lstrip()
     (tmp_path / "filter_spec.filter.json").write_text(filter_spec)

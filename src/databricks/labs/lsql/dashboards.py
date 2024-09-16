@@ -36,6 +36,7 @@ from databricks.labs.lsql.lakeview import (
     Dataset,
     DateRangePickerSpec,
     DisplayType,
+    DropdownSpec,
     Field,
     Layout,
     MultiSelectSpec,
@@ -210,8 +211,9 @@ class FilterHandler(BaseHandler):
         if filter_col and filter_cols:
             raise ValueError(f"Both column and columns set in {self._path}")
         # If a single column is provided, convert it to a list of one column
+        # Please note that column/columns key in .filter.json files are mapped to the filters key in the TileMetadata
         metadata["filters"] = [filter_col] if filter_col else filter_cols
-        metadata["widget_type"] = WidgetType(metadata.pop("type", "MULTI_SELECT").upper())
+        metadata["widget_type"] = WidgetType(metadata.pop("type", "DROPDOWN").upper())
         return metadata
 
     def split(self) -> tuple[str, str]:
@@ -228,6 +230,7 @@ class WidgetType(str, Enum):
     COUNTER = "COUNTER"
     DATE_RANGE_PICKER = "DATE_RANGE_PICKER"
     MULTI_SELECT = "MULTI_SELECT"
+    DROPDOWN = "DROPDOWN"
 
     def as_widget_spec(self) -> type[WidgetSpec]:
         widget_spec_mapping: dict[str, type[WidgetSpec]] = {
@@ -235,6 +238,7 @@ class WidgetType(str, Enum):
             "COUNTER": CounterSpec,
             "DATE_RANGE_PICKER": DateRangePickerSpec,
             "MULTI_SELECT": MultiSelectSpec,
+            "DROPDOWN": DropdownSpec,
         }
         if self.name not in widget_spec_mapping:
             raise ValueError(f"Can not convert to widget spec: {self}")
@@ -381,9 +385,9 @@ class Tile:
         if len(self.content) == 0:
             raise ValueError(f"Tile has empty content: {self}")
 
-    def get_layouts(self, datasets: list[Dataset]) -> Iterable[Layout]:
+    def get_layouts(self, dashboard_metadata: "DashboardMetadata") -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        _ = datasets
+        _ = dashboard_metadata  # Not using dashboard_metadata for default implementation
         widget = Widget(name=f"{self.metadata.id}_widget", textbox_spec=self.content)
         layout = Layout(widget=widget, position=self.position)
         yield layout
@@ -706,9 +710,8 @@ class QueryTile(Tile):
             layout = Layout(widget=widget, position=position)
             yield layout
 
-    def get_layouts(self, datasets: list[Dataset]) -> Iterable[Layout]:
+    def get_layouts(self, _) -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        _ = datasets
         yield from self._get_query_layouts()
         yield from self._get_filters_layouts()
 
@@ -781,76 +784,31 @@ class FilterTile(Tile):
             raise ValueError(f"Tile is not a filter file: {self}")
         if len(self.metadata.filters) == 0:
             raise ValueError(f"Filter tile has no filters defined: {self}")
+        if self.metadata.widget_type not in {
+            WidgetType.MULTI_SELECT,
+            WidgetType.DATE_RANGE_PICKER,
+            WidgetType.DROPDOWN,
+        }:
+            raise ValueError(f"Filter tile has an invalid widget type: {self}")
 
-    def get_layouts(self, datasets: list[Dataset]) -> Iterable[Layout]:
+    def get_layouts(self, dashboard_metadata: "DashboardMetadata") -> Iterable[Layout]:
         """Get the layout(s) reflecting this tile in the dashboard."""
-        widget = self._create_filter_widget(datasets)
+        datasets = dashboard_metadata.get_datasets()
+        widget = self._create_widget(datasets)
         layout = Layout(widget=widget, position=self.position)
         yield layout
 
-    def _create_filter_widget(self, datasets: list[Dataset]) -> Widget:
+    def _create_widget(self, datasets: list[Dataset]) -> Widget:
         dataset_columns = self._get_dataset_columns(datasets)
+        # This method is called during get layouts.
+        # Metadata validation is done before getting the layouts.
+        # That's why dataset_columns is not being validated during metadata validation.
         if len(dataset_columns) == 0:
             err_msg = f"Filter tile has no matching dataset columns: {self}"
             raise ValueError(err_msg)
 
         filter_type = self.metadata.widget_type
-        match filter_type:
-            case WidgetType.MULTI_SELECT:
-                return self._create_multi_select_widget(dataset_columns)
-            case WidgetType.DATE_RANGE_PICKER:
-                return self._create_date_range_picker_widget(dataset_columns)
-            case _:
-                raise NotImplementedError(f"Filter type {filter_type} not supported for filter tile: {self}")
-
-    def _create_multi_select_widget(self, dataset_columns: set[tuple[str, str]]) -> Widget:
-        control_encodings: list[ControlEncoding] = []
-        queries = []
-        for idx, (column, dataset_name) in enumerate(dataset_columns):
-            filter_fields = [
-                Field(name=column, expression=f"`{column}`"),
-                Field(name=f"{column}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
-            ]
-            filter_query = Query(dataset_name=dataset_name, fields=filter_fields, disaggregated=False)
-            filter_named_query = NamedQuery(name=f"multi_select_{column}_{idx}", query=filter_query)
-            queries.append(filter_named_query)
-            control_encoding = ControlFieldEncoding(column, filter_named_query.name, display_name=column)
-            control_encodings.append(control_encoding)
-
-        frame = WidgetFrameSpec(
-            title=self.metadata.title,
-            show_title=len(self.metadata.title) > 0,
-            description=self.metadata.description,
-            show_description=len(self.metadata.description) > 0,
-        )
-        control_encoding_map = ControlEncodingMap(control_encodings)
-        spec = MultiSelectSpec(encodings=control_encoding_map, frame=frame)
-        widget = Widget(name=f"{self.metadata.id}_widget", queries=queries, spec=spec)
-        return widget
-
-    def _create_date_range_picker_widget(self, dataset_columns: set[tuple[str, str]]) -> Widget:
-        control_encodings: list[ControlEncoding] = []
-        queries = []
-        for idx, (column, dataset_name) in enumerate(dataset_columns):
-            filter_fields = [
-                Field(name=column, expression=f"`{column}`"),
-                Field(name=f"{column}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
-            ]
-            filter_query = Query(dataset_name=dataset_name, fields=filter_fields, disaggregated=False)
-            filter_named_query = NamedQuery(name=f"date_range_picker_{column}_{idx}", query=filter_query)
-            queries.append(filter_named_query)
-            control_encodings.append(ControlFieldEncoding(column, filter_named_query.name, display_name=column))
-
-        frame = WidgetFrameSpec(
-            title=self.metadata.title,
-            show_title=len(self.metadata.title) > 0,
-            description=self.metadata.description,
-            show_description=len(self.metadata.description) > 0,
-        )
-        control_encoding_map = ControlEncodingMap(control_encodings)
-        spec = DateRangePickerSpec(encodings=control_encoding_map, frame=frame)
-        widget = Widget(name=f"{self.metadata.id}_widget", queries=queries, spec=spec)
-        return widget
+        return self._create_filter_widget(dataset_columns, filter_type.as_widget_spec())
 
     def _get_dataset_columns(self, datasets: list[Dataset]) -> set[tuple[str, str]]:
         """Get the filter column and dataset name pairs."""
@@ -875,10 +833,50 @@ class FilterTile(Tile):
             if projection.depth > 0:
                 continue
             for named_select in projection.named_selects:
-                if named_select.lower() in filters:
-                    field = Field(name=named_select, expression=f"`{named_select}`")
-                    filter_fields.append(field)
+                if named_select.lower() not in filters:
+                    continue
+                field = Field(name=named_select, expression=f"`{named_select}`")
+                filter_fields.append(field)
         return filter_fields
+
+    def _create_filter_widget(
+        self,
+        dataset_columns: set[tuple[str, str]],
+        spec_type,
+    ) -> Widget:
+        frame = self._create_widget_frame()
+        control_encodings, queries = self._generate_filter_encodings_and_queries(dataset_columns)
+        control_encoding_map = ControlEncodingMap(control_encodings)
+        spec = spec_type(encodings=control_encoding_map, frame=frame)
+        widget = Widget(name=f"{self.metadata.id}_widget", queries=queries, spec=spec)
+        return widget
+
+    def _create_widget_frame(self) -> WidgetFrameSpec:
+        return WidgetFrameSpec(
+            title=self.metadata.title,
+            show_title=len(self.metadata.title) > 0,
+            description=self.metadata.description,
+            show_description=len(self.metadata.description) > 0,
+        )
+
+    def _generate_filter_encodings_and_queries(
+        self, dataset_columns: set[tuple[str, str]]
+    ) -> tuple[list[ControlEncoding], list[NamedQuery]]:
+        encodings: list[ControlEncoding] = []
+        queries = []
+
+        for column, dataset_name in dataset_columns:
+            fields = [
+                Field(name=column, expression=f"`{column}`"),
+                Field(name=f"{column}_associativity", expression="COUNT_IF(`associative_filter_predicate_group`)"),
+            ]
+            query = Query(dataset_name=dataset_name, fields=fields, disaggregated=False)
+            named_query = NamedQuery(name=f"{self.metadata.widget_type}_{dataset_name}_{column}", query=query)
+            queries.append(named_query)
+            control_encoding = ControlFieldEncoding(column, named_query.name, display_name=column)
+            encodings.append(control_encoding)
+
+        return encodings, queries
 
 
 @dataclass
@@ -952,7 +950,7 @@ class DashboardMetadata:
                 tiles.append(tile)
         return dataclasses.replace(self, _tiles=tiles)
 
-    def _get_datasets(self) -> list[Dataset]:
+    def get_datasets(self) -> list[Dataset]:
         """Get the datasets for the dashboard."""
         datasets: list[Dataset] = []
         for tile in self.tiles:
@@ -963,14 +961,13 @@ class DashboardMetadata:
     def _get_layouts(self) -> list[Layout]:
         """Get the layouts for the dashboard."""
         layouts: list[Layout] = []
-        datasets = self._get_datasets()
         for tile in self.tiles:
-            layouts.extend(tile.get_layouts(datasets))
+            layouts.extend(tile.get_layouts(self))
         return layouts
 
     def as_lakeview(self) -> Dashboard:
         """Create a lakeview dashboard from the dashboard metadata."""
-        datasets = self._get_datasets()
+        datasets = self.get_datasets()
         layouts = self._get_layouts()
         page = Page(
             name=self.display_name,
@@ -1044,7 +1041,7 @@ class DashboardMetadata:
         """Read the dashboard metadata from the tile files."""
         tiles = []
         for path in folder.iterdir():
-            if path.suffix not in {".sql", ".md"} and not path.name.endswith(".filter.json"):
+            if not path.name.endswith((".sql", ".md", ".filter.json")):
                 continue
             tile_metadata = TileMetadata.from_path(path)
             tile = Tile.from_tile_metadata(tile_metadata)
