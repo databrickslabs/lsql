@@ -5,7 +5,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from typing import Any, ClassVar, Protocol, TypeVar
+from typing import Any, ClassVar, Literal, Protocol, TypeVar
 
 from databricks.labs.blueprint.commands import CommandExecutor
 from databricks.sdk import WorkspaceClient
@@ -56,7 +56,13 @@ class SqlBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode: str = "append"):
+    def save_table(
+        self,
+        full_name: str,
+        rows: Sequence[DataclassInstance],
+        klass: Dataclass,
+        mode: Literal["append", "overwrite"] = "append",
+    ) -> None:
         raise NotImplementedError
 
     def create_table(self, full_name: str, klass: Dataclass):
@@ -259,7 +265,13 @@ class _SparkBackend(SqlBackend):
             error_message = str(e)
             raise self._api_error_from_message(error_message) from None
 
-    def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode: str = "append"):
+    def save_table(
+        self,
+        full_name: str,
+        rows: Sequence[DataclassInstance],
+        klass: Dataclass,
+        mode: Literal["append", "overwrite"] = "append",
+    ) -> None:
         rows = self._filter_none_rows(rows, klass)
 
         if len(rows) == 0:
@@ -336,10 +348,17 @@ class MockBackend(SqlBackend):
         logger.debug(f"Returning rows: {rows}")
         return iter(rows)
 
-    def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode: str = "append"):
+    def save_table(
+        self,
+        full_name: str,
+        rows: Sequence[DataclassInstance],
+        klass: Dataclass,
+        mode: Literal["append", "overwrite"] = "append",
+    ) -> None:
         rows = self._filter_none_rows(rows, klass)
         if mode == "overwrite":
-            self._save_table = []
+            # Remove prior rows written for (only) this table.
+            self._save_table = [row for row in self._save_table if row[0] != full_name]
         if klass.__class__ == type:  # noqa: E721
             row_factory = self._row_factory(klass)
             rows = [row_factory(*dataclasses.astuple(r)) for r in rows]
