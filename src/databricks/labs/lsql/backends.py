@@ -357,7 +357,8 @@ class MockBackend(SqlBackend):
     ) -> None:
         rows = self._filter_none_rows(rows, klass)
         if mode == "overwrite":
-            self._save_table = []
+            # Remove prior rows written for (only) this table.
+            self._save_table = [row for row in self._save_table if row[0] != full_name]
         if klass.__class__ == type:  # noqa: E721
             row_factory = self._row_factory(klass)
             rows = [row_factory(*dataclasses.astuple(r)) for r in rows]
