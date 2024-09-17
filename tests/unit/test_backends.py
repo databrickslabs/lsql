@@ -402,10 +402,12 @@ def test_mock_backend_save_table():
     mock_backend = MockBackend()
 
     mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
+    mock_backend.save_table("a.b.c", [Foo("ccc", True)], Foo)
 
     assert mock_backend.rows_written_for("a.b.c", "append") == [
         Row(first="aaa", second=True),
         Row(first="bbb", second=False),
+        Row(first="ccc", second=True),
     ]
 
 
