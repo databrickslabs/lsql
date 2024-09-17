@@ -31,7 +31,10 @@ from databricks.labs.lsql.lakeview import (
     CounterSpec,
     Dashboard,
     Dataset,
+    DateRangePickerSpec,
+    DropdownSpec,
     Layout,
+    MultiSelectSpec,
     NamedQuery,
     Page,
     Position,
@@ -1010,7 +1013,7 @@ def test_query_tile_fills_up_size(tmp_path, width, height, filters, axes):
     widget_metadata = TileMetadata(query_path, width=width, height=height, filters=list(filters))
     query_tile = QueryTile(widget_metadata)
 
-    positions = [layout.position for layout in query_tile.get_layouts()]
+    positions = [layout.position for layout in query_tile.get_layouts([])]
 
     assert sum(p.width * p.height for p in positions) == width * height
 
@@ -1586,6 +1589,149 @@ def test_dashboards_save_to_folder_replaces_counter_names(ugly_dashboard, tmp_pa
 
     assert all(counter.name == "counter" for counter in counters)
     ws.assert_not_called()
+
+
+def test_filter_spec_validate_absent_column(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
+    filter_spec = """
+{
+  "title": "Date Filter",
+  "description": "Filter by date",
+  "type": "DATE_RANGE_PICKER"
+}
+""".lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    with pytest.raises(ValueError) as e:
+        DashboardMetadata.from_path(tmp_path)
+    assert "Neither column nor columns set" in str(e.value)
+
+
+def test_filter_spec_validate_both_column_keys_present(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
+    filter_spec = """
+{
+  "column": "date",
+  "columns": ["date"],
+  "title": "Date Filter",
+  "description": "Filter by date",
+  "type": "DATE_RANGE_PICKER"
+}
+""".lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    with pytest.raises(ValueError) as e:
+        DashboardMetadata.from_path(tmp_path)
+    assert "Both column and columns set" in str(e.value)
+
+
+def test_filter_load_filter_tile(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
+    filter_spec = """
+{
+  "column": "date",
+  "title": "Date Filter",
+  "description": "Filter by date",
+  "type": "DATE_RANGE_PICKER"
+}
+""".lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    assert len(dashboard_metadata.tiles) == 2
+
+
+def test_filter_load_filter_tile_no_applicable_column(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
+    filter_spec = """
+{
+  "column": "timestamp",
+  "title": "Date Filter",
+  "description": "Filter by date",
+  "type": "DATE_RANGE_PICKER"
+}
+""".lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    assert len(dashboard_metadata.tiles) == 2
+
+
+def test_filter_widget_spec_defaults_to_dropdown(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
+    filter_spec = """
+    {
+      "column": "dimension_1",
+      "title": "Dimension Filter",
+      "description": "Filter by dimension"
+    }
+    """.lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+    filter_spec = dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(filter_spec, DropdownSpec)
+    assert filter_spec.encodings.fields[0].field_name == "dimension_1"
+
+
+def test_filter_widget_spec_multi_select(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
+    filter_spec = """
+    {
+      "column": "dimension_1",
+      "title": "Dimension Filter",
+      "description": "Filter by dimension",
+      "type": "MULTI_SELECT"
+    }
+    """.lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+    filter_spec = dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(filter_spec, MultiSelectSpec)
+    assert filter_spec.encodings.fields[0].field_name == "dimension_1"
+
+
+def test_filter_widget_spec_date_range(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
+    filter_spec = """
+    {
+      "column": "date",
+      "title": "Date Filter",
+      "description": "Filter by date",
+      "type": "DATE_RANGE_PICKER"
+    }
+    """.lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+    filter_spec = dashboard.pages[0].layout[0].widget.spec
+    assert isinstance(filter_spec, DateRangePickerSpec)
+    assert filter_spec.encodings.fields[0].field_name == "date"
+
+
+def test_filter_widget_with_title_and_description(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
+    filter_spec = """
+    {
+      "column": "date",
+      "title": "Date Filter",
+      "description": "Filter by date",
+      "type": "DATE_RANGE_PICKER"
+    }
+    """.lstrip()
+    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    dashboard = dashboard_metadata.as_lakeview()
+    frame = dashboard.pages[0].layout[0].widget.spec.frame
+    assert frame.title == "Date Filter"
+    assert frame.show_title
+    assert frame.description == "Filter by date"
+    assert frame.show_description
 
 
 def test_dashboards_get_dashboard_url():
