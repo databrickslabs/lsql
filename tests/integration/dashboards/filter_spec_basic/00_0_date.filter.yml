@@ -1,0 +1,6 @@
+columns:
+  - sales_date
+  - inventory_date
+title: Date
+description: Filter by date
+type: DATE_RANGE_PICKER
