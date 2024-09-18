@@ -1009,11 +1009,11 @@ def test_query_tile_creates_database_with_database_and_catalog_overwrite(
 def test_query_tile_fills_up_size(tmp_path, width, height, filters, axes):
     query_path = tmp_path / "counter.sql"
     query_path.write_text("SELECT 1")
-
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     widget_metadata = TileMetadata(query_path, width=width, height=height, filters=list(filters))
     query_tile = QueryTile(widget_metadata)
 
-    positions = [layout.position for layout in query_tile.get_layouts([])]
+    positions = [layout.position for layout in query_tile.get_layouts(dashboard_metadata)]
 
     assert sum(p.width * p.height for p in positions) == width * height
 
@@ -1594,31 +1594,43 @@ def test_dashboards_save_to_folder_replaces_counter_names(ugly_dashboard, tmp_pa
 def test_filter_spec_validate_absent_column(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
     filter_spec = """
-{
-  "title": "Date Filter",
-  "description": "Filter by date",
-  "type": "DATE_RANGE_PICKER"
-}
+title: Date Filter
+description: Filter by date
+type: DATE_RANGE_PICKER
 """.lstrip()
-    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
 
     with pytest.raises(ValueError) as e:
         DashboardMetadata.from_path(tmp_path)
     assert "Neither column nor columns set" in str(e.value)
 
 
+def test_filter_spec_validate_invalid_type(tmp_path):
+    (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
+    filter_spec = """
+title: Date Filter
+column: date
+description: Filter by date
+type: TABLE
+""".lstrip()
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    with pytest.raises(ValueError) as e:
+        dashboard_metadata.validate()
+    assert "Filter tile has an invalid widget type" in str(e.value)
+
+
 def test_filter_spec_validate_both_column_keys_present(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
     filter_spec = """
-{
-  "column": "date",
-  "columns": ["date"],
-  "title": "Date Filter",
-  "description": "Filter by date",
-  "type": "DATE_RANGE_PICKER"
-}
+column: date
+columns: 
+  - date
+title: Date Filter
+description: Filter by date
+type: DATE_RANGE_PICKER
 """.lstrip()
-    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
 
     with pytest.raises(ValueError) as e:
         DashboardMetadata.from_path(tmp_path)
@@ -1628,14 +1640,12 @@ def test_filter_spec_validate_both_column_keys_present(tmp_path):
 def test_filter_load_filter_tile(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
     filter_spec = """
-{
-  "column": "date",
-  "title": "Date Filter",
-  "description": "Filter by date",
-  "type": "DATE_RANGE_PICKER"
-}
+column: date
+title: Date Filter
+description: Filter by date
+type: DATE_RANGE_PICKER
 """.lstrip()
-    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     assert len(dashboard_metadata.tiles) == 2
@@ -1644,29 +1654,27 @@ def test_filter_load_filter_tile(tmp_path):
 def test_filter_load_filter_tile_no_applicable_column(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1, from test.test_metrics")
     filter_spec = """
-{
-  "column": "timestamp",
-  "title": "Date Filter",
-  "description": "Filter by date",
-  "type": "DATE_RANGE_PICKER"
-}
+column: timestamp
+title: Date Filter
+description: Filter by date
+type: DATE_RANGE_PICKER
 """.lstrip()
-    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    assert len(dashboard_metadata.tiles) == 2
+    with pytest.raises(ValueError) as e:
+        dashboard_metadata.as_lakeview()
+    assert "Filter tile has no matching dataset columns" in str(e.value)
 
 
 def test_filter_widget_spec_defaults_to_dropdown(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
     filter_spec = """
-    {
-      "column": "dimension_1",
-      "title": "Dimension Filter",
-      "description": "Filter by dimension"
-    }
+column: dimension_1
+title: Dimension Filter
+description: Filter by dimension
     """.lstrip()
-    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     dashboard = dashboard_metadata.as_lakeview()
@@ -1678,14 +1686,12 @@ def test_filter_widget_spec_defaults_to_dropdown(tmp_path):
 def test_filter_widget_spec_multi_select(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
     filter_spec = """
-    {
-      "column": "dimension_1",
-      "title": "Dimension Filter",
-      "description": "Filter by dimension",
-      "type": "MULTI_SELECT"
-    }
+column: dimension_1
+title: Dimension Filter
+description: Filter by dimension
+type: MULTI_SELECT
     """.lstrip()
-    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     dashboard = dashboard_metadata.as_lakeview()
@@ -1697,14 +1703,12 @@ def test_filter_widget_spec_multi_select(tmp_path):
 def test_filter_widget_spec_date_range(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
     filter_spec = """
-    {
-      "column": "date",
-      "title": "Date Filter",
-      "description": "Filter by date",
-      "type": "DATE_RANGE_PICKER"
-    }
+column: date
+title: Date Filter
+description: Filter by date
+type: DATE_RANGE_PICKER
     """.lstrip()
-    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     dashboard = dashboard_metadata.as_lakeview()
@@ -1716,14 +1720,12 @@ def test_filter_widget_spec_date_range(tmp_path):
 def test_filter_widget_with_title_and_description(tmp_path):
     (tmp_path / "query.sql").write_text("select id, date, dimension_1, metric_1 from test.test_metrics")
     filter_spec = """
-    {
-      "column": "date",
-      "title": "Date Filter",
-      "description": "Filter by date",
-      "type": "DATE_RANGE_PICKER"
-    }
+column: date
+title: Date Filter
+description: Filter by date
+type: DATE_RANGE_PICKER
     """.lstrip()
-    (tmp_path / "filter_spec.filter.json").write_text(filter_spec)
+    (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
     dashboard = dashboard_metadata.as_lakeview()

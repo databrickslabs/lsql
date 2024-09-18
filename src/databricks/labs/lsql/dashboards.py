@@ -201,7 +201,7 @@ class FilterHandler(BaseHandler):
     def _parse_header(self, header: str) -> dict:
         if not header:
             return {}
-        metadata = json.loads(header)
+        metadata = yaml.safe_load(header) or {}
         # The user can either provide a single filter column as a string or a list of filter columns
         # Only one of column or columns should be set
         filter_col = metadata.pop("column", None)
@@ -211,7 +211,7 @@ class FilterHandler(BaseHandler):
         if filter_col and filter_cols:
             raise ValueError(f"Both column and columns set in {self._path}")
         # If a single column is provided, convert it to a list of one column
-        # Please note that column/columns key in .filter.json files are mapped to the filters key in the TileMetadata
+        # Please note that column/columns key in .filter.yml files are mapped to the filters key in the TileMetadata
         metadata["filters"] = [filter_col] if filter_col else filter_cols
         metadata["widget_type"] = WidgetType(metadata.pop("type", "DROPDOWN").upper())
         return metadata
@@ -301,7 +301,7 @@ class TileMetadata:
         return self.path is not None and self.path.suffix == ".sql"
 
     def is_filter(self) -> bool:
-        return self.path is not None and self.path.name.endswith(".filter.json")
+        return self.path is not None and self.path.name.endswith(".filter.yml")
 
     @property
     def handler(self) -> BaseHandler:
@@ -1041,7 +1041,7 @@ class DashboardMetadata:
         """Read the dashboard metadata from the tile files."""
         tiles = []
         for path in folder.iterdir():
-            if not path.name.endswith((".sql", ".md", ".filter.json")):
+            if not path.name.endswith((".sql", ".md", ".filter.yml")):
                 continue
             tile_metadata = TileMetadata.from_path(path)
             tile = Tile.from_tile_metadata(tile_metadata)
