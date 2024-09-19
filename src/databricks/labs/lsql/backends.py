@@ -378,8 +378,8 @@ class MockBackend(SqlBackend):
         This method allows to differentiate between "never written to the table" and "zero rows written to the table".
         Otherwise, the check is the same as: len(self.rows_written_for(full_name, mode)) > 0
         """
-        for stub_full_name, _, _ in self._save_table:
-            if stub_full_name == full_name:
+        for stub_full_name, stub_rows, _ in self._save_table:
+            if stub_full_name == full_name and stub_rows:
                 return True
         return False
 
