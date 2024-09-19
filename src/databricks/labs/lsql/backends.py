@@ -372,14 +372,14 @@ class MockBackend(SqlBackend):
             rows += stub_rows
         return rows
 
-    def has_rows_written_for(self, full_name: str, *, mode: str | None = None) -> bool:
+    def has_rows_written_for(self, full_name: str) -> bool:
         """Check if the table has been written to.
 
         This method allows to differentiate between "never written to the table" and "zero rows written to the table".
         Otherwise, the check is the same as: len(self.rows_written_for(full_name, mode)) > 0
         """
-        for stub_full_name, stub_rows, stub_mode in self._save_table:
-            if stub_full_name == full_name and (mode is None or stub_mode == mode):
+        for stub_full_name, _, _ in self._save_table:
+            if stub_full_name == full_name:
                 return True
         return False
 
