@@ -451,6 +451,43 @@ def test_mock_backend_overwrite():
     ]
 
 
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_mock_backend_has_no_rows_written(mode) -> None:
+    mock_backend = MockBackend()
+    # There are no rows written
+    assert not mock_backend.has_rows_written_for("a.b.c")
+    # and the results contains no rows
+    assert not mock_backend.rows_written_for("a.b.c", mode)
+
+
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_mock_backend_has_zero_rows_written(mode) -> None:
+    mock_backend = MockBackend()
+    mock_backend.save_table("a.b.c", [], Foo, mode)
+    # There are rows written
+    assert mock_backend.has_rows_written_for("a.b.c")
+    # while the results contains no rows
+    assert not mock_backend.rows_written_for("a.b.c", mode)
+
+
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_mock_backend_has_rows_written_for_after_first_write(mode) -> None:
+    mock_backend = MockBackend()
+    mock_backend.save_table("a.b.c", [Foo("a1", True), Foo("c2", False)], Foo, mode)
+    assert mock_backend.has_rows_written_for("a.b.c")
+    assert not mock_backend.has_rows_written_for("a.b.d")
+
+
+@pytest.mark.parametrize("first_mode", ["append", "overwrite"])
+@pytest.mark.parametrize("second_mode", ["append", "overwrite"])
+def test_mock_backend_has_rows_written_for_after_two_writes(first_mode, second_mode) -> None:
+    mock_backend = MockBackend()
+    mock_backend.save_table("a.b.c", [Foo("a1", True), Foo("c2", False)], Foo, first_mode)
+    mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo, second_mode)
+    assert mock_backend.has_rows_written_for("a.b.c")
+    assert not mock_backend.has_rows_written_for("a.b.d")
+
+
 @dataclass
 class Nested:
     foo: Foo

@@ -372,6 +372,18 @@ class MockBackend(SqlBackend):
             rows += stub_rows
         return rows
 
+    def has_rows_written_for(self, full_name: str) -> bool:
+        """Check if the table has been written to.
+
+        This method allows to differentiate between "never written to the table" (returns False) and "zero rows written
+        to the table" (return True).
+        Otherwise, the check is the same as: `assert (not) mock_backend.rows_written_for(full_name, mode)`
+        """
+        for stub_full_name, _, _ in self._save_table:
+            if stub_full_name == full_name:
+                return True
+        return False
+
     @staticmethod
     def rows(*column_names: str):
         """This method is used to create rows for the mock backend."""
