@@ -467,7 +467,6 @@ def test_mock_backend_has_zero_rows_written(mode) -> None:
 def test_mock_backend_has_rows_written_for_after_first_write(mode) -> None:
     mock_backend = MockBackend()
     mock_backend.save_table("a.b.c", [Foo("a1", True), Foo("c2", False)], Foo, mode)
-
     assert mock_backend.has_rows_written_for("a.b.c")
     assert not mock_backend.has_rows_written_for("a.b.d")
 
@@ -477,7 +476,6 @@ def test_mock_backend_has_rows_written_for_after_two_writes(last_mode) -> None:
     mock_backend = MockBackend()
     mock_backend.save_table("a.b.c", [Foo("a1", True), Foo("c2", False)], Foo, "append")
     mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo, last_mode)
-
     assert mock_backend.has_rows_written_for("a.b.c")
     assert not mock_backend.has_rows_written_for("a.b.d")
 
