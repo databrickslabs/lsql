@@ -455,7 +455,7 @@ def test_mock_backend_overwrite():
 def test_mock_backend_has_no_rows_written(mode) -> None:
     mock_backend = MockBackend()
     # There are no rows written
-    assert not mock_backend.has_rows_written_for("a.b.d")
+    assert not mock_backend.has_rows_written_for("a.b.c")
     # and the results contains no rows
     assert not mock_backend.rows_written_for("a.b.c", mode)
 
