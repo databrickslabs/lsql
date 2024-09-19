@@ -460,7 +460,10 @@ def test_mock_backend_has_no_rows_written() -> None:
 def test_mock_backend_has_zero_rows_written(mode) -> None:
     mock_backend = MockBackend()
     mock_backend.save_table("a.b.c", [], Foo, mode)
-    assert not mock_backend.has_rows_written_for("a.b.c")
+    # There are rows written
+    assert mock_backend.has_rows_written_for("a.b.c")
+    # But the results contains no rows
+    assert not mock_backend.rows_written_for("a.b.c", mode)
 
 
 @pytest.mark.parametrize("mode", ["append", "overwrite"])
