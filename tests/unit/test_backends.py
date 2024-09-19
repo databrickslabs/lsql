@@ -478,11 +478,12 @@ def test_mock_backend_has_rows_written_for_after_first_write(mode) -> None:
     assert not mock_backend.has_rows_written_for("a.b.d")
 
 
-@pytest.mark.parametrize("last_mode", ["append", "overwrite"])
-def test_mock_backend_has_rows_written_for_after_two_writes(last_mode) -> None:
+@pytest.mark.parametrize("first_mode", ["append", "overwrite"])
+@pytest.mark.parametrize("second_mode", ["append", "overwrite"])
+def test_mock_backend_has_rows_written_for_after_two_writes(first_mode, second_mode) -> None:
     mock_backend = MockBackend()
-    mock_backend.save_table("a.b.c", [Foo("a1", True), Foo("c2", False)], Foo, "append")
-    mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo, last_mode)
+    mock_backend.save_table("a.b.c", [Foo("a1", True), Foo("c2", False)], Foo, first_mode)
+    mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo, second_mode)
     assert mock_backend.has_rows_written_for("a.b.c")
     assert not mock_backend.has_rows_written_for("a.b.d")
 
