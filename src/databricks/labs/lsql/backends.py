@@ -13,10 +13,12 @@ from databricks.sdk.errors import (
     BadRequest,
     DatabricksError,
     DataLoss,
+    InternalError,
     NotFound,
     PermissionDenied,
     Unknown,
 )
+from databricks.sdk.retries import retried
 from databricks.sdk.service.compute import Language
 
 from databricks.labs.lsql.core import Row, StatementExecutionExt
@@ -202,6 +204,8 @@ class StatementExecutionBackend(ExecutionBackend):
         self._debug_truncate_bytes = debug_truncate_bytes if isinstance(debug_truncate_bytes, int) else 96
         super().__init__(max_records_per_batch)
 
+    # InternalError is retried on for resilience on sporadic Databricks issues.
+    @retried(on=[InternalError], timeout=datetime.timedelta(minutes=1))
     def execute(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> None:
         logger.debug(f"[api][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
         self._sql.execute(sql, catalog=catalog, schema=schema)

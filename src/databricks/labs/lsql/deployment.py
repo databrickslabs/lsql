@@ -1,10 +1,6 @@
-import datetime as dt
 import logging
 import pkgutil
 from typing import Any
-
-from databricks.sdk.errors import InternalError
-from databricks.sdk.retries import retried
 
 from databricks.labs.lsql.backends import Dataclass, SqlBackend
 
@@ -12,10 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class SchemaDeployer:
-    """Deploy schema, tables, and views for a given inventory schema.
-
-    InternalError are retried on `SqlBackend.execute` for resilience on sporadic Databricks issues.
-    """
+    """Deploy schema, tables, and views for a given inventory schema."""
 
     def __init__(
         self,
@@ -30,25 +23,21 @@ class SchemaDeployer:
         self._module = mod
         self._inventory_catalog = inventory_catalog
 
-    @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_schema(self) -> None:
         schema_name = f"{self._inventory_catalog}.{self._inventory_schema}"
         logger.info(f"Ensuring {schema_name} database exists")
         self._sql_backend.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
-    @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def delete_schema(self) -> None:
         schema_name = f"{self._inventory_catalog}.{self._inventory_schema}"
         logger.info(f"Deleting {schema_name} database")
         self._sql_backend.execute(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
 
-    @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_table(self, name: str, klass: Dataclass) -> None:
         table_name = f"{self._inventory_catalog}.{self._inventory_schema}.{name}"
         logger.info(f"Ensuring {table_name} table exists")
         self._sql_backend.create_table(table_name, klass)
 
-    @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_view(self, name: str, relative_filename: str) -> None:
         query = self._load(relative_filename)
         view_name = f"{self._inventory_catalog}.{self._inventory_schema}.{name}"
