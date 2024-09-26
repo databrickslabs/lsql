@@ -16,9 +16,7 @@ def test_deploys_schema() -> None:
 
     deployment.deploy_schema()
 
-    assert mock_backend.queries == [
-        "CREATE SCHEMA IF NOT EXISTS hive_metastore.inventory"
-    ]
+    assert mock_backend.queries == ["CREATE SCHEMA IF NOT EXISTS hive_metastore.inventory"]
 
 
 def test_deletes_schema() -> None:
@@ -31,9 +29,7 @@ def test_deletes_schema() -> None:
 
     deployment.delete_schema()
 
-    assert mock_backend.queries == [
-        "DROP SCHEMA IF EXISTS hive_metastore.inventory CASCADE"
-    ]
+    assert mock_backend.queries == ["DROP SCHEMA IF EXISTS hive_metastore.inventory CASCADE"]
 
 
 def test_deploys_view() -> None:
@@ -73,4 +69,3 @@ def test_deploys_dataclass() -> None:
         "CREATE TABLE IF NOT EXISTS hive_metastore.inventory.foo (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
         "DROP SCHEMA IF EXISTS hive_metastore.inventory CASCADE",
     ]
-
