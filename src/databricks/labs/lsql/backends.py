@@ -135,7 +135,13 @@ class ExecutionBackend(SqlBackend):
     def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Any]:
         raise NotImplementedError
 
-    def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode="append"):
+    def save_table(
+        self,
+        full_name: str,
+        rows: Sequence[DataclassInstance],
+        klass: Dataclass,
+        mode: Literal["append", "overwrite"] = "append",
+    ):
         rows = self._filter_none_rows(rows, klass)
         self.create_table(full_name, klass)
         if len(rows) == 0:
