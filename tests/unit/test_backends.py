@@ -298,7 +298,8 @@ def test_runtime_backend_fetch():
         spark.sql.assert_has_calls(calls)
 
 
-def test_runtime_backend_save_table():
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_runtime_backend_save_table(mode):
     with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
         pyspark_sql_session = MagicMock()
         sys.modules["pyspark.sql.session"] = pyspark_sql_session
@@ -306,13 +307,13 @@ def test_runtime_backend_save_table():
 
         runtime_backend = RuntimeBackend()
 
-        runtime_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
+        runtime_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo, mode=mode)
 
         spark.createDataFrame.assert_called_once_with(
             [Foo(first="aaa", second=True), Foo(first="bbb", second=False)],
             "first STRING NOT NULL, second BOOLEAN NOT NULL",
         )
-        spark.createDataFrame().write.saveAsTable.assert_called_with("a.b.c", mode="append")
+        spark.createDataFrame().write.saveAsTable.assert_called_once_with("a.b.c", mode=mode)
 
 
 def test_runtime_backend_save_table_with_row_containing_none_with_nullable_class(mocker):
