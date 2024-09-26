@@ -170,7 +170,7 @@ def test_statement_execution_backend_save_table_empty_records():
 
     seb.save_table("a.b.c", [], Bar)
 
-    ws.statement_execution.execute_statement.assert_called_with(
+    ws.statement_execution.execute_statement.assert_called_once_with(
         warehouse_id="abc",
         statement="CREATE TABLE IF NOT EXISTS a.b.c "
         "(first STRING NOT NULL, second BOOLEAN NOT NULL, third FLOAT NOT NULL) USING DELTA",
@@ -308,7 +308,7 @@ def test_runtime_backend_save_table():
 
         runtime_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
 
-        spark.createDataFrame.assert_called_with(
+        spark.createDataFrame.assert_called_once_with(
             [Foo(first="aaa", second=True), Foo(first="bbb", second=False)],
             "first STRING NOT NULL, second BOOLEAN NOT NULL",
         )

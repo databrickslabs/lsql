@@ -155,7 +155,7 @@ def test_command_context_backend_save_table_empty_records():
 
     ceb.save_table("a.b.c", [], Bar)
 
-    ws.command_execution.execute.assert_called_with(
+    ws.command_execution.execute.assert_called_once_with(
         cluster_id="abc",
         language=Language.SQL,
         context_id="abc",
