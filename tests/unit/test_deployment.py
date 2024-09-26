@@ -6,7 +6,7 @@ from databricks.labs.lsql.deployment import SchemaDeployer
 from . import views
 
 
-def test_deploys_view():
+def test_deploys_view() -> None:
     mock_backend = MockBackend()
     deployment = SchemaDeployer(
         sql_backend=mock_backend,
@@ -27,7 +27,7 @@ class Foo:
     second: bool
 
 
-def test_deploys_dataclass():
+def test_deploys_dataclass() -> None:
     mock_backend = MockBackend()
     deployment = SchemaDeployer(
         sql_backend=mock_backend,
