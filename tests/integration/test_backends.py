@@ -3,7 +3,10 @@ from databricks.labs.blueprint.commands import CommandExecutor
 from databricks.labs.blueprint.installation import Installation
 from databricks.labs.blueprint.wheels import ProductInfo, WheelsV2
 
+from databricks.labs.lsql import Row
 from databricks.labs.lsql.backends import SqlBackend, StatementExecutionBackend
+
+from . import views
 
 INCORRECT_SCHEMA = """
 from databricks.labs.lsql.backends import RuntimeBackend
@@ -146,6 +149,18 @@ def test_statement_execution_backend_overrides(ws, env_or_skip):
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
     rows = list(sql_backend.fetch("SELECT * FROM trips LIMIT 10", catalog="samples", schema="nyctaxi"))
     assert len(rows) == 10
+
+
+def test_statement_execution_backend_overwrites_table(ws, env_or_skip, make_random) -> None:
+    sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
+    catalog = env_or_skip("TEST_CATALOG")
+    schema = env_or_skip("TEST_SCHEMA")
+
+    sql_backend.save_table(f"{catalog}.{schema}.foo", [views.Foo("abc", True)], views.Foo, "append")
+    sql_backend.save_table(f"{catalog}.{schema}.foo", [views.Foo("xyz", True)], views.Foo, "overwrite")
+
+    rows = list(sql_backend.fetch(f"SELECT * FROM {catalog}.{schema}.foo"))
+    assert rows == [Row(first="xyz", second=True)]
 
 
 def test_runtime_backend_use_statements(ws):
