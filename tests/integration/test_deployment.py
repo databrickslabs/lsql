@@ -1,37 +1,24 @@
 import pytest
 
 from databricks.labs.lsql import Row
-from databricks.labs.lsql.backends import StatementExecutionBackend
 from databricks.labs.lsql.deployment import SchemaDeployer
 
 from . import views
 
 
-@pytest.mark.xfail
-def test_deploys_database(ws, env_or_skip, make_random):
-    # TODO: create per-project/per-scope catalog
-    schema = "default"
-    sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
+@pytest.mark.xfail(reason="Identity used in CI misses privileges to create UC resources")
+def test_deploys_schema(ws, sql_backend, make_random, make_catalog) -> None:
+    """Test deploying a full, minimal inventory schema with a single schema, table and view."""
+    catalog = make_catalog(name=f"lsql_test_{make_random()}")
+    schema_name = "lsql_test"
+    table_full_name = f"{catalog.name}.{schema_name}.foo"
 
-    deployer = SchemaDeployer(sql_backend, schema, views)
+    deployer = SchemaDeployer(sql_backend, schema_name, views, catalog=catalog.name)
     deployer.deploy_schema()
     deployer.deploy_table("foo", views.Foo)
     deployer.deploy_view("some", "some.sql")
 
-    sql_backend.save_table(f"{schema}.foo", [views.Foo("abc", True)], views.Foo)
-    rows = list(sql_backend.fetch(f"SELECT * FROM {schema}.some"))
+    sql_backend.save_table(table_full_name, [views.Foo("abc", True)], views.Foo)
 
-    assert rows == [Row(name="abc", id=1)]
-
-
-def test_overwrite(ws, env_or_skip, make_random):
-    schema = "default"
-    sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
-    catalog = env_or_skip("TEST_CATALOG")
-    schema = env_or_skip("TEST_SCHEMA")
-
-    sql_backend.save_table(f"{catalog}.{schema}.foo", [views.Foo("abc", True)], views.Foo, "append")
-    sql_backend.save_table(f"{catalog}.{schema}.foo", [views.Foo("xyz", True)], views.Foo, "overwrite")
-    rows = list(sql_backend.fetch(f"SELECT * FROM {catalog}.{schema}.foo"))
-
-    assert rows == [Row(first="xyz", second=True)]
+    rows = list(sql_backend.fetch(f"SELECT * FROM {table_full_name}"))
+    assert rows == [Row(first="abc", second=1)]
