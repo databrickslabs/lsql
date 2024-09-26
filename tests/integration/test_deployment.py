@@ -1,4 +1,3 @@
-
 from databricks.labs.lsql import Row
 from databricks.labs.lsql.deployment import SchemaDeployer
 
