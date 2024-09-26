@@ -158,6 +158,40 @@ def test_command_context_backend_save_table_empty_records():
     )
 
 
+def test_command_context_backend_save_table_overwrite_empty_records():
+    ws = create_autospec(WorkspaceClient)
+    ws.command_execution.create.return_value = Wait[ContextStatusResponse](
+        waiter=lambda callback, timeout: ContextStatusResponse(id="abc")
+    )
+    ws.command_execution.execute.return_value = Wait[CommandStatusResponse](
+        waiter=lambda callback, timeout: CommandStatusResponse(
+            results=Results(data="success"), status=CommandStatus.FINISHED
+        )
+    )
+
+    ceb = CommandExecutionBackend(ws, "abc")
+
+    ceb.save_table("a.b.c", [], Bar, mode="overwrite")
+
+    ws.command_execution.execute.assert_has_calls(
+        [
+            call(
+                cluster_id="abc",
+                language=Language.SQL,
+                context_id="abc",
+                command="CREATE TABLE IF NOT EXISTS a.b.c "
+                "(first STRING NOT NULL, second BOOLEAN NOT NULL, third FLOAT NOT NULL) USING DELTA",
+            ),
+            call(
+                cluster_id="abc",
+                language=Language.SQL,
+                context_id="abc",
+                command="TRUNCATE TABLE a.b.c",
+            ),
+        ]
+    )
+
+
 def test_command_context_backend_save_table_two_records():
     ws = create_autospec(WorkspaceClient)
     ws.command_execution.create.return_value = Wait[ContextStatusResponse](

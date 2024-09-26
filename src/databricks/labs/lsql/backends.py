@@ -144,7 +144,9 @@ class ExecutionBackend(SqlBackend):
     ):
         rows = self._filter_none_rows(rows, klass)
         self.create_table(full_name, klass)
-        if len(rows) == 0:
+        if not rows:
+            if mode == "overwrite":
+                self.execute(f"TRUNCATE TABLE {full_name}")
             return
         fields = dataclasses.fields(klass)
         field_names = [f.name for f in fields]
@@ -284,8 +286,7 @@ class _SparkBackend(SqlBackend):
         mode: Literal["append", "overwrite"] = "append",
     ) -> None:
         rows = self._filter_none_rows(rows, klass)
-
-        if len(rows) == 0:
+        if not rows and mode == "append":
             self.create_table(full_name, klass)
             return
         # pyspark deals well with lists of dataclass instances, as long as schema is provided
