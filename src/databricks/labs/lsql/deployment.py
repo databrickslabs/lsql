@@ -25,7 +25,6 @@ class SchemaDeployer:
 
     def delete_schema(self):
         logger.info(f"deleting {self._inventory_schema} database")
-
         self._sql_backend.execute(f"DROP SCHEMA IF EXISTS hive_metastore.{self._inventory_schema} CASCADE")
 
     def deploy_table(self, name: str, klass: Dataclass):

@@ -21,6 +21,21 @@ def test_deploys_schema() -> None:
     ]
 
 
+def test_deletes_schema() -> None:
+    mock_backend = MockBackend()
+    deployment = SchemaDeployer(
+        sql_backend=mock_backend,
+        inventory_schema="inventory",
+        mod=views,
+    )
+
+    deployment.delete_schema()
+
+    assert mock_backend.queries == [
+        "DROP SCHEMA IF EXISTS hive_metastore.inventory CASCADE"
+    ]
+
+
 def test_deploys_view() -> None:
     mock_backend = MockBackend()
     deployment = SchemaDeployer(
