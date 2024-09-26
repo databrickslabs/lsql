@@ -12,12 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 class SchemaDeployer:
+    """Deploy schema, tables, and views for a given inventory schema.
+
+    InternalError are retried on `SqlBackend.execute` for resilience on sporadic Databricks issues.
+    """
     def __init__(self, sql_backend: SqlBackend, inventory_schema: str, mod: Any) -> None:
         self._sql_backend = sql_backend
         self._inventory_schema = inventory_schema
         self._module = mod
 
-    # InternalError are retried for resilience on sporadic Databricks issues
     @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_schema(self) -> None:
         logger.info(f"Ensuring {self._inventory_schema} database exists")
