@@ -6,6 +6,21 @@ from databricks.labs.lsql.deployment import SchemaDeployer
 from . import views
 
 
+def test_deploys_schema() -> None:
+    mock_backend = MockBackend()
+    deployment = SchemaDeployer(
+        sql_backend=mock_backend,
+        inventory_schema="inventory",
+        mod=views,
+    )
+
+    deployment.deploy_schema()
+
+    assert mock_backend.queries == [
+        "CREATE SCHEMA IF NOT EXISTS hive_metastore.inventory"
+    ]
+
+
 def test_deploys_view() -> None:
     mock_backend = MockBackend()
     deployment = SchemaDeployer(
@@ -43,3 +58,4 @@ def test_deploys_dataclass() -> None:
         "CREATE TABLE IF NOT EXISTS hive_metastore.inventory.foo (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
         "DROP SCHEMA IF EXISTS hive_metastore.inventory CASCADE",
     ]
+
