@@ -10,7 +10,7 @@ def test_deploys_schema(ws, sql_backend, make_random, make_catalog) -> None:
     schema_name = "lsql_test"
     table_full_name = f"{catalog.name}.{schema_name}.foo"
 
-    deployer = SchemaDeployer(sql_backend, schema_name, views, inventory_catalog=catalog.name)
+    deployer = SchemaDeployer(sql_backend, schema_name, views, catalog=catalog.name)
     deployer.deploy_schema()
     deployer.deploy_table("foo", views.Foo)
     deployer.deploy_view("some", "some.sql")

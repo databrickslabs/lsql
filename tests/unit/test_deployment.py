@@ -14,9 +14,9 @@ def test_deploys_schema(caplog, inventory_catalog: str) -> None:
     mock_backend = MockBackend()
     deployment = SchemaDeployer(
         sql_backend=mock_backend,
-        inventory_schema="inventory",
+        schema="inventory",
         mod=views,
-        inventory_catalog=inventory_catalog,
+        catalog=inventory_catalog,
     )
 
     with caplog.at_level(logging.INFO, logger="databricks.labs.lsql.deployment"):
@@ -31,9 +31,9 @@ def test_deletes_schema(caplog, inventory_catalog: str) -> None:
     mock_backend = MockBackend()
     deployment = SchemaDeployer(
         sql_backend=mock_backend,
-        inventory_schema="inventory",
+        schema="inventory",
         mod=views,
-        inventory_catalog=inventory_catalog,
+        catalog=inventory_catalog,
     )
 
     with caplog.at_level(logging.INFO, logger="databricks.labs.lsql.deployment"):
@@ -54,9 +54,9 @@ def test_deploys_dataclass(caplog, inventory_catalog: str) -> None:
     mock_backend = MockBackend()
     deployment = SchemaDeployer(
         sql_backend=mock_backend,
-        inventory_schema="inventory",
+        schema="inventory",
         mod=views,
-        inventory_catalog=inventory_catalog,
+        catalog=inventory_catalog,
     )
 
     with caplog.at_level(logging.INFO, logger="databricks.labs.lsql.deployment"):
@@ -73,9 +73,9 @@ def test_deploys_view(caplog, inventory_catalog: str) -> None:
     mock_backend = MockBackend()
     deployment = SchemaDeployer(
         sql_backend=mock_backend,
-        inventory_schema="inventory",
+        schema="inventory",
         mod=views,
-        inventory_catalog=inventory_catalog,
+        catalog=inventory_catalog,
     )
 
     with caplog.at_level(logging.INFO, logger="databricks.labs.lsql.deployment"):
