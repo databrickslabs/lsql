@@ -140,7 +140,7 @@ class StatementExecutionExt:
     megabytes or gigabytes of data serialized in Apache Arrow format, and low result fetching latency, should use
     the stateful Databricks SQL Connector for Python."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         ws: WorkspaceClient,
         disposition: Disposition | None = None,
