@@ -24,25 +24,25 @@ class SchemaDeployer:
         self._inventory_catalog = inventory_catalog
 
     def deploy_schema(self) -> None:
-        schema_name = f"{self._inventory_catalog}.{self._inventory_schema}"
-        logger.info(f"Ensuring {schema_name} database exists")
-        self._sql_backend.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
+        schema_full_name = f"{self._inventory_catalog}.{self._inventory_schema}"
+        logger.info(f"Ensuring {schema_full_name} database exists")
+        self._sql_backend.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_full_name}")
 
     def delete_schema(self) -> None:
-        schema_name = f"{self._inventory_catalog}.{self._inventory_schema}"
-        logger.info(f"Deleting {schema_name} database")
-        self._sql_backend.execute(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
+        schema_full_name = f"{self._inventory_catalog}.{self._inventory_schema}"
+        logger.info(f"Deleting {schema_full_name} database")
+        self._sql_backend.execute(f"DROP SCHEMA IF EXISTS {schema_full_name} CASCADE")
 
     def deploy_table(self, name: str, klass: Dataclass) -> None:
-        table_name = f"{self._inventory_catalog}.{self._inventory_schema}.{name}"
-        logger.info(f"Ensuring {table_name} table exists")
-        self._sql_backend.create_table(table_name, klass)
+        table_full_name = f"{self._inventory_catalog}.{self._inventory_schema}.{name}"
+        logger.info(f"Ensuring {table_full_name} table exists")
+        self._sql_backend.create_table(table_full_name, klass)
 
     def deploy_view(self, name: str, relative_filename: str) -> None:
         query = self._load(relative_filename)
-        view_name = f"{self._inventory_catalog}.{self._inventory_schema}.{name}"
-        logger.info(f"Ensuring {view_name} view matches {relative_filename} contents")
-        ddl = f"CREATE OR REPLACE VIEW {view_name} AS {query}"
+        view_full_name = f"{self._inventory_catalog}.{self._inventory_schema}.{name}"
+        logger.info(f"Ensuring {view_full_name} view matches {relative_filename} contents")
+        ddl = f"CREATE OR REPLACE VIEW {view_full_name} AS {query}"
         self._sql_backend.execute(ddl)
 
     def _load(self, relative_filename: str) -> str:
