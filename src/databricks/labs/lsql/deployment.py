@@ -26,14 +26,17 @@ class SchemaDeployer:
         logger.info(f"Ensuring {self._inventory_schema} database exists")
         self._sql_backend.execute(f"CREATE SCHEMA IF NOT EXISTS hive_metastore.{self._inventory_schema}")
 
+    @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def delete_schema(self) -> None:
         logger.info(f"deleting {self._inventory_schema} database")
         self._sql_backend.execute(f"DROP SCHEMA IF EXISTS hive_metastore.{self._inventory_schema} CASCADE")
 
+    @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_table(self, name: str, klass: Dataclass) -> None:
         logger.info(f"Ensuring {self._inventory_schema}.{name} table exists")
         self._sql_backend.create_table(f"hive_metastore.{self._inventory_schema}.{name}", klass)
 
+    @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_view(self, name: str, relative_filename: str) -> None:
         query = self._load(relative_filename)
         logger.info(f"Ensuring {self._inventory_schema}.{name} view matches {relative_filename} contents")
