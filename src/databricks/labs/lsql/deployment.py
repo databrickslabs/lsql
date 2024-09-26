@@ -32,24 +32,28 @@ class SchemaDeployer:
 
     @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_schema(self) -> None:
-        logger.info(f"Ensuring {self._inventory_schema} database exists")
-        self._sql_backend.execute(f"CREATE SCHEMA IF NOT EXISTS {self._inventory_catalog}.{self._inventory_schema}")
+        schema_name = f"{self._inventory_catalog}.{self._inventory_schema}"
+        logger.info(f"Ensuring {schema_name} database exists")
+        self._sql_backend.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
 
     @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def delete_schema(self) -> None:
-        logger.info(f"deleting {self._inventory_schema} database")
-        self._sql_backend.execute(f"DROP SCHEMA IF EXISTS {self._inventory_catalog}.{self._inventory_schema} CASCADE")
+        schema_name = f"{self._inventory_catalog}.{self._inventory_schema}"
+        logger.info(f"Deleting {schema_name} database")
+        self._sql_backend.execute(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE")
 
     @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_table(self, name: str, klass: Dataclass) -> None:
-        logger.info(f"Ensuring {self._inventory_schema}.{name} table exists")
-        self._sql_backend.create_table(f"{self._inventory_catalog}.{self._inventory_schema}.{name}", klass)
+        table_name = f"{self._inventory_catalog}.{self._inventory_schema}.{name}"
+        logger.info(f"Ensuring {table_name} table exists")
+        self._sql_backend.create_table(table_name, klass)
 
     @retried(on=[InternalError], timeout=dt.timedelta(minutes=1))
     def deploy_view(self, name: str, relative_filename: str) -> None:
         query = self._load(relative_filename)
-        logger.info(f"Ensuring {self._inventory_schema}.{name} view matches {relative_filename} contents")
-        ddl = f"CREATE OR REPLACE VIEW {self._inventory_catalog}.{self._inventory_schema}.{name} AS {query}"
+        view_name = f"{self._inventory_catalog}.{self._inventory_schema}.{name}"
+        logger.info(f"Ensuring {view_name} view matches {relative_filename} contents")
+        ddl = f"CREATE OR REPLACE VIEW {view_name} AS {query}"
         self._sql_backend.execute(ddl)
 
     def _load(self, relative_filename: str) -> str:
