@@ -8,7 +8,7 @@ from . import views
 
 
 @pytest.mark.xfail
-def test_deploys_database(ws, env_or_skip, make_random):
+def test_deploys_database(ws, env_or_skip, make_random) -> None:
     # TODO: create per-project/per-scope catalog
     schema = "default"
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
@@ -24,8 +24,7 @@ def test_deploys_database(ws, env_or_skip, make_random):
     assert rows == [Row(name="abc", id=1)]
 
 
-def test_overwrite(ws, env_or_skip, make_random):
-    schema = "default"
+def test_overwrite(ws, env_or_skip, make_random) -> None:
     sql_backend = StatementExecutionBackend(ws, env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
     catalog = env_or_skip("TEST_CATALOG")
     schema = env_or_skip("TEST_SCHEMA")
