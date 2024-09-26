@@ -148,13 +148,14 @@ class ExecutionBackend(SqlBackend):
             return
         fields = dataclasses.fields(klass)
         field_names = [f.name for f in fields]
-        if mode == "overwrite":
-            self.execute(f"TRUNCATE TABLE {full_name}")
+        insert_modifier = "OVERWRITE" if mode == "overwrite" else "INTO"
         for i in range(0, len(rows), self._max_records_per_batch):
             batch = rows[i : i + self._max_records_per_batch]
             vals = "), (".join(self._row_to_sql(r, fields) for r in batch)
-            sql = f'INSERT INTO {full_name} ({", ".join(field_names)}) VALUES ({vals})'
+            sql = f'INSERT {insert_modifier} {full_name} ({", ".join(field_names)}) VALUES ({vals})'
             self.execute(sql)
+            # Only the first batch can truncate; subsequent batches append.
+            insert_modifier = "INTO"
 
     @classmethod
     def _row_to_sql(cls, row: DataclassInstance, fields: tuple[dataclasses.Field[Any], ...]):

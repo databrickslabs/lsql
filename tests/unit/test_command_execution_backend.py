@@ -128,13 +128,7 @@ def test_command_context_backend_save_table_overwrite_empty_table():
                 cluster_id="abc",
                 language=Language.SQL,
                 context_id="abc",
-                command="TRUNCATE TABLE a.b.c",
-            ),
-            mock.call(
-                cluster_id="abc",
-                language=Language.SQL,
-                context_id="abc",
-                command="INSERT INTO a.b.c (first, second) VALUES ('1', NULL)",
+                command="INSERT OVERWRITE a.b.c (first, second) VALUES ('1', NULL)",
             ),
         ]
     )
@@ -197,7 +191,7 @@ def test_command_context_backend_save_table_two_records():
     )
 
 
-def test_command_context_backend_save_table_in_batches_of_two(mocker):
+def test_command_context_backend_save_table_append_in_batches_of_two():
     ws = create_autospec(WorkspaceClient)
     ws.command_execution.create.return_value = Wait[ContextStatusResponse](
         waiter=lambda callback, timeout: ContextStatusResponse(id="abc")
@@ -210,7 +204,7 @@ def test_command_context_backend_save_table_in_batches_of_two(mocker):
 
     ceb = CommandExecutionBackend(ws, "abc", max_records_per_batch=2)
 
-    ceb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo)
+    ceb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo, mode="append")
 
     ws.command_execution.execute.assert_has_calls(
         [
@@ -225,6 +219,45 @@ def test_command_context_backend_save_table_in_batches_of_two(mocker):
                 language=Language.SQL,
                 context_id="abc",
                 command="INSERT INTO a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
+            ),
+            mock.call(
+                cluster_id="abc",
+                language=Language.SQL,
+                context_id="abc",
+                command="INSERT INTO a.b.c (first, second) VALUES ('ccc', TRUE)",
+            ),
+        ]
+    )
+
+
+def test_command_context_backend_save_table_overwrite_in_batches_of_two():
+    ws = create_autospec(WorkspaceClient)
+    ws.command_execution.create.return_value = Wait[ContextStatusResponse](
+        waiter=lambda callback, timeout: ContextStatusResponse(id="abc")
+    )
+    ws.command_execution.execute.return_value = Wait[CommandStatusResponse](
+        waiter=lambda callback, timeout: CommandStatusResponse(
+            results=Results(data="success"), status=CommandStatus.FINISHED
+        )
+    )
+
+    ceb = CommandExecutionBackend(ws, "abc", max_records_per_batch=2)
+
+    ceb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo, mode="overwrite")
+
+    ws.command_execution.execute.assert_has_calls(
+        [
+            mock.call(
+                cluster_id="abc",
+                language=Language.SQL,
+                context_id="abc",
+                command="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
+            ),
+            mock.call(
+                cluster_id="abc",
+                language=Language.SQL,
+                context_id="abc",
+                command="INSERT OVERWRITE a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
             ),
             mock.call(
                 cluster_id="abc",
