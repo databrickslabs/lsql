@@ -34,3 +34,13 @@ commands:
         description: Publish the dashboard after creating by setting to `yes` or `y`.
       - name: open-browser
         description: Open the dashboard in the browser after creating by setting to `yes` or `y`.
+
+  - name: update-dashboard
+    description: Update published dashboard from code.
+    flags:
+      - name: folder
+        description: The folder with dashboard files. By default, the current working directory.
+      - name: dashboard-id
+        description: The dashboard ID to update. By default, it'll try to pickup dashboard from your workspace home folder.
+      - name: open-browser
+        description: Open the dashboard in the browser after creating by setting to `yes` or `y`.
