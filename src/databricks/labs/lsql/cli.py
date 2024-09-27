@@ -35,12 +35,27 @@ def create_dashboard(
         catalog=catalog or None,
         database=database or None,
     )
+    # TODO: rename this method and command to `deploy_dashboard`
     sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata, publish=should_publish)
     if should_open_browser:
         assert sdk_dashboard.dashboard_id is not None
         dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)
         webbrowser.open(dashboard_url)
     print(sdk_dashboard.dashboard_id)
+
+
+@lsql.command
+def deploy_dashboard(
+    w: WorkspaceClient,
+    folder: Path = Path.cwd(),
+    *,
+    catalog: str = "",
+    database: str = "",
+    publish: str = "false",
+    open_browser: str = "false",
+):
+    """Create a dashboard from queries"""
+    create_dashboard(w, folder, catalog=catalog, database=database, publish=publish, open_browser=open_browser)
 
 
 @lsql.command(is_unauthenticated=True)
