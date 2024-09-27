@@ -44,6 +44,20 @@ def create_dashboard(
     print(sdk_dashboard.dashboard_id)
 
 
+@lsql.command
+def deploy_dashboard(
+    w: WorkspaceClient,
+    folder: Path = Path.cwd(),
+    *,
+    catalog: str = "",
+    database: str = "",
+    publish: str = "false",
+    open_browser: str = "false",
+):
+    """Create a dashboard from queries"""
+    create_dashboard(w, folder, catalog=catalog, database=database, publish=publish, open_browser=open_browser)
+
+
 @lsql.command(is_unauthenticated=True)
 def fmt(folder: Path = Path.cwd(), *, normalize_case: str = "true", exclude: Iterable[str] = ()):
     """Format SQL files in a folder"""
