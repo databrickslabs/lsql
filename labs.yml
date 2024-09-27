@@ -35,12 +35,20 @@ commands:
       - name: open-browser
         description: Open the dashboard in the browser after creating by setting to `yes` or `y`.
 
-  - name: update-dashboard
-    description: Update published dashboard from code.
+  - name: deploy-dashboard
+    description: Create or update  dashboard from code.
     flags:
       - name: folder
         description: The folder with dashboard files. By default, the current working directory.
-      - name: dashboard-id
-        description: The dashboard ID to update. By default, it'll try to pickup dashboard from your workspace home folder.
+      - name: catalog
+        description: |
+          Overwrite the catalog in the queries' `FROM` clauses with given value. 
+          Useful when developing with separate catalogs, for example, for production and development.
+      - name: database
+        description: |
+          Overwrite the database in the queries' `FROM` clauses with given value. 
+          Useful when developing with separate databases, for example, for production and development.
+      - name: publish
+        description: Publish the dashboard after creating by setting to `yes` or `y`.
       - name: open-browser
         description: Open the dashboard in the browser after creating by setting to `yes` or `y`.

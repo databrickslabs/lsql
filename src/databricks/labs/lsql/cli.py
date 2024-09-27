@@ -35,36 +35,13 @@ def create_dashboard(
         catalog=catalog or None,
         database=database or None,
     )
+    # TODO: rename this method and command to `deploy_dashboard`
     sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata, publish=should_publish)
     if should_open_browser:
         assert sdk_dashboard.dashboard_id is not None
         dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)
         webbrowser.open(dashboard_url)
     print(sdk_dashboard.dashboard_id)
-
-
-@lsql.command
-def update_dashboard(
-    w: WorkspaceClient,
-    dashboard_id: str | None = None,
-    folder: Path = Path.cwd(),
-    open_browser: str = "false",
-):
-    """Update a dashboard from queries"""
-    should_open_browser = open_browser.lower() in STRING_AFFIRMATIVES
-    lakeview_dashboards = Dashboards(w)
-    folder = Path(folder)
-    dashboard_metadata = DashboardMetadata.from_path(folder)
-    if not dashboard_id:
-        me = w.current_user.me()
-        workspace_path = f"/Users/{me.user_name}/{dashboard_metadata.display_name}.lvdash.json"
-        workspace_object = w.workspace.get_status(workspace_path)
-        dashboard_id = workspace_object.resource_id
-    sdk_dashboard = lakeview_dashboards.create_dashboard(dashboard_metadata, dashboard_id=dashboard_id)
-    if should_open_browser:
-        assert sdk_dashboard.dashboard_id is not None
-        dashboard_url = lakeview_dashboards.get_url(dashboard_id)
-        webbrowser.open(dashboard_url)
 
 
 @lsql.command(is_unauthenticated=True)

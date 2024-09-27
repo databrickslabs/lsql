@@ -20,6 +20,7 @@ from zipfile import ZipFile
 import sqlglot
 import yaml
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.errors import NotFound
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.sdk.service.workspace import ExportFormat
 
@@ -1109,6 +1110,24 @@ class Dashboards:
         warehouse_id: str | None = None,
         publish: bool = False,
     ) -> SDKDashboard:
+        # TODO: remove this method once downstreams are updated
+        return self.deploy_dashboard(
+            dashboard_metadata,
+            parent_path=parent_path,
+            dashboard_id=dashboard_id,
+            warehouse_id=warehouse_id,
+            publish=publish,
+        )
+
+    def deploy_dashboard(
+        self,
+        dashboard_metadata: DashboardMetadata,
+        *,
+        parent_path: str | None = None,
+        dashboard_id: str | None = None,
+        warehouse_id: str | None = None,
+        publish: bool = False,
+    ) -> SDKDashboard:
         """Create a Lakeview dashboard.
 
         Parameters :
@@ -1125,6 +1144,11 @@ class Dashboards:
         """
         dashboard_metadata.validate()
         serialized_dashboard = json.dumps(dashboard_metadata.as_lakeview().as_dict())
+        me = self._ws.current_user.me()
+        if not parent_path:
+            parent_path = f"/Users/{me.user_name}"
+        if not dashboard_id:
+            dashboard_id = self._maybe_discover_dashboard_id(dashboard_metadata, parent_path)
         if dashboard_id is not None:
             sdk_dashboard = self._ws.lakeview.update(
                 dashboard_id,
@@ -1143,6 +1167,14 @@ class Dashboards:
             assert sdk_dashboard.dashboard_id is not None
             self._ws.lakeview.publish(sdk_dashboard.dashboard_id, warehouse_id=warehouse_id)
         return sdk_dashboard
+
+    def _maybe_discover_dashboard_id(self, dashboard_metadata: DashboardMetadata, parent_path: str) -> str | None:
+        try:
+            file_path = f"{parent_path}/{dashboard_metadata.display_name}.lvdash.json"
+            workspace_object = self._ws.workspace.get_status(file_path)
+            return workspace_object.resource_id
+        except NotFound:
+            return None
 
     def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
