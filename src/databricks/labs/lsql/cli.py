@@ -46,12 +46,15 @@ def create_dashboard(
 
 
 @lsql.command
-def save_dashboard(w: WorkspaceClient, prompts: Prompts, remote_folder: str = '~'):
+def save_dashboard(w: WorkspaceClient, prompts: Prompts, remote_path: str = '~', local_path: Path = Path.cwd()):
     """Save a dashboard to a folder"""
-    workspace_path = WorkspacePath(w, remote_folder).expanduser()
-    dashboards = {_.name: _ for _ in workspace_path.glob('*.lvdash.json')}
-    selected = prompts.choice_from_dict('Select existing dashboard', dashboards)
-    print(selected)
+    workspace_path = WorkspacePath(w, remote_path).expanduser()
+    if workspace_path.is_dir():
+        dashboards = {_.name: _ for _ in workspace_path.glob('*.lvdash.json')}
+        workspace_path = prompts.choice_from_dict('Select existing dashboard', dashboards)
+    lakeview_dashboards = Dashboards(w)
+    remote_dashboard = lakeview_dashboards.get_dashboard(workspace_path)
+    lakeview_dashboards.save_to_folder(remote_dashboard, Path(local_path))
 
 
 
