@@ -120,10 +120,11 @@ class Row(tuple):
         return f"Row({', '.join(f'{k}={v!r}' for (k, v) in zip(self.__columns__, self, strict=True))})"
 
 
-def _is_retryable_delta_concurrent_append(e: BaseException) -> str:
+def _is_retryable_delta_concurrent_append(e: BaseException) -> str | None:
     """Retry a concurrent append to a delta table"""
     if isinstance(e, BadRequest) and "DELTA_CONCURRENT_APPEND" in str(e):
         return "Concurrent append"
+    return None
 
 
 class StatementExecutionExt:
