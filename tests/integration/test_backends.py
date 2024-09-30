@@ -6,6 +6,7 @@ from databricks.labs.blueprint.commands import CommandExecutor
 from databricks.labs.blueprint.installation import Installation
 from databricks.labs.blueprint.parallel import Threads
 from databricks.labs.blueprint.wheels import ProductInfo, WheelsV2
+from databricks.sdk.errors import BadRequest
 
 from databricks.labs.lsql import Row
 from databricks.labs.lsql.backends import SqlBackend, StatementExecutionBackend
@@ -228,5 +229,10 @@ def test_runtime_backend_handles_concurrent_append(sql_backend, make_schema, mak
         wait_until_seconds_rollover()
         sql_backend.execute(f"UPDATE {table_full_name} SET y = y * 2 WHERE (x % 2 = 0)")
 
-
-    Threads.strict("concurrent appends", [update_table, update_table])
+    try:
+        Threads.strict("concurrent appends", [update_table, update_table])
+    except BadRequest as e:
+        if "[DELTA_CONCURRENT_APPEND]" in str(e):
+            assert False, str(e)
+        else:
+            raise  # Raise in case of unexpected error
