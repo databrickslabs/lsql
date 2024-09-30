@@ -201,18 +201,17 @@ def wait_until_seconds_rollover(*, rollover_seconds: int = 10) -> None:
     Args:
         rollover_seconds (int) : The multiple of seconds to wait until the next rollover.
     """
-    nanoseconds = 1e9
-    microseconds = 1e6
+    nano, micro = 1e9, 1e6
 
-    now = time.clock_gettime_ns(time.CLOCK_REALTIME)
-    target = math.ceil(now / nanoseconds // rollover_seconds) * nanoseconds * rollover_seconds
+    nanoseconds_now = time.clock_gettime_ns(time.CLOCK_REALTIME)
+    nanoseconds_target = math.ceil(nanoseconds_now / nano // rollover_seconds) * nano * rollover_seconds
 
     # To hit the rollover more accurate, first sleep until almost target
-    nanoseconds_until_almost_target = (target - now) - microseconds
-    time.sleep(max(nanoseconds_until_almost_target / 1e9, 0))
+    nanoseconds_until_almost_target = (nanoseconds_target - nanoseconds_now) - micro
+    time.sleep(max(nanoseconds_until_almost_target / nano, 0))
 
     # Then busy-wait until the rollover occurs
-    while time.clock_gettime_ns(time.CLOCK_REALTIME) < target:
+    while time.clock_gettime_ns(time.CLOCK_REALTIME) < nanoseconds_target:
         pass
 
 
