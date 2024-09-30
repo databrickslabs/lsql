@@ -208,7 +208,7 @@ def wait_until_seconds_rollover(*, rollover_seconds: int = 10) -> None:
     target = math.ceil(now / nanoseconds // rollover_seconds) * nanoseconds * rollover_seconds
 
     # To hit the rollover more accurate, first sleep until almost target
-    nanoseconds_until_almost_target = ((target - now) - microseconds)
+    nanoseconds_until_almost_target = (target - now) - microseconds
     time.sleep(max(nanoseconds_until_almost_target / 1e9, 0))
 
     # Then busy-wait until the rollover occurs
@@ -219,10 +219,7 @@ def wait_until_seconds_rollover(*, rollover_seconds: int = 10) -> None:
 def test_runtime_backend_handles_concurrent_append(sql_backend, make_random) -> None:
     table_name = f"lsql_test_{make_random(8)}"
     sql_backend.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (x int, y float)")
-    sql_backend.execute(
-        f"INSERT INTO {table_name} BY NAME "
-        "SELECT r.id AS x, random() AS y FROM range(100000000) r"
-    )
+    sql_backend.execute(f"INSERT INTO {table_name} BY NAME " "SELECT r.id AS x, random() AS y FROM range(100000000) r")
 
     def update_table() -> None:
         wait_until_seconds_rollover()  # Update the table at the same time

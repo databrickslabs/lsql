@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING, Any
 import requests
 import sqlglot
 from databricks.sdk import WorkspaceClient, errors
-from databricks.sdk.errors import DataLoss, NotFound
+from databricks.sdk.errors import BadRequest, DataLoss, NotFound
+from databricks.sdk.retries import retried
 from databricks.sdk.service.sql import (
     ColumnInfoTypeName,
     Disposition,
@@ -119,6 +120,12 @@ class Row(tuple):
         return f"Row({', '.join(f'{k}={v!r}' for (k, v) in zip(self.__columns__, self, strict=True))})"
 
 
+def _is_retryable_delta_concurrent_append(e: BaseException) -> str:
+    """Retry a concurrent append to a delta table"""
+    if isinstance(e, BadRequest) and "DELTA_CONCURRENT_APPEND" in str(e):
+        return "Concurrent append"
+
+
 class StatementExecutionExt:
     """Execute SQL statements in a stateless manner.
 
@@ -182,6 +189,7 @@ class StatementExecutionExt:
             ColumnInfoTypeName.TIMESTAMP: self._parse_timestamp,
         }
 
+    @retried(is_retryable=_is_retryable_delta_concurrent_append, timeout=timedelta(seconds=10))
     def execute(
         self,
         statement: str,
