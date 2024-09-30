@@ -1,3 +1,6 @@
+import math
+import time
+
 import pytest
 from databricks.labs.blueprint.commands import CommandExecutor
 from databricks.labs.blueprint.installation import Installation
@@ -189,23 +192,30 @@ else:
     assert result == "PASSED"
 
 
+def wait_until_seconds_rollover(*, rollover_seconds: int = 10) -> None:
+    """Wait until the next rollover.
+
+    Useful to align concurrent writes.
+
+    Args:
+        rollover_seconds (int) : The multiple of seconds to wait until the next rollover.
+    """
+    nanoseconds = 1e9
+    microseconds = 1e6
+
+    now = time.clock_gettime_ns(time.CLOCK_REALTIME)
+    target = math.ceil(now / nanoseconds // rollover_seconds) * nanoseconds * rollover_seconds
+
+    # To hit the rollover more accurate, first sleep until almost target
+    nanoseconds_until_almost_target = ((target - now) - microseconds)
+    time.sleep(max(nanoseconds_until_almost_target / 1e9, 0))
+
+    # Then busy-wait until the rollover occurs
+    while time.clock_gettime_ns(time.CLOCK_REALTIME) < target:
+        pass
+
+
 def test_runtime_backend_handles_concurrent_append(sql_backend, make_schema, make_random) -> None:
-
-    def wait_until_10s_rollover() -> None:
-        import math
-        import time
-
-        # First figure out how long until rollover.
-        now = time.clock_gettime_ns(time.CLOCK_REALTIME)
-        target = math.ceil(now // 1e9 / 10) * 10 * 1e9
-        # Sleep until just before the rollover.
-        nanos_until_almost_target = ((target - now) - 1e7)
-        if 0 < nanos_until_almost_target:
-            time.sleep(nanos_until_almost_target / 1e9)
-        # Busy-wait until the rollover occurs.
-        while time.clock_gettime_ns(time.CLOCK_REALTIME) < target:
-            pass
-
     schema = make_schema(name=f"lsql_{make_random(8)}")
     table_full_name = f"{schema.full_name}.concurrent_append"
     sql_backend.execute(f"CREATE TABLE IF NOT EXISTS {table_full_name} (x int, y float)")
@@ -215,7 +225,7 @@ def test_runtime_backend_handles_concurrent_append(sql_backend, make_schema, mak
     )
 
     def task() -> None:
-        wait_until_10s_rollover()
+        wait_until_seconds_rollover()
         sql_backend.execute(f"UPDATE {table_full_name} SET y = y * 2 WHERE (x % 2 = 0)")
 
 
