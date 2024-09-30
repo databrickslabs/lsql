@@ -224,9 +224,9 @@ def test_runtime_backend_handles_concurrent_append(sql_backend, make_schema, mak
         "SELECT r.id AS x, random() AS y FROM range(100000000) r"
     )
 
-    def task() -> None:
+    def update_table() -> None:
         wait_until_seconds_rollover()
         sql_backend.execute(f"UPDATE {table_full_name} SET y = y * 2 WHERE (x % 2 = 0)")
 
 
-    Threads.strict("concurrent appends", [task, task])
+    Threads.strict("concurrent appends", [update_table, update_table])
