@@ -158,7 +158,7 @@ def test_command_context_backend_save_table_empty_records():
     )
 
 
-def test_command_context_backend_save_table_overwrite_empty_records():
+def test_command_context_backend_save_table_overwrite_empty_records() -> None:
     ws = create_autospec(WorkspaceClient)
     ws.command_execution.create.return_value = Wait[ContextStatusResponse](
         waiter=lambda callback, timeout: ContextStatusResponse(id="abc")
@@ -225,7 +225,7 @@ def test_command_context_backend_save_table_two_records():
     )
 
 
-def test_command_context_backend_save_table_append_in_batches_of_two():
+def test_command_context_backend_save_table_append_in_batches_of_two() -> None:
     ws = create_autospec(WorkspaceClient)
     ws.command_execution.create.return_value = Wait[ContextStatusResponse](
         waiter=lambda callback, timeout: ContextStatusResponse(id="abc")
@@ -264,7 +264,7 @@ def test_command_context_backend_save_table_append_in_batches_of_two():
     )
 
 
-def test_command_context_backend_save_table_overwrite_in_batches_of_two():
+def test_command_context_backend_save_table_overwrite_in_batches_of_two() -> None:
     ws = create_autospec(WorkspaceClient)
     ws.command_execution.create.return_value = Wait[ContextStatusResponse](
         waiter=lambda callback, timeout: ContextStatusResponse(id="abc")

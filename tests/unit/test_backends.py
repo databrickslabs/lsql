@@ -2,6 +2,7 @@ import datetime
 import os
 import sys
 from dataclasses import dataclass
+from typing import Literal
 from unittest import mock
 from unittest.mock import MagicMock, call, create_autospec
 
@@ -173,7 +174,7 @@ def test_statement_execution_backend_save_table_empty_records():
     )
 
 
-def test_statement_execution_backend_save_table_overwrite_empty_records():
+def test_statement_execution_backend_save_table_overwrite_empty_records() -> None:
     ws = create_autospec(WorkspaceClient)
 
     ws.statement_execution.execute_statement.return_value = StatementResponse(
@@ -248,7 +249,7 @@ def test_statement_execution_backend_save_table_two_records():
     )
 
 
-def test_statement_execution_backend_save_table_append_in_batches_of_two():
+def test_statement_execution_backend_save_table_append_in_batches_of_two() -> None:
     ws = create_autospec(WorkspaceClient)
 
     ws.statement_execution.execute_statement.return_value = StatementResponse(
@@ -295,7 +296,7 @@ def test_statement_execution_backend_save_table_append_in_batches_of_two():
     )
 
 
-def test_statement_execution_backend_save_table_overwrite_in_batches_of_two():
+def test_statement_execution_backend_save_table_overwrite_in_batches_of_two() -> None:
     ws = create_autospec(WorkspaceClient)
 
     ws.statement_execution.execute_statement.return_value = StatementResponse(
@@ -374,7 +375,7 @@ def test_runtime_backend_fetch():
 
 
 @pytest.mark.parametrize("mode", ["append", "overwrite"])
-def test_runtime_backend_save_table(mode):
+def test_runtime_backend_save_table(mode: Literal["append", "overwrite"]) -> None:
     with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
         pyspark_sql_session = MagicMock()
         sys.modules["pyspark.sql.session"] = pyspark_sql_session
@@ -391,7 +392,7 @@ def test_runtime_backend_save_table(mode):
         spark.createDataFrame().write.saveAsTable.assert_called_once_with("a.b.c", mode=mode)
 
 
-def test_runtime_backend_save_table_append_empty_records():
+def test_runtime_backend_save_table_append_empty_records() -> None:
     with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
         pyspark_sql_session = MagicMock()
         sys.modules["pyspark.sql.session"] = pyspark_sql_session
@@ -408,7 +409,7 @@ def test_runtime_backend_save_table_append_empty_records():
         )
 
 
-def test_runtime_backend_save_table_overwrite_empty_records():
+def test_runtime_backend_save_table_overwrite_empty_records() -> None:
     with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
         pyspark_sql_session = MagicMock()
         sys.modules["pyspark.sql.session"] = pyspark_sql_session
@@ -534,7 +535,7 @@ def test_mock_backend_save_table_overwrite() -> None:
     ]
 
 
-def test_mock_backend_save_table_no_rows():
+def test_mock_backend_save_table_no_rows() -> None:
     mock_backend = MockBackend()
 
     mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
@@ -546,7 +547,7 @@ def test_mock_backend_save_table_no_rows():
     ]
 
 
-def test_mock_backend_save_table_overwrite_no_rows():
+def test_mock_backend_save_table_overwrite_no_rows() -> None:
     mock_backend = MockBackend()
 
     mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
