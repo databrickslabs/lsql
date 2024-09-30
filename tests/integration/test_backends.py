@@ -1,6 +1,7 @@
 import pytest
 from databricks.labs.blueprint.commands import CommandExecutor
 from databricks.labs.blueprint.installation import Installation
+from databricks.labs.blueprint.parallel import Threads
 from databricks.labs.blueprint.wheels import ProductInfo, WheelsV2
 
 from databricks.labs.lsql import Row
@@ -186,3 +187,36 @@ else:
 """
     result = commands.run(permission_denied_query)
     assert result == "PASSED"
+
+
+def test_runtime_backend_handles_concurrent_append(sql_backend, make_schema, make_random) -> None:
+
+    def wait_until_10s_rollover() -> None:
+        import math
+        import time
+
+        # First figure out how long until rollover.
+        now = time.clock_gettime_ns(time.CLOCK_REALTIME)
+        target = math.ceil(now // 1e9 / 10) * 10 * 1e9
+        # Sleep until just before the rollover.
+        nanos_until_almost_target = ((target - now) - 1e7)
+        if 0 < nanos_until_almost_target:
+            time.sleep(nanos_until_almost_target / 1e9)
+        # Busy-wait until the rollover occurs.
+        while time.clock_gettime_ns(time.CLOCK_REALTIME) < target:
+            pass
+
+    schema = make_schema(name=f"lsql_{make_random(8)}")
+    table_full_name = f"{schema.full_name}.concurrent_append"
+    sql_backend.execute(f"CREATE TABLE IF NOT EXISTS {table_full_name} (x int, y float)")
+    sql_backend.execute(
+        f"INSERT INTO {table_full_name} BY NAME "
+        "SELECT r.id AS x, random() AS y FROM range(100000000) r"
+    )
+
+    def task() -> None:
+        wait_until_10s_rollover()
+        sql_backend.execute(f"UPDATE {table_full_name} SET y = y * 2 WHERE (x % 2 = 0)")
+
+
+    Threads.strict("concurrent appends", [task, task])
