@@ -476,8 +476,6 @@ class StatementExecutionExt:
             raise NotFound(error_message)
         if "does not exist" in error_message:
             raise NotFound(error_message)
-        if "DELTA_MISSING_TRANSACTION_LOG" in error_message:
-            raise DataLoss(error_message)
         mapping = {
             ServiceErrorCode.ABORTED: errors.Aborted,
             ServiceErrorCode.ALREADY_EXISTS: errors.AlreadyExists,
