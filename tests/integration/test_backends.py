@@ -215,13 +215,15 @@ def wait_until_seconds_rollover(*, rollover_seconds: int = 10) -> None:
         pass
 
 
-def test_runtime_backend_handles_concurrent_append(sql_backend, make_random) -> None:
-    table_name = f"lsql_test_{make_random(8)}"
-    sql_backend.execute(f"CREATE TABLE {table_name} AS (SELECT r.id AS x, random() AS y FROM range(1000000) r)")
+def test_runtime_backend_handles_concurrent_append(sql_backend, make_random, make_table) -> None:
+    table = make_table(
+        name=f"lsql_test_{make_random()}",
+        ctas="SELECT r.id AS x, random() AS y FROM range(1000000) r"
+    )
 
     def update_table() -> None:
         wait_until_seconds_rollover()  # Update the table at the same time
-        sql_backend.execute(f"UPDATE {table_name} SET y = y * 2 WHERE (x % 2 = 0)")
+        sql_backend.execute(f"UPDATE {table.full_name} SET y = y * 2 WHERE (x % 2 = 0)")
 
     try:
         Threads.strict("concurrent appends", [update_table, update_table])
