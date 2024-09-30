@@ -225,7 +225,7 @@ def test_runtime_backend_handles_concurrent_append(sql_backend, make_random) -> 
     )
 
     def update_table() -> None:
-        wait_until_seconds_rollover()
+        wait_until_seconds_rollover()  # Update the table at the same time
         sql_backend.execute(f"UPDATE {table_name} SET y = y * 2 WHERE (x % 2 = 0)")
 
     try:
