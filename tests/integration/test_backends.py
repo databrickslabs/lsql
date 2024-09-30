@@ -167,6 +167,7 @@ def test_statement_execution_backend_overwrites_table(ws, env_or_skip, make_rand
     rows = list(sql_backend.fetch(f"SELECT * FROM {catalog}.{schema}.foo"))
     assert rows == []
 
+
 def test_runtime_backend_use_statements(ws):
     product_info = ProductInfo.for_testing(SqlBackend)
     installation = Installation.assume_user_home(ws, product_info.product_name())
