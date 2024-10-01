@@ -193,28 +193,6 @@ else:
     assert result == "PASSED"
 
 
-def wait_until_seconds_rollover(*, rollover_seconds: int = 10) -> None:
-    """Wait until the next rollover.
-
-    Useful to align concurrent writes.
-
-    Args:
-        rollover_seconds (int) : The multiple of seconds to wait until the next rollover.
-    """
-    nano, micro = 1e9, 1e6
-
-    nanoseconds_now = time.clock_gettime_ns(time.CLOCK_REALTIME)
-    nanoseconds_target = math.ceil(nanoseconds_now / nano // rollover_seconds) * nano * rollover_seconds
-
-    # To hit the rollover more accurate, first sleep until almost target
-    nanoseconds_until_almost_target = (nanoseconds_target - nanoseconds_now) - micro
-    time.sleep(max(nanoseconds_until_almost_target / nano, 0))
-
-    # Then busy-wait until the rollover occurs
-    while time.clock_gettime_ns(time.CLOCK_REALTIME) < nanoseconds_target:
-        pass
-
-
 def test_runtime_backend_handles_concurrent_append(sql_backend, make_random, make_table) -> None:
     table = make_table(
         name=f"lsql_test_{make_random()}",
@@ -222,7 +200,6 @@ def test_runtime_backend_handles_concurrent_append(sql_backend, make_random, mak
     )
 
     def update_table() -> None:
-        wait_until_seconds_rollover()  # Update the table at the same time
         sql_backend.execute(f"UPDATE {table.full_name} SET y = y * 2 WHERE (x % 2 = 0)")
 
     try:
