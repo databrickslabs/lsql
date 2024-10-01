@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 import sqlglot
 from databricks.sdk import WorkspaceClient, errors
-from databricks.sdk.errors import BadRequest, DataLoss, NotFound
+from databricks.sdk.errors import BadRequest, DatabricksError, DataLoss, NotFound
 from databricks.sdk.retries import retried
 from databricks.sdk.service.sql import (
     ColumnInfoTypeName,
@@ -120,11 +120,8 @@ class Row(tuple):
         return f"Row({', '.join(f'{k}={v!r}' for (k, v) in zip(self.__columns__, self, strict=True))})"
 
 
-def _is_retryable_delta_concurrent_append(e: BaseException) -> str | None:
-    """Retry a concurrent append to a delta table"""
-    if isinstance(e, BadRequest) and "DELTA_CONCURRENT_APPEND" in str(e):
-        return "Concurrent append"
-    return None
+class DeltaConcurrentAppend(DatabricksError):
+    """Error raised when appending concurrent to a Delta table."""
 
 
 class StatementExecutionExt:
@@ -190,7 +187,7 @@ class StatementExecutionExt:
             ColumnInfoTypeName.TIMESTAMP: self._parse_timestamp,
         }
 
-    @retried(is_retryable=_is_retryable_delta_concurrent_append, timeout=timedelta(seconds=10))
+    @retried(on=[DeltaConcurrentAppend], timeout=timedelta(seconds=10))
     def execute(
         self,
         statement: str,
@@ -478,6 +475,8 @@ class StatementExecutionExt:
             raise NotFound(error_message)
         if "DELTA_MISSING_TRANSACTION_LOG" in error_message:
             raise DataLoss(error_message)
+        if "DELTA_CONCURRENT_APPEND" in error_message:
+            raise DeltaConcurrentAppend(error_message)
         mapping = {
             ServiceErrorCode.ABORTED: errors.Aborted,
             ServiceErrorCode.ALREADY_EXISTS: errors.AlreadyExists,
