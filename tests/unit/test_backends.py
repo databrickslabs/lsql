@@ -366,7 +366,7 @@ def test_save_table_with_not_null_constraint_violated():
         ("PARSE_SYNTAX_ERROR foo", BadRequest),
         ("foo Operation not allowed", PermissionDenied),
         ("foo error failure", Unknown),
-        ("[DELTA_CONCURRENT_APPEND] ConcurrentAppendException: Files were added ...", DeltaConcurrentAppend)
+        ("[DELTA_CONCURRENT_APPEND] ConcurrentAppendException: Files were added ...", DeltaConcurrentAppend),
     ],
 )
 def test_runtime_backend_error_mapping_similar_to_statement_execution(msg, err_t) -> None:
