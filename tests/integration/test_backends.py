@@ -1,7 +1,10 @@
 import pytest
 from databricks.labs.blueprint.commands import CommandExecutor
 from databricks.labs.blueprint.installation import Installation
+from databricks.labs.blueprint.parallel import Threads
 from databricks.labs.blueprint.wheels import ProductInfo, WheelsV2
+from databricks.sdk.errors import BadRequest
+from databricks.sdk.service import compute
 
 from databricks.labs.lsql import Row
 from databricks.labs.lsql.backends import SqlBackend, StatementExecutionBackend
@@ -74,7 +77,6 @@ except BadRequest:
     return "PASSED"
 """
 
-
 UNKNOWN_ERROR = """
 from databricks.labs.lsql.backends import RuntimeBackend
 from databricks.sdk.errors import Unknown
@@ -85,6 +87,37 @@ try:
 except Unknown:
     return "PASSED"
 """
+
+CONCURRENT_APPEND = '''
+import math
+import time
+
+
+def wait_until_seconds_rollover(*, rollover_seconds: int = 10) -> None:
+    """Wait until the next rollover.
+    
+    Useful to align concurrent writes.
+    
+    Args:
+        rollover_seconds (int) : The multiple of seconds to wait until the next rollover.
+    """
+    nano, micro = 1e9, 1e6
+
+    nanoseconds_now = time.clock_gettime_ns(time.CLOCK_BOOTTIME)
+    nanoseconds_target = math.ceil(nanoseconds_now / nano // rollover_seconds) * nano * rollover_seconds
+
+    # To hit the rollover more accurate, first sleep until almost target
+    nanoseconds_until_almost_target = (nanoseconds_target - nanoseconds_now) - micro
+    time.sleep(max(nanoseconds_until_almost_target / nano, 0))
+
+    # Then busy-wait until the rollover occurs
+    while time.clock_gettime_ns(time.CLOCK_BOOTTIME) < nanoseconds_target:
+        pass
+        
+        
+wait_until_seconds_rollover()
+spark.sql("UPDATE {table_full_name} SET y = y * 2 WHERE (x % 2 = 0)")
+'''
 
 
 @pytest.mark.xfail
@@ -137,6 +170,27 @@ def test_runtime_backend_errors_handled(ws, query):
     commands.install_notebook_library(f"/Workspace{wsfs_wheel}")
     result = commands.run(query)
     assert result == "PASSED"
+
+
+def test_runtime_backend_handles_concurrent_append(ws, make_random, make_table) -> None:
+    commands = CommandExecutor(
+        ws.clusters,
+        ws.command_execution,
+        lambda: ws.config.cluster_id,
+        language=compute.Language.PYTHON,
+    )
+    table = make_table(name=f"lsql_test_{make_random()}", ctas="SELECT r.id AS x, random() AS y FROM range(1000000) r")
+
+    def update_table() -> None:
+        commands.run(CONCURRENT_APPEND.format(table_full_name=table.full_name))
+
+    try:
+        Threads.strict("concurrent appends", [update_table, update_table])
+    except BadRequest as e:
+        if "DELTA_CONCURRENT_APPEND" in str(e):
+            assert False, str(e)
+        else:
+            raise  # Raise in case of unexpected error
 
 
 def test_statement_execution_backend_works(ws, env_or_skip):
