@@ -96,7 +96,7 @@ def test_runtime_backend_handles_concurrent_append(sql_backend, make_random, mak
     try:
         Threads.strict("concurrent appends", [update_table, update_table])
     except BadRequest as e:
-        if "[DELTA_CONCURRENT_APPEND]" in str(e):
+        if "DELTA_CONCURRENT_APPEND" in str(e):
             assert False, str(e)
         else:
             raise  # Raise in case of unexpected error

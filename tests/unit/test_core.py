@@ -22,7 +22,7 @@ from databricks.sdk.service.sql import (
     timedelta,
 )
 
-from databricks.labs.lsql.core import Row, StatementExecutionExt
+from databricks.labs.lsql.core import DeltaConcurrentAppend, Row, StatementExecutionExt
 
 
 @pytest.mark.parametrize(
@@ -196,6 +196,7 @@ def test_execute_poll_succeeds():
         (ServiceError(message="... DELTA_TABLE_NOT_FOUND ..."), errors.NotFound),
         (ServiceError(message="... DELTA_TABLE_NOT_FOUND ..."), errors.NotFound),
         (ServiceError(message="... DELTA_MISSING_TRANSACTION_LOG ..."), errors.DataLoss),
+        (ServiceError(message="... DELTA_CONCURRENT_APPEND ..."), DeltaConcurrentAppend),
     ],
 )
 def test_execute_fails(status_error, platform_error_type):
