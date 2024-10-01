@@ -199,17 +199,15 @@ def test_execute_poll_succeeds():
         (ServiceError(message="... DELTA_CONCURRENT_APPEND ..."), DeltaConcurrentAppend),
     ],
 )
-def test_execute_fails(status_error, platform_error_type):
+def test_execute_fails(status_error, platform_error_type) -> None:
     ws = create_autospec(WorkspaceClient)
-
     ws.statement_execution.execute_statement.return_value = StatementResponse(
         status=StatementStatus(state=StatementState.FAILED, error=status_error),
         statement_id="bcd",
     )
-
     see = StatementExecutionExt(ws, warehouse_id="abc")
 
-    with pytest.raises(platform_error_type):
+    with pytest.raises(platform_error_type, match=status_error.message if status_error is not None else None):
         see.execute("SELECT 2+2")
 
 
