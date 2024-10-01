@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 import sqlglot
 from databricks.sdk import WorkspaceClient, errors
-from databricks.sdk.errors import BadRequest, NotFound
+from databricks.sdk.errors import BadRequest, DataLoss, NotFound
 from databricks.sdk.retries import retried
 from databricks.sdk.service.sql import (
     ColumnInfoTypeName,
@@ -476,6 +476,8 @@ class StatementExecutionExt:
             raise NotFound(error_message)
         if "does not exist" in error_message:
             raise NotFound(error_message)
+        if "DELTA_MISSING_TRANSACTION_LOG" in error_message:
+            raise DataLoss(error_message)
         mapping = {
             ServiceErrorCode.ABORTED: errors.Aborted,
             ServiceErrorCode.ALREADY_EXISTS: errors.AlreadyExists,
