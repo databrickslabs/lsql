@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import requests
 import sqlglot
 from databricks.sdk import WorkspaceClient, errors
-from databricks.sdk.errors import BadRequest, DataLoss, NotFound
+from databricks.sdk.errors import BadRequest, NotFound
 from databricks.sdk.retries import retried
 from databricks.sdk.service.sql import (
     ColumnInfoTypeName,
