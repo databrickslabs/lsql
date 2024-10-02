@@ -135,20 +135,29 @@ class ExecutionBackend(SqlBackend):
     def fetch(self, sql: str, *, catalog: str | None = None, schema: str | None = None) -> Iterator[Any]:
         raise NotImplementedError
 
-    def save_table(self, full_name: str, rows: Sequence[DataclassInstance], klass: Dataclass, mode="append"):
+    def save_table(
+        self,
+        full_name: str,
+        rows: Sequence[DataclassInstance],
+        klass: Dataclass,
+        mode: Literal["append", "overwrite"] = "append",
+    ):
         rows = self._filter_none_rows(rows, klass)
         self.create_table(full_name, klass)
-        if len(rows) == 0:
+        if not rows:
+            if mode == "overwrite":
+                self.execute(f"TRUNCATE TABLE {full_name}")
             return
         fields = dataclasses.fields(klass)
         field_names = [f.name for f in fields]
-        if mode == "overwrite":
-            self.execute(f"TRUNCATE TABLE {full_name}")
+        insert_modifier = "OVERWRITE" if mode == "overwrite" else "INTO"
         for i in range(0, len(rows), self._max_records_per_batch):
             batch = rows[i : i + self._max_records_per_batch]
             vals = "), (".join(self._row_to_sql(r, fields) for r in batch)
-            sql = f'INSERT INTO {full_name} ({", ".join(field_names)}) VALUES ({vals})'
+            sql = f'INSERT {insert_modifier} {full_name} ({", ".join(field_names)}) VALUES ({vals})'
             self.execute(sql)
+            # Only the first batch can truncate; subsequent batches append.
+            insert_modifier = "INTO"
 
     @classmethod
     def _row_to_sql(cls, row: DataclassInstance, fields: tuple[dataclasses.Field[Any], ...]):
@@ -277,8 +286,7 @@ class _SparkBackend(SqlBackend):
         mode: Literal["append", "overwrite"] = "append",
     ) -> None:
         rows = self._filter_none_rows(rows, klass)
-
-        if len(rows) == 0:
+        if not rows and mode == "append":
             self.create_table(full_name, klass)
             return
         # pyspark deals well with lists of dataclass instances, as long as schema is provided

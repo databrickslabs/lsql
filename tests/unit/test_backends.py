@@ -2,6 +2,7 @@ import datetime
 import os
 import sys
 from dataclasses import dataclass
+from typing import Literal
 from unittest import mock
 from unittest.mock import MagicMock, call, create_autospec
 
@@ -137,17 +138,7 @@ def test_statement_execution_backend_save_table_overwrite_empty_table():
             ),
             mock.call(
                 warehouse_id="abc",
-                statement="TRUNCATE TABLE a.b.c",
-                catalog=None,
-                schema=None,
-                disposition=None,
-                format=Format.JSON_ARRAY,
-                byte_limit=None,
-                wait_timeout=None,
-            ),
-            mock.call(
-                warehouse_id="abc",
-                statement="INSERT INTO a.b.c (first, second) VALUES ('1', NULL)",
+                statement="INSERT OVERWRITE a.b.c (first, second) VALUES ('1', NULL)",
                 catalog=None,
                 schema=None,
                 disposition=None,
@@ -170,7 +161,7 @@ def test_statement_execution_backend_save_table_empty_records():
 
     seb.save_table("a.b.c", [], Bar)
 
-    ws.statement_execution.execute_statement.assert_called_with(
+    ws.statement_execution.execute_statement.assert_called_once_with(
         warehouse_id="abc",
         statement="CREATE TABLE IF NOT EXISTS a.b.c "
         "(first STRING NOT NULL, second BOOLEAN NOT NULL, third FLOAT NOT NULL) USING DELTA",
@@ -180,6 +171,44 @@ def test_statement_execution_backend_save_table_empty_records():
         format=Format.JSON_ARRAY,
         byte_limit=None,
         wait_timeout=None,
+    )
+
+
+def test_statement_execution_backend_save_table_overwrite_empty_records() -> None:
+    ws = create_autospec(WorkspaceClient)
+
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
+        status=StatementStatus(state=StatementState.SUCCEEDED)
+    )
+
+    seb = StatementExecutionBackend(ws, "abc")
+
+    seb.save_table("a.b.c", [], Bar, mode="overwrite")
+
+    ws.statement_execution.execute_statement.assert_has_calls(
+        [
+            call(
+                warehouse_id="abc",
+                statement="CREATE TABLE IF NOT EXISTS a.b.c "
+                "(first STRING NOT NULL, second BOOLEAN NOT NULL, third FLOAT NOT NULL) USING DELTA",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            call(
+                warehouse_id="abc",
+                statement="TRUNCATE TABLE a.b.c",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+        ]
     )
 
 
@@ -220,7 +249,7 @@ def test_statement_execution_backend_save_table_two_records():
     )
 
 
-def test_statement_execution_backend_save_table_in_batches_of_two():
+def test_statement_execution_backend_save_table_append_in_batches_of_two() -> None:
     ws = create_autospec(WorkspaceClient)
 
     ws.statement_execution.execute_statement.return_value = StatementResponse(
@@ -229,7 +258,7 @@ def test_statement_execution_backend_save_table_in_batches_of_two():
 
     seb = StatementExecutionBackend(ws, "abc", max_records_per_batch=2)
 
-    seb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo)
+    seb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo, mode="append")
 
     ws.statement_execution.execute_statement.assert_has_calls(
         [
@@ -246,6 +275,53 @@ def test_statement_execution_backend_save_table_in_batches_of_two():
             mock.call(
                 warehouse_id="abc",
                 statement="INSERT INTO a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            mock.call(
+                warehouse_id="abc",
+                statement="INSERT INTO a.b.c (first, second) VALUES ('ccc', TRUE)",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+        ]
+    )
+
+
+def test_statement_execution_backend_save_table_overwrite_in_batches_of_two() -> None:
+    ws = create_autospec(WorkspaceClient)
+
+    ws.statement_execution.execute_statement.return_value = StatementResponse(
+        status=StatementStatus(state=StatementState.SUCCEEDED)
+    )
+
+    seb = StatementExecutionBackend(ws, "abc", max_records_per_batch=2)
+
+    seb.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False), Foo("ccc", True)], Foo, mode="overwrite")
+
+    ws.statement_execution.execute_statement.assert_has_calls(
+        [
+            mock.call(
+                warehouse_id="abc",
+                statement="CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA",
+                catalog=None,
+                schema=None,
+                disposition=None,
+                format=Format.JSON_ARRAY,
+                byte_limit=None,
+                wait_timeout=None,
+            ),
+            mock.call(
+                warehouse_id="abc",
+                statement="INSERT OVERWRITE a.b.c (first, second) VALUES ('aaa', TRUE), ('bbb', FALSE)",
                 catalog=None,
                 schema=None,
                 disposition=None,
@@ -298,7 +374,8 @@ def test_runtime_backend_fetch():
         spark.sql.assert_has_calls(calls)
 
 
-def test_runtime_backend_save_table():
+@pytest.mark.parametrize("mode", ["append", "overwrite"])
+def test_runtime_backend_save_table(mode: Literal["append", "overwrite"]) -> None:
     with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
         pyspark_sql_session = MagicMock()
         sys.modules["pyspark.sql.session"] = pyspark_sql_session
@@ -306,13 +383,44 @@ def test_runtime_backend_save_table():
 
         runtime_backend = RuntimeBackend()
 
-        runtime_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
+        runtime_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo, mode=mode)
 
-        spark.createDataFrame.assert_called_with(
+        spark.createDataFrame.assert_called_once_with(
             [Foo(first="aaa", second=True), Foo(first="bbb", second=False)],
             "first STRING NOT NULL, second BOOLEAN NOT NULL",
         )
-        spark.createDataFrame().write.saveAsTable.assert_called_with("a.b.c", mode="append")
+        spark.createDataFrame().write.saveAsTable.assert_called_once_with("a.b.c", mode=mode)
+
+
+def test_runtime_backend_save_table_append_empty_records() -> None:
+    with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
+        pyspark_sql_session = MagicMock()
+        sys.modules["pyspark.sql.session"] = pyspark_sql_session
+        spark = pyspark_sql_session.SparkSession.builder.getOrCreate()
+
+        runtime_backend = RuntimeBackend()
+
+        runtime_backend.save_table("a.b.c", [], Foo, mode="append")
+
+        spark.createDataFrame.assert_not_called()
+        spark.createDataFrame().write.saveAsTable.assert_not_called()
+        spark.sql.assert_called_once_with(
+            "CREATE TABLE IF NOT EXISTS a.b.c (first STRING NOT NULL, second BOOLEAN NOT NULL) USING DELTA"
+        )
+
+
+def test_runtime_backend_save_table_overwrite_empty_records() -> None:
+    with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
+        pyspark_sql_session = MagicMock()
+        sys.modules["pyspark.sql.session"] = pyspark_sql_session
+        spark = pyspark_sql_session.SparkSession.builder.getOrCreate()
+
+        runtime_backend = RuntimeBackend()
+
+        runtime_backend.save_table("a.b.c", [], Foo, mode="overwrite")
+
+        spark.createDataFrame.assert_called_once_with([], "first STRING NOT NULL, second BOOLEAN NOT NULL")
+        spark.createDataFrame().write.saveAsTable.assert_called_once_with("a.b.c", mode="overwrite")
 
 
 def test_runtime_backend_save_table_with_row_containing_none_with_nullable_class(mocker):
@@ -425,6 +533,27 @@ def test_mock_backend_save_table_overwrite() -> None:
     assert mock_backend.rows_written_for("d.e.f", "overwrite") == [
         Row(first="fff", second=True),
     ]
+
+
+def test_mock_backend_save_table_no_rows() -> None:
+    mock_backend = MockBackend()
+
+    mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
+    mock_backend.save_table("a.b.c", [], Foo)
+
+    assert mock_backend.rows_written_for("a.b.c", mode="append") == [
+        Row(first="aaa", second=True),
+        Row(first="bbb", second=False),
+    ]
+
+
+def test_mock_backend_save_table_overwrite_no_rows() -> None:
+    mock_backend = MockBackend()
+
+    mock_backend.save_table("a.b.c", [Foo("aaa", True), Foo("bbb", False)], Foo)
+    mock_backend.save_table("a.b.c", [], Foo)
+
+    assert mock_backend.rows_written_for("a.b.c", mode="overwrite") == []
 
 
 def test_mock_backend_rows_dsl():
