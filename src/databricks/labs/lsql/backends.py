@@ -21,7 +21,7 @@ from databricks.sdk.errors import (
 from databricks.sdk.retries import retried
 from databricks.sdk.service.compute import Language
 
-from databricks.labs.lsql.core import Row, StatementExecutionExt
+from databricks.labs.lsql.core import DeltaConcurrentAppend, Row, StatementExecutionExt
 from databricks.labs.lsql.structs import StructInference
 
 logger = logging.getLogger(__name__)
@@ -117,6 +117,8 @@ class SqlBackend(ABC):
             return BadRequest(error_message)
         if "Operation not allowed" in error_message:
             return PermissionDenied(error_message)
+        if "DELTA_CONCURRENT_APPEND" in error_message:
+            return DeltaConcurrentAppend(error_message)
         return Unknown(error_message)
 
 

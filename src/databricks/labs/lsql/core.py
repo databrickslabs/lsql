@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING, Any
 import requests
 import sqlglot
 from databricks.sdk import WorkspaceClient, errors
-from databricks.sdk.errors import DataLoss, NotFound
+from databricks.sdk.errors import BadRequest, DatabricksError, DataLoss, NotFound
+from databricks.sdk.retries import retried
 from databricks.sdk.service.sql import (
     ColumnInfoTypeName,
     Disposition,
@@ -119,6 +120,10 @@ class Row(tuple):
         return f"Row({', '.join(f'{k}={v!r}' for (k, v) in zip(self.__columns__, self, strict=True))})"
 
 
+class DeltaConcurrentAppend(DatabricksError):
+    """Error raised when appending concurrent to a Delta table."""
+
+
 class StatementExecutionExt:
     """Execute SQL statements in a stateless manner.
 
@@ -182,6 +187,7 @@ class StatementExecutionExt:
             ColumnInfoTypeName.TIMESTAMP: self._parse_timestamp,
         }
 
+    @retried(on=[DeltaConcurrentAppend], timeout=timedelta(seconds=10))
     def execute(
         self,
         statement: str,
@@ -469,6 +475,8 @@ class StatementExecutionExt:
             raise NotFound(error_message)
         if "DELTA_MISSING_TRANSACTION_LOG" in error_message:
             raise DataLoss(error_message)
+        if "DELTA_CONCURRENT_APPEND" in error_message:
+            raise DeltaConcurrentAppend(error_message)
         mapping = {
             ServiceErrorCode.ABORTED: errors.Aborted,
             ServiceErrorCode.ALREADY_EXISTS: errors.AlreadyExists,
