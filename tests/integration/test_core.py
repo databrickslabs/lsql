@@ -88,5 +88,6 @@ def test_fetch_value(ws):
 def test_row_as_dict_deprecated(ws) -> None:
     see = StatementExecutionExt(ws)
     row = see.fetch_one("SELECT 1")
+    assert row is not None
     with pytest.deprecated_call():
         _ = row.as_dict()
