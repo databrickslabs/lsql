@@ -45,7 +45,7 @@ def test_sql_execution_partial(ws, env_or_skip):
         pickup_time, dropoff_time = row[0], row[1]
         pickup_zip = row.pickup_zip
         dropoff_zip = row["dropoff_zip"]
-        all_fields = row.as_dict()
+        all_fields = row.asDict()
         logger.info(f"{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}")
         results.append((pickup_zip, dropoff_zip))
     assert results == [
@@ -83,3 +83,10 @@ def test_fetch_value(ws):
     see = StatementExecutionExt(ws)
     count = see.fetch_value("SELECT COUNT(*) FROM samples.nyctaxi.trips")
     assert count == 21932
+
+
+def test_row_as_dict_deprecated(ws) -> None:
+    see = StatementExecutionExt(ws)
+    row = see.fetch_one("SELECT 1")
+    with pytest.deprecated_call():
+        _ = row.as_dict()
