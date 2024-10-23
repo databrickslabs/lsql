@@ -72,7 +72,7 @@ class Row(tuple):
         return tuple.__new__(cls, args)
 
     @classmethod
-    def factory(cls, col_names: list[str]) -> type:
+    def factory(cls, col_names: list[str]) -> type["Row"]:
         """Create a new Row class with the given column names."""
         return type("Row", (Row,), {"__columns__": col_names})
 
@@ -94,7 +94,7 @@ class Row(tuple):
         _ = recursive
         return dict(zip(self.__columns__, self, strict=True))
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Check if the rows are equal."""
         if not isinstance(other, Row):
             return False
@@ -102,7 +102,7 @@ class Row(tuple):
         # of fields in constructor is not guaranteed
         return self.asDict() == other.asDict()
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         """Check if the column is in the row."""
         return item in self.__columns__
 
@@ -125,7 +125,7 @@ class Row(tuple):
         except ValueError:
             raise AttributeError(col) from None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Get the string representation of the row."""
         return f"Row({', '.join(f'{k}={v!r}' for (k, v) in zip(self.__columns__, self, strict=True))})"
 
