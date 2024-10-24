@@ -1,6 +1,8 @@
 import logging
 
 import pytest
+from databricks.labs.blueprint.parallel import Threads
+from databricks.sdk.errors import BadRequest
 from databricks.sdk.service.sql import Disposition
 
 from databricks.labs.lsql.core import Row, StatementExecutionExt
@@ -83,3 +85,18 @@ def test_fetch_value(ws):
     see = StatementExecutionExt(ws)
     count = see.fetch_value("SELECT COUNT(*) FROM samples.nyctaxi.trips")
     assert count == 21932
+
+
+def test_runtime_backend_handles_concurrent_append(sql_backend, make_random, make_table) -> None:
+    table = make_table(name=f"lsql_test_{make_random()}", ctas="SELECT r.id AS x, random() AS y FROM range(1000000) r")
+
+    def update_table() -> None:
+        sql_backend.execute(f"UPDATE {table.full_name} SET y = y * 2 WHERE (x % 2 = 0)")
+
+    try:
+        Threads.strict("concurrent appends", [update_table, update_table])
+    except BadRequest as e:
+        if "DELTA_CONCURRENT_APPEND" in str(e):
+            assert False, str(e)
+        else:
+            raise  # Raise in case of unexpected error

@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 import sys
 from dataclasses import dataclass
 from typing import Literal
@@ -33,6 +34,7 @@ from databricks.labs.lsql.backends import (
     RuntimeBackend,
     StatementExecutionBackend,
 )
+from databricks.labs.lsql.core import DeltaConcurrentAppend
 
 # pylint: disable=protected-access
 
@@ -472,9 +474,10 @@ def test_save_table_with_not_null_constraint_violated():
         ("PARSE_SYNTAX_ERROR foo", BadRequest),
         ("foo Operation not allowed", PermissionDenied),
         ("foo error failure", Unknown),
+        ("[DELTA_CONCURRENT_APPEND] ConcurrentAppendException: Files were added ...", DeltaConcurrentAppend),
     ],
 )
-def test_runtime_backend_error_mapping_similar_to_statement_execution(msg, err_t):
+def test_runtime_backend_error_mapping_similar_to_statement_execution(msg, err_t) -> None:
     with mock.patch.dict(os.environ, {"DATABRICKS_RUNTIME_VERSION": "14.0"}):
         pyspark_sql_session = MagicMock()
         sys.modules["pyspark.sql.session"] = pyspark_sql_session
@@ -484,10 +487,10 @@ def test_runtime_backend_error_mapping_similar_to_statement_execution(msg, err_t
 
         runtime_backend = RuntimeBackend()
 
-        with pytest.raises(err_t):
+        with pytest.raises(err_t, match=re.escape(msg)):
             runtime_backend.execute("SELECT * from bar")
 
-        with pytest.raises(err_t):
+        with pytest.raises(err_t, match=re.escape(msg)):
             list(runtime_backend.fetch("SELECT * from bar"))
 
 
