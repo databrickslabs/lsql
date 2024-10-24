@@ -76,6 +76,8 @@ class Row(tuple):
         """Create a new Row class with the given column names."""
         return type("Row", (Row,), {"__columns__": col_names})
 
+    # If we can mark the method as deprecated via PEP 702 annotation, prefer this because it helps mypy and
+    # PyCharm/IntelliJ detect and flag deprecated use.
     if sys.version_info >= (3, 13):
 
         @warnings.deprecated("Using as_dict() on rows is deprecated; use asDict() instead.")  # pylint: disable=no-member
