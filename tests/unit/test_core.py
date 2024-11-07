@@ -38,7 +38,7 @@ def test_row_from_kwargs(row):
     assert "foo" in row
     assert len(row) == 2
     assert list(row) == ["bar", True]
-    assert row.as_dict() == {"foo": "bar", "enabled": True}
+    assert row.asDict() == {"foo": "bar", "enabled": True}
     foo, enabled = row
     assert foo == "bar"
     assert enabled is True

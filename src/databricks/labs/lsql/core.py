@@ -3,9 +3,11 @@ import datetime
 import json
 import logging
 import random
+import sys
 import threading
 import time
 import types
+import warnings
 from collections.abc import Callable, Iterator
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
@@ -70,28 +72,39 @@ class Row(tuple):
         return tuple.__new__(cls, args)
 
     @classmethod
-    def factory(cls, col_names: list[str]) -> type:
+    def factory(cls, col_names: list[str]) -> type["Row"]:
         """Create a new Row class with the given column names."""
         return type("Row", (Row,), {"__columns__": col_names})
 
-    def as_dict(self) -> dict[str, Any]:
-        """Convert the row to a dictionary with the same conventions as Databricks SDK."""
-        return dict(zip(self.__columns__, self, strict=True))
+    # If we can mark the method as deprecated via PEP 702 annotation, prefer this because it helps mypy and
+    # PyCharm/IntelliJ detect and flag deprecated use.
+    if sys.version_info >= (3, 13):
+
+        @warnings.deprecated("Using as_dict() on rows is deprecated; use asDict() instead.")  # pylint: disable=no-member
+        def as_dict(self) -> dict[str, Any]:
+            """Convert the row to a dictionary with the same conventions as Databricks SDK."""
+            return self.asDict()
+    else:
+
+        def as_dict(self) -> dict[str, Any]:
+            """Convert the row to a dictionary with the same conventions as Databricks SDK."""
+            warnings.warn("Using as_dict() on rows is deprecated; use asDict() instead.", DeprecationWarning)
+            return self.asDict()
 
     # PySpark's compatibility
     def asDict(self, recursive: bool = False) -> dict[str, Any]:
         _ = recursive
-        return self.as_dict()
+        return dict(zip(self.__columns__, self, strict=True))
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Check if the rows are equal."""
         if not isinstance(other, Row):
             return False
         # compare rows as dictionaries, because the order
         # of fields in constructor is not guaranteed
-        return self.as_dict() == other.as_dict()
+        return self.asDict() == other.asDict()
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         """Check if the column is in the row."""
         return item in self.__columns__
 
@@ -114,7 +127,7 @@ class Row(tuple):
         except ValueError:
             raise AttributeError(col) from None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Get the string representation of the row."""
         return f"Row({', '.join(f'{k}={v!r}' for (k, v) in zip(self.__columns__, self, strict=True))})"
 
@@ -311,7 +324,7 @@ class StatementExecutionExt:
         >>>     pickup_time, dropoff_time = row[0], row[1]
         >>>     pickup_zip = row.pickup_zip
         >>>     dropoff_zip = row["dropoff_zip"]
-        >>>     all_fields = row.as_dict()
+        >>>     all_fields = row.asDict()
         >>>     logger.info(f"{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}")
 
         :param statement: str
@@ -366,7 +379,7 @@ class StatementExecutionExt:
         >>>     pickup_time, dropoff_time = row[0], row[1]
         >>>     pickup_zip = row.pickup_zip
         >>>     dropoff_zip = row['dropoff_zip']
-        >>>     all_fields = row.as_dict()
+        >>>     all_fields = row.asDict()
         >>>     print(f'{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}')
 
         :param statement: str
