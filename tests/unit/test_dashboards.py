@@ -1464,24 +1464,33 @@ def test_dashboards_saves_markdown_files_to_folder(tmp_path):
     ws.assert_not_called()
 
 
-def test_dashboards_calls_create_without_dashboard_id():
+def test_dashboards_calls_create_without_dashboard_id() -> None:
+    sdk_dashboard = SDKDashboard(
+        dashboard_id=None,
+        display_name="test",
+        parent_path="/non/existing/path",
+        serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
+        warehouse_id="warehouse",
+    )
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
     dashboard_metadata = DashboardMetadata("test")
 
     dashboards.create_dashboard(dashboard_metadata, parent_path="/non/existing/path", warehouse_id="warehouse")
 
-    ws.lakeview.create.assert_called_with(
-        "test",
-        parent_path="/non/existing/path",
-        serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
-        warehouse_id="warehouse",
-    )
+    ws.lakeview.create.assert_called_with(dashboard=sdk_dashboard.as_dict())
     ws.lakeview.update.assert_not_called()
     ws.lakeview.publish.assert_not_called()
 
 
-def test_dashboards_calls_update_with_dashboard_id():
+def test_dashboards_calls_update_with_dashboard_id() -> None:
+    sdk_dashboard = SDKDashboard(
+        dashboard_id="id",
+        display_name="test",
+        parent_path=None,
+        serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
+        warehouse_id="warehouse",
+    )
     ws = create_autospec(WorkspaceClient)
     dashboards = Dashboards(ws)
     dashboard_metadata = DashboardMetadata("test")
@@ -1489,12 +1498,7 @@ def test_dashboards_calls_update_with_dashboard_id():
     dashboards.create_dashboard(dashboard_metadata, dashboard_id="id", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_not_called()
-    ws.lakeview.update.assert_called_with(
-        "id",
-        display_name="test",
-        serialized_dashboard=json.dumps({"pages": [{"displayName": "test", "name": "test"}]}),
-        warehouse_id="warehouse",
-    )
+    ws.lakeview.update.assert_called_with("id", dashboard=sdk_dashboard.as_dict())
     ws.lakeview.publish.assert_not_called()
 
 

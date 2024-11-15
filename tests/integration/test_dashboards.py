@@ -1,3 +1,4 @@
+import dataclasses
 import datetime as dt
 import json
 import logging
@@ -52,12 +53,12 @@ def factory(name, create, remove):
 def make_dashboard(ws, make_random):
     """Clean the lakeview dashboard"""
 
-    def create(display_name: str = "") -> SDKDashboard:
+    def create(*, display_name: str = "") -> SDKDashboard:
         if len(display_name) == 0:
             display_name = f"created_by_lsql_{make_random()}"
         else:
             display_name = f"{display_name} ({make_random()})"
-        dashboard = ws.lakeview.create(display_name)
+        dashboard = ws.lakeview.create(dashboard=SDKDashboard(display_name=display_name).as_dict())
         if is_in_debug():
             dashboard_url = f"{ws.config.host}/sql/dashboardsv3/{dashboard.dashboard_id}"
             webbrowser.open(dashboard_url)
@@ -110,12 +111,13 @@ def tmp_path(tmp_path, make_random):
     return folder
 
 
-def test_dashboards_creates_exported_dashboard_definition(ws, make_dashboard):
+def test_dashboards_creates_exported_dashboard_definition(ws, make_dashboard) -> None:
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
     dashboard_content = (Path(__file__).parent / "dashboards" / "dashboard.lvdash.json").read_text()
 
-    ws.lakeview.update(sdk_dashboard.dashboard_id, serialized_dashboard=dashboard_content)
+    dashboard_to_create = dataclasses.replace(sdk_dashboard, serialized_dashboard=dashboard_content)
+    ws.lakeview.update(sdk_dashboard.dashboard_id, dashboard=dashboard_to_create.as_dict())
     lakeview_dashboard = Dashboard.from_dict(json.loads(dashboard_content))
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
