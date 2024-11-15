@@ -52,7 +52,7 @@ def factory(name, create, remove):
 def make_dashboard(ws, make_random):
     """Clean the lakeview dashboard"""
 
-    def create(display_name: str = "") -> SDKDashboard:
+    def create(*, display_name: str = "") -> SDKDashboard:
         if len(display_name) == 0:
             display_name = f"created_by_lsql_{make_random()}"
         else:
