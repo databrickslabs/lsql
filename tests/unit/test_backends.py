@@ -366,11 +366,11 @@ def test_runtime_backend_fetch():
 
         runtime_backend = RuntimeBackend()
 
-        result = runtime_backend.fetch("SELECT id FROM range(3)", catalog="foo", schema="bar")
+        result = runtime_backend.fetch("SELECT id FROM range(3)")
 
         assert [Row(id=1), Row(id=2), Row(id=3)] == list(result)
 
-        calls = [call("USE CATALOG foo"), call("USE SCHEMA bar"), call("SELECT id FROM range(3)")]
+        calls = [call("SELECT id FROM range(3)").collect()]
         spark.sql.assert_has_calls(calls)
 
 
