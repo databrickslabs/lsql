@@ -1125,20 +1125,17 @@ class Dashboards:
         """
         dashboard_metadata.validate()
         serialized_dashboard = json.dumps(dashboard_metadata.as_lakeview().as_dict())
+        dashboard_to_create = SDKDashboard(
+            dashboard_id=dashboard_id,
+            display_name=dashboard_metadata.display_name,
+            parent_path=parent_path,
+            serialized_dashboard=serialized_dashboard,
+            warehouse_id=warehouse_id,
+        )
         if dashboard_id is not None:
-            sdk_dashboard = self._ws.lakeview.update(
-                dashboard_id,
-                display_name=dashboard_metadata.display_name,
-                serialized_dashboard=serialized_dashboard,
-                warehouse_id=warehouse_id,
-            )
+            sdk_dashboard = self._ws.lakeview.update(dashboard_id, dashboard=dashboard_to_create.as_dict())  # type: ignore
         else:
-            sdk_dashboard = self._ws.lakeview.create(
-                dashboard_metadata.display_name,
-                parent_path=parent_path,
-                serialized_dashboard=serialized_dashboard,
-                warehouse_id=warehouse_id,
-            )
+            sdk_dashboard = self._ws.lakeview.create(dashboard=dashboard_to_create.as_dict())  # type: ignore
         if publish:
             assert sdk_dashboard.dashboard_id is not None
             self._ws.lakeview.publish(sdk_dashboard.dashboard_id, warehouse_id=warehouse_id)
