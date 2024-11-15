@@ -1,3 +1,4 @@
+import dataclasses
 import datetime as dt
 import json
 import logging
@@ -110,12 +111,13 @@ def tmp_path(tmp_path, make_random):
     return folder
 
 
-def test_dashboards_creates_exported_dashboard_definition(ws, make_dashboard):
+def test_dashboards_creates_exported_dashboard_definition(ws, make_dashboard) -> None:
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard()
     dashboard_content = (Path(__file__).parent / "dashboards" / "dashboard.lvdash.json").read_text()
 
-    ws.lakeview.update(sdk_dashboard.dashboard_id, serialized_dashboard=dashboard_content)
+    dashboard_to_create = dataclasses.replace(sdk_dashboard, serialized_dashboard=dashboard_content)
+    ws.lakeview.update(sdk_dashboard.dashboard_id, dashboard=dashboard_to_create)
     lakeview_dashboard = Dashboard.from_dict(json.loads(dashboard_content))
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
