@@ -257,11 +257,11 @@ class _SparkBackend(SqlBackend):
         logger.debug(f"[spark][execute] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
         try:
             if catalog:
-                self._spark.sql(f"USE CATALOG {catalog}")
+                self._spark.sql(f"USE CATALOG {catalog}").collect()
             if schema:
-                self._spark.sql(f"USE SCHEMA {schema}")
-            self._spark.sql(sql)
-        except Exception as e:
+                self._spark.sql(f"USE SCHEMA {schema}").collect()
+            self._spark.sql(sql).collect()
+        except BaseException as e:
             error_message = str(e)
             raise self._api_error_from_message(error_message) from None
 
@@ -269,12 +269,12 @@ class _SparkBackend(SqlBackend):
         logger.debug(f"[spark][fetch] {self._only_n_bytes(sql, self._debug_truncate_bytes)}")
         try:
             if catalog:
-                self._spark.sql(f"USE CATALOG {catalog}")
+                self._spark.sql(f"USE CATALOG {catalog}").collect()
             if schema:
-                self._spark.sql(f"USE SCHEMA {schema}")
+                self._spark.sql(f"USE SCHEMA {schema}").collect()
             # TODO: pyspark.sql.Row is being returned instead of databricks.labs.lsql.core.Row
             return iter(self._spark.sql(sql).collect())
-        except Exception as e:
+        except BaseException as e:
             error_message = str(e)
             raise self._api_error_from_message(error_message) from None
 

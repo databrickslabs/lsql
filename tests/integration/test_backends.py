@@ -14,9 +14,9 @@ from databricks.sdk.errors import NotFound
 backend = RuntimeBackend()
 try:
     backend.execute("USE __NON_EXISTENT__")
-    return "FAILED"
+    print("FAILED")
 except NotFound as e:
-    return "PASSED"
+    print("PASSED")
 """
 
 INCORRECT_TABLE = """
@@ -25,9 +25,9 @@ from databricks.sdk.errors import NotFound
 backend = RuntimeBackend()
 try:
     backend.execute("SELECT * FROM default.__RANDOM__")
-    return "FAILED"
+    print("FAILED")
 except NotFound as e:
-    return "PASSED"
+    print("PASSED")
 """
 
 INCORRECT_DESCRIBE = """
@@ -36,9 +36,9 @@ from databricks.sdk.errors import NotFound
 backend = RuntimeBackend()
 try:
     query_response = backend.fetch("DESCRIBE __RANDOM__")
-    return "FAILED"
+    print("FAILED")
 except NotFound as e:
-    return "PASSED"
+    print("PASSED")
 """
 
 INCORRECT_TABLE_FETCH = """
@@ -47,9 +47,9 @@ from databricks.sdk.errors import NotFound
 backend = RuntimeBackend()
 try:
     query_response = backend.fetch("SELECT * FROM default.__RANDOM__")
-    return "FAILED"
+    print("FAILED")
 except NotFound as e:
-    return "PASSED"
+    print("PASSED")
 """
 
 SYNTAX_ERROR_EXECUTE = """
@@ -58,9 +58,9 @@ from databricks.sdk.errors import BadRequest
 backend = RuntimeBackend()
 try:
     backend.execute("SHWO DTABASES")
-    return "FAILED"
+    print("FAILED")
 except BadRequest:
-    return "PASSED"
+    print("PASSED")
 """
 
 SYNTAX_ERROR_FETCH = """
@@ -69,9 +69,9 @@ from databricks.sdk.errors import BadRequest
 backend = RuntimeBackend()
 try:
     query_response = backend.fetch("SHWO DTABASES")
-    return "FAILED"
+    print("FAILED")
 except BadRequest:
-    return "PASSED"
+    print("PASSED")
 """
 
 
@@ -81,9 +81,9 @@ from databricks.sdk.errors import Unknown
 backend = RuntimeBackend()
 try:
     grants = backend.fetch("SHOW GRANTS ON METASTORE")
-    return "FAILED"
+    print("FAILED")
 except Unknown:
-    return "PASSED"
+    print("PASSED")
 """
 
 
@@ -135,8 +135,8 @@ def test_runtime_backend_errors_handled(ws, query):
     commands = CommandExecutor(ws.clusters, ws.command_execution, lambda: ws.config.cluster_id)
 
     commands.install_notebook_library(f"/Workspace{wsfs_wheel}")
-    result = commands.run(query)
-    assert result == "PASSED"
+    result = commands.run(query, detect_return=False)
+    assert result.split("\n")[-1] == "PASSED"
 
 
 def test_statement_execution_backend_works(ws, env_or_skip):
@@ -185,9 +185,9 @@ me = w.current_user.me()
 backend = RuntimeBackend()
 result_set = backend.fetch(f"SELECT * FROM trips LIMIT 10", catalog="samples", schema="nyctaxi")
 if len(list(result_set)) == 10:
-    return "PASSED"
+    print("PASSED")
 else:
-    return "FAILED"
+    print("FAILED")
 """
-    result = commands.run(permission_denied_query)
-    assert result == "PASSED"
+    result = commands.run(permission_denied_query, detect_return=False)
+    assert result.split("\n")[-1] == "PASSED"
