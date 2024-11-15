@@ -1133,9 +1133,9 @@ class Dashboards:
             warehouse_id=warehouse_id,
         )
         if dashboard_id is not None:
-            sdk_dashboard = self._ws.lakeview.update(dashboard_id, dashboard=dashboard_to_create)
+            sdk_dashboard = self._ws.lakeview.update(dashboard_id, dashboard=dashboard_to_create.as_dict())  # type: ignore
         else:
-            sdk_dashboard = self._ws.lakeview.create(dashboard=dashboard_to_create)
+            sdk_dashboard = self._ws.lakeview.create(dashboard=dashboard_to_create.as_dict())  # type: ignore
         if publish:
             assert sdk_dashboard.dashboard_id is not None
             self._ws.lakeview.publish(sdk_dashboard.dashboard_id, warehouse_id=warehouse_id)
