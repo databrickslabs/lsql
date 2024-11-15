@@ -57,7 +57,7 @@ def make_dashboard(ws, make_random):
             display_name = f"created_by_lsql_{make_random()}"
         else:
             display_name = f"{display_name} ({make_random()})"
-        dashboard = ws.lakeview.create(display_name)
+        dashboard = ws.lakeview.create(dashboard=SDKDashboard(display_name=display_name))
         if is_in_debug():
             dashboard_url = f"{ws.config.host}/sql/dashboardsv3/{dashboard.dashboard_id}"
             webbrowser.open(dashboard_url)
