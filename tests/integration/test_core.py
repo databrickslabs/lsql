@@ -82,7 +82,8 @@ def test_fetch_one_fails_if_limit_is_bigger(ws):
 
 def test_fetch_one_works(ws) -> None:
     see = StatementExecutionExt(ws)
-    row = see.fetch_one("SELECT * FROM samples.nyctaxi.trips WHERE pickup_zip == 10282 LIMIT 1")
+    row = see.fetch_one("SELECT pickup_zip FROM samples.nyctaxi.trips WHERE pickup_zip == 10282 LIMIT 1")
+    assert row is not None
     assert row.pickup_zip == 10282
 
 
