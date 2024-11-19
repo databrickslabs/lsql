@@ -58,7 +58,7 @@ def make_dashboard(ws, make_random):
             display_name = f"created_by_lsql_{make_random()}"
         else:
             display_name = f"{display_name} ({make_random()})"
-        dashboard = ws.lakeview.create(dashboard=SDKDashboard(display_name=display_name).as_dict())
+        dashboard = ws.lakeview.create(dashboard=SDKDashboard(display_name=display_name))
         if is_in_debug():
             dashboard_url = f"{ws.config.host}/sql/dashboardsv3/{dashboard.dashboard_id}"
             webbrowser.open(dashboard_url)
@@ -117,7 +117,7 @@ def test_dashboards_creates_exported_dashboard_definition(ws, make_dashboard) ->
     dashboard_content = (Path(__file__).parent / "dashboards" / "dashboard.lvdash.json").read_text()
 
     dashboard_to_create = dataclasses.replace(sdk_dashboard, serialized_dashboard=dashboard_content)
-    ws.lakeview.update(sdk_dashboard.dashboard_id, dashboard=dashboard_to_create.as_dict())
+    ws.lakeview.update(sdk_dashboard.dashboard_id, dashboard=dashboard_to_create)
     lakeview_dashboard = Dashboard.from_dict(json.loads(dashboard_content))
     new_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
 
