@@ -1478,7 +1478,7 @@ def test_dashboards_calls_create_without_dashboard_id() -> None:
 
     dashboards.create_dashboard(dashboard_metadata, parent_path="/non/existing/path", warehouse_id="warehouse")
 
-    ws.lakeview.create.assert_called_with(dashboard=sdk_dashboard.as_dict())
+    ws.lakeview.create.assert_called_with(dashboard=sdk_dashboard)
     ws.lakeview.update.assert_not_called()
     ws.lakeview.publish.assert_not_called()
 
@@ -1498,7 +1498,7 @@ def test_dashboards_calls_update_with_dashboard_id() -> None:
     dashboards.create_dashboard(dashboard_metadata, dashboard_id="id", warehouse_id="warehouse")
 
     ws.lakeview.create.assert_not_called()
-    ws.lakeview.update.assert_called_with("id", dashboard=sdk_dashboard.as_dict())
+    ws.lakeview.update.assert_called_with("id", dashboard=sdk_dashboard)
     ws.lakeview.publish.assert_not_called()
 
 

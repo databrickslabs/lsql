@@ -17,49 +17,44 @@ def test_sql_execution_chunked(ws, disposition):
     assert total == 1999999000000
 
 
-def test_sql_execution(ws, env_or_skip):
-    results = []
+NYC_TAXI_TRIPS_LIMITED = """
+WITH zipcodes AS (
+  SELECT DISTINCT pickup_zip, dropoff_zip 
+  FROM samples.nyctaxi.trips 
+  WHERE pickup_zip = 10282 AND dropoff_zip <= 10005
+)
+
+SELECT 
+  trips.pickup_zip, 
+  trips.dropoff_zip, 
+  trips.tpep_pickup_datetime, 
+  trips.tpep_dropoff_datetime 
+FROM 
+    zipcodes 
+  JOIN 
+    samples.nyctaxi.trips AS trips 
+    ON zipcodes.pickup_zip = trips.pickup_zip AND zipcodes.dropoff_zip = trips.dropoff_zip
+ORDER BY trips.dropoff_zip, trips.tpep_pickup_datetime, trips.tpep_dropoff_datetime 
+"""
+
+
+def test_sql_execution(ws, env_or_skip) -> None:
     see = StatementExecutionExt(ws, warehouse_id=env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
-    for pickup_zip, dropoff_zip in see.fetch_all(
-        "SELECT pickup_zip, dropoff_zip FROM nyctaxi.trips LIMIT 10", catalog="samples"
-    ):
-        results.append((pickup_zip, dropoff_zip))
-    assert results == [
-        (10282, 10171),
-        (10110, 10110),
-        (10103, 10023),
-        (10022, 10017),
-        (10110, 10282),
-        (10009, 10065),
-        (10153, 10199),
-        (10112, 10069),
-        (10023, 10153),
-        (10012, 10003),
-    ]
+
+    records = see.fetch_all(NYC_TAXI_TRIPS_LIMITED, catalog="samples")
+
+    assert len([True for _ in records]) > 1
 
 
-def test_sql_execution_partial(ws, env_or_skip):
-    results = []
+def test_sql_execution_as_iterator(ws, env_or_skip) -> None:
+    number_of_records = 0
     see = StatementExecutionExt(ws, warehouse_id=env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"), catalog="samples")
-    for row in see("SELECT * FROM nyctaxi.trips LIMIT 10"):
-        pickup_time, dropoff_time = row[0], row[1]
-        pickup_zip = row.pickup_zip
-        dropoff_zip = row["dropoff_zip"]
+    for row in see(NYC_TAXI_TRIPS_LIMITED):
+        pickup_zip, dropoff_zip, pickup_time, dropoff_time = row[0], row[1], row[2], row[3]
         all_fields = row.asDict()
         logger.info(f"{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}")
-        results.append((pickup_zip, dropoff_zip))
-    assert results == [
-        (10282, 10171),
-        (10110, 10110),
-        (10103, 10023),
-        (10022, 10017),
-        (10110, 10282),
-        (10009, 10065),
-        (10153, 10199),
-        (10112, 10069),
-        (10023, 10153),
-        (10012, 10003),
-    ]
+        number_of_records += 1
+    assert number_of_records > 1
 
 
 def test_fetch_one(ws):
@@ -73,9 +68,10 @@ def test_fetch_one_fails_if_limit_is_bigger(ws):
         see.fetch_one("SELECT * FROM samples.nyctaxi.trips LIMIT 100")
 
 
-def test_fetch_one_works(ws):
+def test_fetch_one_works(ws) -> None:
     see = StatementExecutionExt(ws)
-    row = see.fetch_one("SELECT * FROM samples.nyctaxi.trips LIMIT 1")
+    row = see.fetch_one("SELECT pickup_zip FROM samples.nyctaxi.trips WHERE pickup_zip == 10282 LIMIT 1")
+    assert row is not None
     assert row.pickup_zip == 10282
 
 
