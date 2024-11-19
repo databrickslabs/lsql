@@ -17,7 +17,7 @@ def test_sql_execution_chunked(ws, disposition):
     assert total == 1999999000000
 
 
-NYC_TAXI_LIMITED_TRIPS = """
+NYC_TAXI_TRIPS_LIMITED = """
 WITH zipcodes AS (
   SELECT DISTINCT pickup_zip, dropoff_zip 
   FROM samples.nyctaxi.trips 
@@ -41,7 +41,7 @@ ORDER BY trips.dropoff_zip, trips.tpep_pickup_datetime, trips.tpep_dropoff_datet
 def test_sql_execution(ws, env_or_skip) -> None:
     results = set()
     see = StatementExecutionExt(ws, warehouse_id=env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
-    for pickup_zip, dropoff_zip, *_ in see.fetch_all(NYC_TAXI_LIMITED_TRIPS, catalog="samples"):
+    for pickup_zip, dropoff_zip, *_ in see.fetch_all(NYC_TAXI_TRIPS_LIMITED, catalog="samples"):
         results.add((pickup_zip, dropoff_zip))
     assert results == {
         (10282, 7114),
@@ -55,7 +55,7 @@ def test_sql_execution(ws, env_or_skip) -> None:
 def test_sql_execution_partial(ws, env_or_skip) -> None:
     results = set()
     see = StatementExecutionExt(ws, warehouse_id=env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"), catalog="samples")
-    for row in see(NYC_TAXI_LIMITED_TRIPS):
+    for row in see(NYC_TAXI_TRIPS_LIMITED):
         pickup_zip, dropoff_zip, pickup_time, dropoff_time = row[0], row[1], row[2], row[3]
         all_fields = row.asDict()
         logger.info(f"{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}")
