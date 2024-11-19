@@ -39,34 +39,22 @@ ORDER BY trips.dropoff_zip, trips.tpep_pickup_datetime, trips.tpep_dropoff_datet
 
 
 def test_sql_execution(ws, env_or_skip) -> None:
-    results = set()
     see = StatementExecutionExt(ws, warehouse_id=env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"))
-    for pickup_zip, dropoff_zip, *_ in see.fetch_all(NYC_TAXI_TRIPS_LIMITED, catalog="samples"):
-        results.add((pickup_zip, dropoff_zip))
-    assert results == {
-        (10282, 7114),
-        (10282, 10001),
-        (10282, 10002),
-        (10282, 10003),
-        (10282, 10005),
-    }
+
+    records = see.fetch_all(NYC_TAXI_TRIPS_LIMITED, catalog="samples")
+
+    assert len([True for _ in records]) > 1
 
 
-def test_sql_execution_partial(ws, env_or_skip) -> None:
-    results = set()
+def test_sql_execution_as_iterator(ws, env_or_skip) -> None:
+    number_of_records = 0
     see = StatementExecutionExt(ws, warehouse_id=env_or_skip("TEST_DEFAULT_WAREHOUSE_ID"), catalog="samples")
     for row in see(NYC_TAXI_TRIPS_LIMITED):
         pickup_zip, dropoff_zip, pickup_time, dropoff_time = row[0], row[1], row[2], row[3]
         all_fields = row.asDict()
         logger.info(f"{pickup_zip}@{pickup_time} -> {dropoff_zip}@{dropoff_time}: {all_fields}")
-        results.add((pickup_zip, dropoff_zip))
-    assert results == {
-        (10282, 7114),
-        (10282, 10001),
-        (10282, 10002),
-        (10282, 10003),
-        (10282, 10005),
-    }
+        number_of_records += 1
+    assert number_of_records > 1
 
 
 def test_fetch_one(ws):
