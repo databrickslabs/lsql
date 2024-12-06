@@ -34,6 +34,7 @@ from databricks.labs.lsql.lakeview import (
     CounterSpec,
     Dashboard,
     Dataset,
+    DatePickerSpec,
     DateRangePickerSpec,
     DisplayType,
     DropdownSpec,
@@ -231,6 +232,7 @@ class WidgetType(str, Enum):
     DATE_RANGE_PICKER = "DATE_RANGE_PICKER"
     MULTI_SELECT = "MULTI_SELECT"
     DROPDOWN = "DROPDOWN"
+    DATE_PICKER = "DATE_PICKER"
 
     def as_widget_spec(self) -> type[WidgetSpec]:
         widget_spec_mapping: dict[str, type[WidgetSpec]] = {
@@ -239,6 +241,7 @@ class WidgetType(str, Enum):
             "DATE_RANGE_PICKER": DateRangePickerSpec,
             "MULTI_SELECT": MultiSelectSpec,
             "DROPDOWN": DropdownSpec,
+            "DATE_PICKER": DatePickerSpec,
         }
         if self.name not in widget_spec_mapping:
             raise ValueError(f"Can not convert to widget spec: {self}")
@@ -788,6 +791,7 @@ class FilterTile(Tile):
             WidgetType.MULTI_SELECT,
             WidgetType.DATE_RANGE_PICKER,
             WidgetType.DROPDOWN,
+            WidgetType.DATE_PICKER,
         }:
             raise ValueError(f"Filter tile has an invalid widget type: {self}")
 
