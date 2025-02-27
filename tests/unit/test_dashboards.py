@@ -571,7 +571,11 @@ def test_tile_validate_raises_value_error_when_content_is_empty(
 )
 @pytest.mark.parametrize("stem", ["name with spaces", "𝔱𝔥𝔦𝔰-𝔫𝔞𝔪𝔢-𝔦𝔰-𝔫𝔬𝔱-𝔮𝔲𝔦𝔱𝔢-𝔯𝔦𝔤𝔥𝔱"])
 def test_tile_validate_raises_value_error_when_name_contains_spaces(
-    tmp_path, tile_class: type[Tile], extension: str, contents: str, stem: str,
+    tmp_path,
+    tile_class: type[Tile],
+    extension: str,
+    contents: str,
+    stem: str,
 ) -> None:
     """A tile name cannot contain spaces"""
     tile_metadata_path = tmp_path / f"test with spaces{extension}"
