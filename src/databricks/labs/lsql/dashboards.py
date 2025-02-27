@@ -941,6 +941,8 @@ class DashboardMetadata:
         Raises:
             ValueError : If the dashboard metadata is invalid.
         """
+        if not _is_valid_resource_name(self.display_name):
+            raise ValueError(f"{_INVALID_RESOURCE_NAME_MESSAGE}: {self}")
         tile_ids = []
         for tile in self.tiles:
             tile.validate()
