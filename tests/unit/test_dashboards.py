@@ -214,6 +214,13 @@ def test_dashboard_metadata_validate_finds_duplicate_widget_id(tmp_path):
     assert "Duplicate id: widget" in str(e.value)
 
 
+def test_tile_metadata_validate_raises_value_error_for_empty_id() -> None:
+    """The tile metadata id cannot be empty."""
+    tile_metadata = TileMetadata()
+    with pytest.raises(ValueError, match=f"Tile id cannot be empty: {tile_metadata}"):
+        tile_metadata.validate()
+
+
 def test_tile_metadata_is_markdown():
     tile_metadata = TileMetadata(Path("test.md"))
     assert tile_metadata.is_markdown()
