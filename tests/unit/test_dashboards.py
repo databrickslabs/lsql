@@ -550,11 +550,14 @@ def test_tile_validate_raises_value_error_when_name_contains_spaces(tmp_path, ti
     tile_metadata_path = tmp_path / "test with spaces.sql"
     tile_metadata_path.write_text("SELECT 1")
     tile = tile_class(TileMetadata(tile_metadata_path))
+    tile_metadata = TileMetadata(tile_metadata_path)
+    tile = tile_class(tile_metadata)
 
-    with pytest.raises(
-        ValueError,
-        match="Tile name should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_)",
-    ):
+    match = re.escape(
+        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
+        + str(tile_metadata)
+    )
+    with pytest.raises(ValueError, match=match):
         tile.validate()
 
 
