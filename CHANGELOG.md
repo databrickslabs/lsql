@@ -1,5 +1,10 @@
 # Version changelog
 
+## 0.16.0
+
+* Let page name adhere to naming restrictions ([#370](https://github.com/databrickslabs/lsql/issues/370)). In this release, a new method `_clean_resource_name` has been introduced to modify resource names according to the updated naming convention, allowing only alphanumeric characters, hyphens, and underscores. The `as_lakeview` method in the `BaseHandler` class now uses this new method to ensure the `Page` class name adheres to the new restrictions. Furthermore, test files for dashboards have been updated to reflect the change, with a new test function `test_dashboard_metadata_as_lakeview_cleans_page_name` verifying that page names are free of special characters, and an existing test function modified to handle invalid dashboard YAML files. These changes improve consistency, reliability, and adherence to best practices in dashboard naming within the project.
+
+
 ## 0.15.1
 
 * remove duplicate changelog entry ([#366](https://github.com/databrickslabs/lsql/issues/366)). In this update, we've improved resource name validation in the `ucx` project, first introduced in version 0.14.2. The validation now restricts resource names to alphanumeric characters, hyphens, and underscores, addressing usability issues and preventing problems caused by special characters. A new internal method, `_is_valid_resource_name`, checks if a name is valid according to the defined pattern. The `TileMetadata` class has been updated to ensure its `id` attribute follows the new validation rules, and `Tile`, `Section`, and `Dashboard` classes now call the `validate` method of the `TileMetadata` instance if it exists. These changes promote consistency and correctness in dashboard resources, simplifying management and interaction for users. As a part of this commit, we also removed a duplicate changelog entry related to this feature that was previously present in version 0.15.0.
