@@ -193,6 +193,16 @@ tiles:
     assert "Tile has empty content:" in str(e.value)
 
 
+@pytest.mark.parametrize("display_name", ["name with spaces", "@contains@special@characters", "𝔱𝔥𝔦𝔰-𝔫𝔞𝔪𝔢-𝔦𝔰-𝔫𝔬𝔱-𝔮𝔲𝔦𝔱𝔢-𝔯𝔦𝔤𝔥𝔱"])
+def test_dashboard_metadata_validate_raises_value_error_for_non_alphanumeric_display_name(tmp_path, display_name: str) -> None:
+    (tmp_path / "dashboard.yml").write_text(f"display_name: '{display_name}'")
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+
+    with pytest.raises(ValueError, match="Resource names should only contain alphanumeric characters .*"):
+        dashboard_metadata.validate()
+
+
 def test_dashboard_metadata_validate_raises_value_error_for_non_alphanumeric_tile_id(tmp_path):
     """A tile id can not contain special characters."""
     (tmp_path / "@contains@special@characters.md").write_text("# Tile with invalid id")
