@@ -659,6 +659,17 @@ def test_dashboard_metadata_as_lakeview_with_custom_first_page_name(tmp_path):
     assert page.display_name == "Custom"
 
 
+def test_dashboard_metadata_as_lakeview_cleans_page_name(tmp_path):
+    """The page name is not allowed to have special characters."""
+    (tmp_path / "dashboard.yml").write_text(f"display_name: 'name with spaces'")
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+
+    dashboard = dashboard_metadata.as_lakeview()
+
+    page = dashboard.pages[0]
+    assert " " not in page.name
+
+
 @pytest.mark.parametrize("dashboard_content", ["missing_display_name: true", "invalid:\nyml"])
 def test_dashboard_metadata_handles_invalid_dashboard_yml(tmp_path, dashboard_content):
     queries_path = tmp_path / "queries"
