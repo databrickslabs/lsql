@@ -136,7 +136,7 @@ class StructInference:
         """Infers the primitive SQL type from the Python type. Raises StructInferError if the type is not supported."""
         if type_ref in self._PRIMITIVES:
             return PrimitiveType(self._PRIMITIVES[type_ref])
-        raise StructInferError(f'{".".join(path)}: unknown: {type_ref}')
+        raise StructInferError(f"{'.'.join(path)}: unknown: {type_ref}")
 
     def _infer_generic(self, type_ref: type, path: list[str]) -> SqlType:
         """Infers the SQL type from the generic Python type. Uses internal APIs to handle generic types."""
@@ -160,10 +160,10 @@ class StructInference:
         """Infers nullability from Optional[x] or `x | None` types."""
         type_args = get_args(type_ref)
         if len(type_args) > 2:
-            raise StructInferError(f'{".".join(path)}: union: too many variants: {type_args}')
+            raise StructInferError(f"{'.'.join(path)}: union: too many variants: {type_args}")
         first_type = self._infer(type_args[0], [*path, "(first)"])
         if type_args[1] is not type(None):
-            msg = f'{".".join(path)}.(second): not a NoneType: {type_args[1]}'
+            msg = f"{'.'.join(path)}.(second): not a NoneType: {type_args[1]}"
             raise StructInferError(msg)
         return NullableType(first_type)
 
