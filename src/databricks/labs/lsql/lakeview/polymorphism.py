@@ -69,14 +69,14 @@ def is_assignable(
         if isinstance(raw, type_ref):
             return True, None
         return False, _explain_why(type_ref, raw, path)
-    return False, f'{".".join(path)}: unknown: {raw}'
+    return False, f"{'.'.join(path)}: unknown: {raw}"
 
 
 # Function to explain why a value cannot be assigned to a type
 def _explain_why(type_ref: type, raw: Any, path: list[str]) -> str:
     if raw is None:
         raw = "value is missing"
-    return f'{".".join(path)}: not a {type_ref.__name__}: {raw}'
+    return f"{'.'.join(path)}: not a {type_ref.__name__}: {raw}"
 
 
 # Function to check if a value can be assigned to a generic alias
@@ -103,7 +103,7 @@ def _is_assignable_from_union(type_ref, raw, path, name_transform):
             return True, None
         if why_not:
             combo.append(why_not)
-    return False, f'{".".join(path)}: union: {" or ".join(combo)}'
+    return False, f"{'.'.join(path)}: union: {' or '.join(combo)}"
 
 
 # Function to check if a value can be assigned to a dataclass

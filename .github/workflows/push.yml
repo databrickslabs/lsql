@@ -46,6 +46,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.2.2
 
+      - name: Install Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          cache: 'pip'
+          cache-dependency-path: '**/pyproject.toml'
+          python-version: '3.12'
+
       - name: Format all files
         run: |
           pip install hatch==1.9.4
