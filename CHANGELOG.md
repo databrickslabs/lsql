@@ -2,6 +2,11 @@
 
 ## 0.15.0
 
+* Validate resource names ([#357](https://github.com/databrickslabs/lsql/issues/357)). The recent change in the `ucx` project enhances resource name validation to adhere to a new naming convention, restricting names to alphanumeric characters, hyphens, and underscores. A new method, `_is_valid_resource_name(name: str) -> bool`, is introduced for validating resource names, and the `TileMetadata` class has been updated with a `__post_init__` method and a `validate` method for validation purposes. The `Tile` and `FilterTile` classes also receive a `validate` method to raise `ValueError` for invalid tiles and metadata issues. This commit introduces new tests for validating tile IDs, tile metadata, and filter specs while improving error messages for better user understanding. It also raises `ValueError` for tiles with empty content, tiles with names containing spaces, and filter tiles with invalid widget types, ensuring stricter validation for dashboard metadata and tile metadata in the `ucx` project.
+
+
+## 0.15.0
+
 * Validate resource names ([#357](https://github.com/databrickslabs/lsql/issues/357)). In this update, we introduce resource name validation for the Lakeview API, allowing only alphanumeric characters, hyphens, and underscores. A new method, `_is_valid_resource_name`, has been added to facilitate validation. Existing classes, like `BaseHandler`, `TileMetadata`, and various methods, have been updated to incorporate this validation. If a resource name fails validation, a ValueError will be raised. The `TileMetadata` class has also been updated to modify the naming convention of filter tile IDs. Additionally, new unit tests have been implemented to ensure proper validation of tile IDs, names, and filter specifications, enhancing consistency and readability in dashboard metadata. Issues [#355](https://github.com/databrickslabs/lsql/issues/355), [#356](https://github.com/databrickslabs/lsql/issues/356), and [#354](https://github.com/databrickslabs/lsql/issues/354) have been addressed in this commit.
 
 
