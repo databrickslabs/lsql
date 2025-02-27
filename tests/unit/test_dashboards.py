@@ -661,7 +661,7 @@ def test_dashboard_metadata_as_lakeview_with_custom_first_page_name(tmp_path):
 
 def test_dashboard_metadata_as_lakeview_cleans_page_name(tmp_path):
     """The page name is not allowed to have special characters."""
-    (tmp_path / "dashboard.yml").write_text(f"display_name: 'name with spaces'")
+    (tmp_path / "dashboard.yml").write_text("display_name: 'name with spaces'")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
     dashboard = dashboard_metadata.as_lakeview()
