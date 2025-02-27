@@ -60,6 +60,7 @@ _INVALID_RESOURCE_NAME_MESSAGE = (
     "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_)"
 )
 _VALID_RESOURCE_NAME_PATTERN = re.compile("^[A-Za-z0-9_-]+$")
+_CLEAN_RESOURCE_NAME_PATTERN = re.compile("[^A-Za-z0-9_-]+")
 
 
 def _is_valid_resource_name(name: str) -> bool:
@@ -68,6 +69,14 @@ def _is_valid_resource_name(name: str) -> bool:
     What is valid is defined by the Lakeview API, not by lsql.
     """
     return _VALID_RESOURCE_NAME_PATTERN.match(name) is not None
+
+
+def _clean_resource_name(name: str) -> str:
+    """Clean a resource name to become valid.
+
+    See :func:_is_valid_resource_name for the definition of a valid resource name.
+    """
+    return _CLEAN_RESOURCE_NAME_PATTERN.sub("_", name)
 
 
 class BaseHandler:
@@ -998,7 +1007,7 @@ class DashboardMetadata:
         datasets = self.get_datasets()
         layouts = self._get_layouts()
         page = Page(
-            name=self.display_name,
+            name=_clean_resource_name(self.display_name),
             display_name=self.display_name,
             layout=layouts,
         )
