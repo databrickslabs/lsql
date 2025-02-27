@@ -275,7 +275,10 @@ class TileMetadata:
 
     def __post_init__(self):
         if not self.id:
-            self.id = self.path.stem if self.path is not None else ""
+            path_stem = "" if self.path is None else self.path.stem
+            if self.is_filter():  # To adhere to :func:_is_valid_resource_name
+                path_stem = path_stem.replace(".filter", "_filter")
+            self.id = path_stem
 
     def validate(self) -> None:
         """Validate the tile metadata.
