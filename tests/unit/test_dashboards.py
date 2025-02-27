@@ -193,6 +193,20 @@ tiles:
     assert "Tile has empty content:" in str(e.value)
 
 
+def test_dashboard_metadata_validate_raises_value_error_for_non_alphanumeric_tile_id(tmp_path):
+    """A tile id can not contain special characters."""
+    (tmp_path / "@contains@special@characters.md").write_text("# Tile with invalid id")
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+
+    match = re.escape(
+        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
+        "TileMetadata<@contains@special@characters>"
+    )
+    with pytest.raises(ValueError, match=match):
+        dashboard_metadata.validate()
+
+
 def test_dashboard_metadata_validate_finds_duplicate_query_id(tmp_path):
     (tmp_path / "query.sql").write_text("SELECT 1")
     query_content = """-- --id query\nSELECT 1"""
