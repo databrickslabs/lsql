@@ -19,6 +19,7 @@ from databricks.labs.lsql.dashboards import (
     BaseHandler,
     DashboardMetadata,
     Dashboards,
+    FilterTile,
     MarkdownHandler,
     MarkdownTile,
     QueryHandler,
@@ -524,9 +525,18 @@ def test_tile_metadata_as_dict(tmp_path):
     assert tile_metadata.as_dict() == raw
 
 
-@pytest.mark.parametrize("tile_class", [Tile, QueryTile])
-def test_tile_validate_raises_value_error_when_content_is_empty(tmp_path, tile_class):
-    tile_metadata_path = tmp_path / "test.sql"
+@pytest.mark.parametrize(
+    "tile_class, extension",
+    [
+        (Tile, ".txt"),
+        (MarkdownTile, ".md"),
+        (QueryTile, ".sql"),
+        (FilterTile, ".filter.json"),
+    ],
+)
+def test_tile_validate_raises_value_error_when_content_is_empty(tmp_path, tile_class: Tile, extension: str) -> None:
+    """Tile should have non-empty content"""
+    tile_metadata_path = tmp_path / f"test{extension}"
     tile_metadata_path.touch()
     tile = tile_class(TileMetadata(tile_metadata_path))
 
