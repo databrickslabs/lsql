@@ -56,6 +56,18 @@ _MAXIMUM_DASHBOARD_WIDTH = 6
 _SQL_DIALECT = sqlglot.dialects.Databricks
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
+_INVALID_RESOURCE_NAME_MESSAGE = (
+    "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_)"
+)
+_VALID_RESOURCE_NAME_PATTERN = re.compile("^[A-Za-z0-9_-]+$")
+
+
+def _is_valid_resource_name(name: str) -> bool:
+    """Verify if the resource name is valid.
+
+    What is valid is defined by the Lakeview API, not by lsql.
+    """
+    return _VALID_RESOURCE_NAME_PATTERN.match(name) is not None
 
 
 class BaseHandler:
@@ -262,7 +274,21 @@ class TileMetadata:
 
     def __post_init__(self):
         if not self.id:
-            self.id = self.path.stem if self.path is not None else ""
+            path_stem = "" if self.path is None else self.path.stem
+            if self.is_filter():  # To adhere to :func:_is_valid_resource_name
+                path_stem = path_stem.replace(".filter", "_filter")
+            self.id = path_stem
+
+    def validate(self) -> None:
+        """Validate the tile metadata.
+
+        Raises:
+            ValueError : If the tile metadata is invalid.
+        """
+        if not self.id:
+            raise ValueError(f"Tile id cannot be empty: {self}")
+        if not _is_valid_resource_name(self.id):
+            raise ValueError(f"{_INVALID_RESOURCE_NAME_MESSAGE}: {self}")
 
     def merge(self, other: "TileMetadata") -> "TileMetadata":
         """Merge the tile metadata with another tile metadata.
@@ -382,6 +408,7 @@ class Tile:
         Raises:
             ValueError : If the tile is invalid.
         """
+        self.metadata.validate()
         if len(self.content) == 0:
             raise ValueError(f"Tile has empty content: {self}")
 
@@ -780,6 +807,7 @@ class FilterTile(Tile):
         Raises:
             ValueError : If the tile is invalid.
         """
+        self.metadata.validate()
         if not self.metadata.is_filter():
             raise ValueError(f"Tile is not a filter file: {self}")
         if len(self.metadata.filters) == 0:

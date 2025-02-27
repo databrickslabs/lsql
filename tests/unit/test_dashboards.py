@@ -1,6 +1,7 @@
 import itertools
 import json
 import logging
+import re
 import string
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -18,6 +19,7 @@ from databricks.labs.lsql.dashboards import (
     BaseHandler,
     DashboardMetadata,
     Dashboards,
+    FilterTile,
     MarkdownHandler,
     MarkdownTile,
     QueryHandler,
@@ -191,6 +193,20 @@ tiles:
     assert "Tile has empty content:" in str(e.value)
 
 
+def test_dashboard_metadata_validate_raises_value_error_for_non_alphanumeric_tile_id(tmp_path):
+    """A tile id can not contain special characters."""
+    (tmp_path / "@contains@special@characters.md").write_text("# Tile with invalid id")
+
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+
+    match = re.escape(
+        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
+        "TileMetadata<@contains@special@characters>"
+    )
+    with pytest.raises(ValueError, match=match):
+        dashboard_metadata.validate()
+
+
 def test_dashboard_metadata_validate_finds_duplicate_query_id(tmp_path):
     (tmp_path / "query.sql").write_text("SELECT 1")
     query_content = """-- --id query\nSELECT 1"""
@@ -212,6 +228,25 @@ def test_dashboard_metadata_validate_finds_duplicate_widget_id(tmp_path):
     with pytest.raises(ValueError) as e:
         dashboard_metadata.validate()
     assert "Duplicate id: widget" in str(e.value)
+
+
+def test_tile_metadata_validate_raises_value_error_for_empty_id() -> None:
+    """The tile metadata id cannot be empty."""
+    tile_metadata = TileMetadata()
+    with pytest.raises(ValueError, match=f"Tile id cannot be empty: {tile_metadata}"):
+        tile_metadata.validate()
+
+
+def test_tile_metadata_validate_raises_value_error_for_non_alphanumeric_id() -> None:
+    """The tile metadata id cannot be empty."""
+    tile_metadata = TileMetadata(id=")contains#special@characters")
+
+    match = re.escape(
+        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
+        + str(tile_metadata)
+    )
+    with pytest.raises(ValueError, match=match):
+        tile_metadata.validate()
 
 
 def test_tile_metadata_is_markdown():
@@ -504,13 +539,55 @@ def test_tile_metadata_as_dict(tmp_path):
     assert tile_metadata.as_dict() == raw
 
 
-@pytest.mark.parametrize("tile_class", [Tile, QueryTile])
-def test_tile_validate_raises_value_error_when_content_is_empty(tmp_path, tile_class):
-    tile_metadata_path = tmp_path / "test.sql"
+@pytest.mark.parametrize(
+    "tile_class, extension",
+    [
+        (Tile, ".txt"),
+        (MarkdownTile, ".md"),
+        (QueryTile, ".sql"),
+        (FilterTile, ".filter.json"),
+    ],
+)
+def test_tile_validate_raises_value_error_when_content_is_empty(
+    tmp_path, tile_class: type[Tile], extension: str
+) -> None:
+    """Tile should have non-empty content"""
+    tile_metadata_path = tmp_path / f"test{extension}"
     tile_metadata_path.touch()
     tile = tile_class(TileMetadata(tile_metadata_path))
 
     with pytest.raises(ValueError):
+        tile.validate()
+
+
+@pytest.mark.parametrize(
+    "tile_class, extension, contents",
+    [
+        (Tile, ".txt", "contents"),
+        (MarkdownTile, ".md", "# Contents"),
+        (QueryTile, ".sql", "SELECT 'contents'"),
+        (FilterTile, ".filter.json", "title: Contents"),
+    ],
+)
+@pytest.mark.parametrize("stem", ["name with spaces", "𝔱𝔥𝔦𝔰-𝔫𝔞𝔪𝔢-𝔦𝔰-𝔫𝔬𝔱-𝔮𝔲𝔦𝔱𝔢-𝔯𝔦𝔤𝔥𝔱"])
+def test_tile_validate_raises_value_error_when_name_contains_spaces(
+    tmp_path,
+    tile_class: type[Tile],
+    extension: str,
+    contents: str,
+    stem: str,
+) -> None:
+    """A tile name cannot contain spaces"""
+    tile_metadata_path = tmp_path / f"test with spaces{extension}"
+    tile_metadata_path.write_text(contents)
+    tile_metadata = TileMetadata(tile_metadata_path)
+    tile = tile_class(tile_metadata)
+
+    match = re.escape(
+        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
+        + str(tile_metadata)
+    )
+    with pytest.raises(ValueError, match=match):
         tile.validate()
 
 
@@ -1619,9 +1696,8 @@ type: TABLE
 """.lstrip()
     (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="Filter tile has an invalid widget type: .*"):
         dashboard_metadata.validate()
-    assert "Filter tile has an invalid widget type" in str(e.value)
 
 
 def test_filter_spec_validate_both_column_keys_present(tmp_path):
