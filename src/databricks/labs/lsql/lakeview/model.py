@@ -79,7 +79,7 @@ class Scale(abc.ABC):
             return QuantitativeScale.from_dict(d)
         if d["type"] == "temporal":
             return TemporalScale.from_dict(d)
-        raise KeyError(f'unknown: type={d["type"]}')
+        raise KeyError(f"unknown: type={d['type']}")
 
 
 class WidgetSpec(abc.ABC):
@@ -127,7 +127,7 @@ class WidgetSpec(abc.ABC):
             return PivotSpec.from_dict(d)
         if d["version"] == 3 and d["widgetType"] == "scatter":
             return ScatterSpec.from_dict(d)
-        raise KeyError(f'unknown: version={d["version"]} widgetType={d["widgetType"]}')
+        raise KeyError(f"unknown: version={d['version']} widgetType={d['widgetType']}")
 
 
 class Alignment(Enum):
