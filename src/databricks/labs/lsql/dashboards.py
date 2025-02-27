@@ -230,9 +230,7 @@ class FilterHandler(BaseHandler):
 
     def split(self) -> tuple[str, str]:
         trimmed_content = self._content.strip()
-        # Current filter implementation only uses the filter header; the body is not implemented
-        # We return a non-empty body to signal that we know the body is not implemented and not actually empty
-        return trimmed_content, "NOT IMPLEMENTED"
+        return trimmed_content, ""
 
 
 @unique
@@ -809,7 +807,7 @@ class FilterTile(Tile):
         Raises:
             ValueError : If the tile is invalid.
         """
-        super().validate()
+        self.metadata.validate()
         if not self.metadata.is_filter():
             raise ValueError(f"Tile is not a filter file: {self}")
         if len(self.metadata.filters) == 0:
