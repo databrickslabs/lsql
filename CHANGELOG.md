@@ -1,5 +1,10 @@
 # Version changelog
 
+## 0.15.1
+
+* remove duplicate changelog entry ([#366](https://github.com/databrickslabs/lsql/issues/366)). In this update, we've improved resource name validation in the `ucx` project, first introduced in version 0.14.2. The validation now restricts resource names to alphanumeric characters, hyphens, and underscores, addressing usability issues and preventing problems caused by special characters. A new internal method, `_is_valid_resource_name`, checks if a name is valid according to the defined pattern. The `TileMetadata` class has been updated to ensure its `id` attribute follows the new validation rules, and `Tile`, `Section`, and `Dashboard` classes now call the `validate` method of the `TileMetadata` instance if it exists. These changes promote consistency and correctness in dashboard resources, simplifying management and interaction for users. As a part of this commit, we also removed a duplicate changelog entry related to this feature that was previously present in version 0.15.0.
+
+
 ## 0.15.0
 
 * Validate resource names ([#357](https://github.com/databrickslabs/lsql/issues/357)). The recent change in the `ucx` project enhances resource name validation to adhere to a new naming convention, restricting names to alphanumeric characters, hyphens, and underscores. A new method, `_is_valid_resource_name(name: str) -> bool`, is introduced for validating resource names, and the `TileMetadata` class has been updated with a `__post_init__` method and a `validate` method for validation purposes. The `Tile` and `FilterTile` classes also receive a `validate` method to raise `ValueError` for invalid tiles and metadata issues. This commit introduces new tests for validating tile IDs, tile metadata, and filter specs while improving error messages for better user understanding. It also raises `ValueError` for tiles with empty content, tiles with names containing spaces, and filter tiles with invalid widget types, ensuring stricter validation for dashboard metadata and tile metadata in the `ucx` project.
