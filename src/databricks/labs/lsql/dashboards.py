@@ -59,6 +59,7 @@ logger = logging.getLogger(__name__)
 _INVALID_RESOURCE_NAME_MESSAGE = (
     "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_)"
 )
+_VALID_RESOURCE_NAME_PATTERN = re.compile("^[A-Za-z0-9_-]+$")
 
 
 def _is_valid_resource_name(name: str) -> bool:
@@ -66,7 +67,7 @@ def _is_valid_resource_name(name: str) -> bool:
 
     What is valid is defined by the Lakeview API, not by lsql.
     """
-    return name.replace("-", "").replace("_", "").isalnum()
+    return _VALID_RESOURCE_NAME_PATTERN.match(name) is not None
 
 
 class BaseHandler:
