@@ -514,6 +514,20 @@ def test_tile_validate_raises_value_error_when_content_is_empty(tmp_path, tile_c
         tile.validate()
 
 
+@pytest.mark.parametrize("tile_class", [Tile, QueryTile])
+def test_tile_validate_raises_value_error_when_name_contains_spaces(tmp_path, tile_class):
+    """A tile name cannot contain spaces"""
+    tile_metadata_path = tmp_path / "test with spaces.sql"
+    tile_metadata_path.write_text("SELECT 1")
+    tile = tile_class(TileMetadata(tile_metadata_path))
+
+    with pytest.raises(
+        ValueError,
+        match="Tile name should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_)",
+    ):
+        tile.validate()
+
+
 def test_markdown_tile_validate_raises_value_error_when_not_from_markdown_file(tmp_path):
     tile_metadata_path = tmp_path / "test.sql"
     tile_metadata_path.write_text("# Markdown")
