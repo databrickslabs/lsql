@@ -1691,9 +1691,8 @@ type: TABLE
 """.lstrip()
     (tmp_path / "filter_spec.filter.yml").write_text(filter_spec)
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="Filter tile has an invalid widget type: .*"):
         dashboard_metadata.validate()
-    assert "Filter tile has an invalid widget type" in str(e.value)
 
 
 def test_filter_spec_validate_both_column_keys_present(tmp_path):
