@@ -266,6 +266,15 @@ class TileMetadata:
         if not self.id:
             self.id = self.path.stem if self.path is not None else ""
 
+    def validate(self) -> None:
+        """Validate the tile metadata.
+
+        Raises:
+            ValueError : If the tile metadata is invalid.
+        """
+        if not self.id:
+            raise ValueError(f"Tile id cannot be empty: {self}")
+
     def merge(self, other: "TileMetadata") -> "TileMetadata":
         """Merge the tile metadata with another tile metadata.
 
