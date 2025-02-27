@@ -586,6 +586,32 @@ def test_tile_validate_raises_value_error_when_name_contains_spaces(
         tile.validate()
 
 
+@pytest.mark.parametrize(
+    "tile_class, extension, contents",
+    [
+        (Tile, ".txt", "contents"),
+        (MarkdownTile, ".md", "# Contents"),
+        (QueryTile, ".sql", "SELECT 'contents'"),
+        (FilterTile, ".filter.json", "title: Contents"),
+    ],
+)
+def test_tile_validate_raises_value_error_when_name_contains_non_ascii_characters(
+    tmp_path, tile_class: type[Tile], extension: str, contents: str
+) -> None:
+    """A tile name cannot have non-ascii characters"""
+    tile_metadata_path = tmp_path / f"𝔱𝔥𝔦𝔰-𝔫𝔞𝔪𝔢-𝔦𝔰-𝔫𝔬𝔱-𝔮𝔲𝔦𝔱𝔢-𝔯𝔦𝔤𝔥𝔱{extension}"
+    tile_metadata_path.write_text(contents)
+    tile_metadata = TileMetadata(tile_metadata_path)
+    tile = tile_class(tile_metadata)
+
+    match = re.escape(
+        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
+        + str(tile_metadata)
+    )
+    with pytest.raises(ValueError, match=match):
+        tile.validate()
+
+
 def test_markdown_tile_validate_raises_value_error_when_not_from_markdown_file(tmp_path):
     tile_metadata_path = tmp_path / "test.sql"
     tile_metadata_path.write_text("# Markdown")
