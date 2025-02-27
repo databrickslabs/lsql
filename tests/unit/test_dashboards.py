@@ -544,12 +544,21 @@ def test_tile_validate_raises_value_error_when_content_is_empty(tmp_path, tile_c
         tile.validate()
 
 
-@pytest.mark.parametrize("tile_class", [Tile, QueryTile])
-def test_tile_validate_raises_value_error_when_name_contains_spaces(tmp_path, tile_class):
+@pytest.mark.parametrize(
+    "tile_class, extension, contents",
+    [
+        (Tile, ".txt", "contents"),
+        (MarkdownTile, ".md", "# Contents"),
+        (QueryTile, ".sql", "SELECT 'contents'"),
+        (FilterTile, ".filter.json", "title: Contents"),
+    ],
+)
+def test_tile_validate_raises_value_error_when_name_contains_spaces(
+    tmp_path, tile_class: Tile, extension: str, contents: str
+) -> None:
     """A tile name cannot contain spaces"""
-    tile_metadata_path = tmp_path / "test with spaces.sql"
-    tile_metadata_path.write_text("SELECT 1")
-    tile = tile_class(TileMetadata(tile_metadata_path))
+    tile_metadata_path = tmp_path / f"test with spaces{extension}"
+    tile_metadata_path.write_text(contents)
     tile_metadata = TileMetadata(tile_metadata_path)
     tile = tile_class(tile_metadata)
 
