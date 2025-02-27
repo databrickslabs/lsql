@@ -160,7 +160,7 @@ def test_dashboard_deploys_dashboard_with_display_name(ws, make_dashboard, tmp_p
     dashboards = Dashboards(ws)
     sdk_dashboard = make_dashboard(display_name="Counter")
 
-    (tmp_path / "dashboard.yml").write_text("display_name: Counter")
+    (tmp_path / "dashboard.yml").write_text("display_name: 'My custom counter'")
     (tmp_path / "counter.sql").write_text("SELECT 102132 AS count")
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
