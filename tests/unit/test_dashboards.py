@@ -1,6 +1,7 @@
 import itertools
 import json
 import logging
+import re
 import string
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -218,6 +219,18 @@ def test_tile_metadata_validate_raises_value_error_for_empty_id() -> None:
     """The tile metadata id cannot be empty."""
     tile_metadata = TileMetadata()
     with pytest.raises(ValueError, match=f"Tile id cannot be empty: {tile_metadata}"):
+        tile_metadata.validate()
+
+
+def test_tile_metadata_validate_raises_value_error_for_non_alphanumeric_id() -> None:
+    """The tile metadata id cannot be empty."""
+    tile_metadata = TileMetadata(id=")contains#special@characters")
+
+    match = re.escape(
+        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
+        + str(tile_metadata)
+    )
+    with pytest.raises(ValueError, match=match):
         tile_metadata.validate()
 
 
