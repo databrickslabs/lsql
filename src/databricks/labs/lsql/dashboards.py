@@ -838,7 +838,10 @@ class TableTile(QueryTile):
 
 @dataclass
 class CounterTile(QueryTile):
+    """A tile based on a sql query creating a counter widget."""
+
     _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 1, 3))
+    """The position of the tile in the dashboard. Hidden stateful attribute updated by the tiling logic."""
 
     @staticmethod
     def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
