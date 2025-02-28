@@ -967,9 +967,11 @@ class FilterTile(Tile):
 class DashboardMetadata:
     """The metadata defining a lakeview dashboard"""
 
-    display_name: str  # The dashboard display name
+    display_name: str
+    """The dashboard display name"""
 
-    _tiles: list[Tile] = dataclasses.field(default_factory=list)  # The dashboard tiles
+    _tiles: list[Tile] = dataclasses.field(default_factory=list)
+    """The dashboard tiles. Hidden attribute as this contains the unordered tiles."""
 
     @property
     def tiles(self) -> list[Tile]:
