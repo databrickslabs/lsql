@@ -266,7 +266,10 @@ class FilterHandler(BaseHandler):
 
 @unique
 class WidgetType(str, Enum):
-    """The query widget type"""
+    """The query widget type.
+
+    A mapping from lsql supported widget types to Lakeview widget specs.
+    """
 
     AUTO = "AUTO"
     TABLE = "TABLE"
@@ -276,6 +279,7 @@ class WidgetType(str, Enum):
     DROPDOWN = "DROPDOWN"
 
     def as_widget_spec(self) -> type[WidgetSpec]:
+        """Convert a widget type to a widget spec."""
         widget_spec_mapping: dict[str, type[WidgetSpec]] = {
             "TABLE": TableV1Spec,
             "COUNTER": CounterSpec,
