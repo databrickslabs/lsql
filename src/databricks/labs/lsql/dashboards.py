@@ -857,6 +857,7 @@ class TableTile(QueryTile):
 
     @property
     def position(self) -> Position:
+        """The position of the tile in the dashboard."""
         if self.metadata.width:
             width = self.metadata.width
         else:
