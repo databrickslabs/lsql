@@ -89,6 +89,8 @@ def _clean_resource_name(name: str) -> str:
 class BaseHandler:
     """Base file handler.
 
+    A handler is responsible for parsing the header of a file and splitting the header from the contents.
+
     Handlers are based on a Python implementation for FrontMatter.
 
     Sources:
@@ -101,6 +103,7 @@ class BaseHandler:
 
     @property
     def _content(self) -> str:
+        """The contents of the file."""
         if self._path is None:
             return ""
         return self._path.read_text()
@@ -111,6 +114,7 @@ class BaseHandler:
         return self._parse_header(header)
 
     def _parse_header(self, header: str) -> dict:
+        """Parse the header of the file. Hidden method to be overwritten by subclasses."""
         _ = self, header
         return {}
 
