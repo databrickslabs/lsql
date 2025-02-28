@@ -1204,16 +1204,20 @@ class DashboardMetadata:
 
 
 class Dashboards:
+    """The API for Lakeview dashboards."""
+
     def __init__(self, ws: WorkspaceClient):
         self._ws = ws
 
     def get_dashboard(self, dashboard_path: str) -> Dashboard:
+        """Get a Lakeview dashboard."""
         with self._ws.workspace.download(dashboard_path, format=ExportFormat.SOURCE) as f:
             raw = f.read().decode("utf-8")
             as_dict = json.loads(raw)
             return Dashboard.from_dict(as_dict)
 
     def save_to_folder(self, dashboard: Dashboard, local_path: Path) -> Dashboard:
+        """Save the lakeview dashboard to a local folder."""
         local_path.mkdir(parents=True, exist_ok=True)
         dashboard = self._with_better_names(dashboard)
         for dataset in dashboard.datasets:
@@ -1281,6 +1285,7 @@ class Dashboards:
         return self._replace_names(dashboard, better_names)
 
     def _replace_names(self, node: T, better_names: dict[str, str]) -> T:
+        """Replace names with human-readable names."""
         # walk every dataclass instance recursively and replace names
         if dataclasses.is_dataclass(node):
             for field in dataclasses.fields(node):
