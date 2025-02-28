@@ -1,7 +1,6 @@
 import itertools
 import json
 import logging
-import re
 import string
 from pathlib import Path
 from unittest.mock import create_autospec
@@ -193,18 +192,18 @@ tiles:
     assert "Tile has empty content:" in str(e.value)
 
 
-def test_dashboard_metadata_validate_raises_value_error_for_non_alphanumeric_tile_id(tmp_path):
-    """A tile id can not contain special characters."""
+def test_dashboard_metadata_validate_does_not_raise_value_error_for_non_alphanumeric_tile_id(tmp_path):
+    """A tile id should not contain special characters, but we clean it up."""
     (tmp_path / "@contains@special@characters.md").write_text("# Tile with invalid id")
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    match = re.escape(
-        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
-        "TileMetadata<@contains@special@characters>"
-    )
-    with pytest.raises(ValueError, match=match):
+    try:
         dashboard_metadata.validate()
+    except ValueError:
+        assert False, "Tile id with special characters is not cleaned up"
+    else:
+        assert True, "Tile id with special characters is cleaned up"
 
 
 def test_dashboard_metadata_validate_finds_duplicate_query_id(tmp_path):
@@ -237,15 +236,23 @@ def test_tile_metadata_validate_raises_value_error_for_empty_id() -> None:
         tile_metadata.validate()
 
 
-def test_tile_metadata_validate_raises_value_error_for_non_alphanumeric_id() -> None:
-    """The tile metadata id cannot be empty."""
+def test_tile_metadata_validate_not_raises_value_error_for_non_alphanumeric_id() -> None:
+    """The tile metadata id should not contain special characters, but we clean it up in _post_init"""
     tile_metadata = TileMetadata(id=")contains#special@characters")
 
-    match = re.escape(
-        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
-        + str(tile_metadata)
-    )
-    with pytest.raises(ValueError, match=match):
+    try:
+        tile_metadata.validate()
+    except ValueError:
+        assert False, "Tile id with special characters is not cleaned up"
+    else:
+        assert True, "Tile id with special characters is cleaned up"
+
+
+def test_tile_metadata_validate_raises_value_error_for_non_alphanumeric_id() -> None:
+    """The tile metadata id should not contain special characters"""
+    tile_metadata = TileMetadata()
+    tile_metadata.id = ")contains#special@characters"
+    with pytest.raises(ValueError, match="Resource names should only contain alphanumeric characters .*"):
         tile_metadata.validate()
 
 
@@ -557,37 +564,6 @@ def test_tile_validate_raises_value_error_when_content_is_empty(
     tile = tile_class(TileMetadata(tile_metadata_path))
 
     with pytest.raises(ValueError):
-        tile.validate()
-
-
-@pytest.mark.parametrize(
-    "tile_class, extension, contents",
-    [
-        (Tile, ".txt", "contents"),
-        (MarkdownTile, ".md", "# Contents"),
-        (QueryTile, ".sql", "SELECT 'contents'"),
-        (FilterTile, ".filter.json", "title: Contents"),
-    ],
-)
-@pytest.mark.parametrize("stem", ["name with spaces", "𝔱𝔥𝔦𝔰-𝔫𝔞𝔪𝔢-𝔦𝔰-𝔫𝔬𝔱-𝔮𝔲𝔦𝔱𝔢-𝔯𝔦𝔤𝔥𝔱"])
-def test_tile_validate_raises_value_error_when_name_contains_spaces(
-    tmp_path,
-    tile_class: type[Tile],
-    extension: str,
-    contents: str,
-    stem: str,
-) -> None:
-    """A tile name cannot contain spaces"""
-    tile_metadata_path = tmp_path / f"test with spaces{extension}"
-    tile_metadata_path.write_text(contents)
-    tile_metadata = TileMetadata(tile_metadata_path)
-    tile = tile_class(tile_metadata)
-
-    match = re.escape(
-        "Resource names should only contain alphanumeric characters (a-z, A-Z, 0-9), hyphens (-), or underscores (_): "
-        + str(tile_metadata)
-    )
-    with pytest.raises(ValueError, match=match):
         tile.validate()
 
 
