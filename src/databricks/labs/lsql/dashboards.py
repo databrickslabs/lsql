@@ -852,7 +852,10 @@ class CounterTile(QueryTile):
 
 @dataclass
 class FilterTile(Tile):
+    """A tile based on a filter file creating a filter widget."""
+
     _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 3, 2))
+    """The position of the tile in the dashboard. Hidden stateful attribute updated by the tiling logic."""
 
     def validate(self) -> None:
         """Validate the tile
