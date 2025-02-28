@@ -205,12 +205,17 @@ class QueryHandler(BaseHandler):
 
 
 class MarkdownHandler(BaseHandler):
-    """Handle Markdown files."""
+    """Handle Markdown files.
+
+    Sources:
+        https://frontmatter.codes/docs/markdown
+    """
 
     _FRONT_MATTER_BOUNDARY = re.compile(r"^-{3,}\s*$", re.MULTILINE)
+    """The boundary to split the header from the content. A horizontal line marked with three dashes '---'."""
 
     def _parse_header(self, header: str) -> dict:
-        """Markdown configuration header is a YAML."""
+        """Parse the header as YAML."""
         _ = self
         return yaml.safe_load(header) or {}
 
