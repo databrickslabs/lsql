@@ -76,7 +76,7 @@ def _clean_resource_name(name: str) -> str:
 
     See :func:_is_valid_resource_name for the definition of a valid resource name.
     """
-    return _CLEAN_RESOURCE_NAME_PATTERN.sub("_", name)
+    return _CLEAN_RESOURCE_NAME_PATTERN.sub("", name)
 
 
 class BaseHandler:
