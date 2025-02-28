@@ -607,6 +607,7 @@ class QueryTile(Tile):
         return formatted_query + ("\n" if has_eol else "")
 
     def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
+        """Convert the contents to an abstract syntax tree."""
         try:
             return sqlglot.parse_one(self.content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
