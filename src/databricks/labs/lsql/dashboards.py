@@ -133,6 +133,7 @@ class QueryHandler(BaseHandler):
 
     @staticmethod
     def _get_arguments_parser() -> ArgumentParser:
+        """Get the argument parser to parse the query header with."""
         parser = ArgumentParser("TileMetadata", add_help=False, exit_on_error=False)
         parser.add_argument("--id", type=str)
         parser.add_argument("-o", "--order", type=int)
@@ -168,7 +169,7 @@ class QueryHandler(BaseHandler):
         return parser
 
     def _parse_header(self, header: str) -> dict:
-        """Header is an argparse string."""
+        """Parse header as an argparse string."""
         header_split = shlex.split(header)
         parser = self._get_arguments_parser()
         try:
