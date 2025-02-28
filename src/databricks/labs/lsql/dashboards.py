@@ -418,12 +418,17 @@ class Tile:
     """A dashboard tile."""
 
     metadata: TileMetadata
+    """The tile metadata."""
 
     _content: str = ""
+    """The contents of the tile file. Hidden attribute that functions as a cache to read contents once."""
+
     _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 0, 0))
+    """The position of the tile in the dashboard. Hidden stateful attribute updated by the tiling logic."""
 
     @property
     def content(self) -> str:
+        """The content of the tile file."""
         if len(self._content) == 0:
             _, content = self.metadata.handler.split()
             self._content = content
@@ -431,6 +436,7 @@ class Tile:
 
     @property
     def position(self) -> Position:
+        """The position of the tile in the dashboard."""
         width = self.metadata.width or self._position.width
         height = self.metadata.height or self._position.height
         return Position(self._position.x, self._position.y, width, height)
