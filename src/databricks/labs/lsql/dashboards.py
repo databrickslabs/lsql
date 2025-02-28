@@ -1,3 +1,10 @@
+"""
+Deploy Lakeview dashboards from code.
+
+Docs:
+../../../../docs/dashboards.md
+"""
+
 import argparse
 import collections
 import csv
