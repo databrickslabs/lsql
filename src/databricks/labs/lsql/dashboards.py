@@ -515,8 +515,13 @@ class QueryTile(Tile):
     """A tile based on a sql query."""
 
     query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+    """A sqlglot transformer to apply to the query before rendering the tile.
+    
+    Useful for templating SQL queries, like a dynamic catalor or database name.
+    """
 
     _FILTER_HEIGHT = 1
+    """The height of filter widgets. Hidden attribute as it is a static value."""
 
     def validate(self) -> None:
         """Validate the tile
