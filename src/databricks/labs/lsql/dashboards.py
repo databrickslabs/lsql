@@ -877,6 +877,7 @@ class CounterTile(QueryTile):
 
     @staticmethod
     def _get_query_widget_spec(fields: list[Field], *, frame: WidgetFrameSpec | None = None) -> CounterSpec:
+        """Get query widget spec."""
         counter_encodings = CounterFieldEncoding(field_name=fields[0].name, display_name=fields[0].name)
         spec = CounterSpec(CounterEncodingMap(value=counter_encodings), frame=frame)
         return spec
