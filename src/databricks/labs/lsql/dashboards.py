@@ -1105,6 +1105,7 @@ class DashboardMetadata:
 
     @classmethod
     def from_dict(cls, raw: dict) -> "DashboardMetadata":
+        """Create dashboard metadata from a dictionary."""
         display_name = raw["display_name"]  # Fail early if missing
         tiles, tiles_raw = [], raw.get("tiles", {})
         for tile_id, tile_raw in tiles_raw.items():
@@ -1128,6 +1129,7 @@ class DashboardMetadata:
         return cls(display_name=display_name, _tiles=tiles)
 
     def as_dict(self) -> dict:
+        """Convert dashboard metadata to a dictionary."""
         raw: dict = {"display_name": self.display_name}
         if self.tiles:
             raw["tiles"] = {tile.metadata.id: tile.metadata.as_dict() for tile in self.tiles}
