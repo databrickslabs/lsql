@@ -309,7 +309,10 @@ class TileMetadata:
     """The height of the tile."""
 
     id: str = ""
-    """The unique id for the tile. Needs to adhere to :func:_is_valid_resource_name."""
+    """The unique id for the tile. 
+    
+    If not given, the stem of the path is used. Needs to adhere to :func:_is_valid_resource_name.
+    """
 
     title: str = ""
     """The tile title."""
@@ -327,6 +330,7 @@ class TileMetadata:
     """The raw API overrides for the widget."""
 
     def __post_init__(self):
+        """Handle the tile metadata id."""
         if not self.id:
             self.id = "" if self.path is None else self.path.stem
         self.id = _clean_resource_name(self.id)
@@ -373,16 +377,20 @@ class TileMetadata:
         return merged
 
     def is_markdown(self) -> bool:
+        """Check if the tile comes from a markdown file."""
         return self.path is not None and self.path.suffix == ".md"
 
     def is_query(self) -> bool:
+        """Check if the tile comes from a SQL file."""
         return self.path is not None and self.path.suffix == ".sql"
 
     def is_filter(self) -> bool:
+        """Check if the tile comes from a filter file."""
         return self.path is not None and self.path.name.endswith(".filter.yml")
 
     @property
     def handler(self) -> BaseHandler:
+        """Handler for parsing the tile file."""
         handler = BaseHandler
         if self.is_markdown():
             handler = MarkdownHandler
@@ -394,11 +402,13 @@ class TileMetadata:
 
     @classmethod
     def from_dict(cls, raw: dict) -> "TileMetadata":
+        """Create tile metadata from a dictionary."""
         path = raw.pop("path", None)
         path = Path(path) if path is not None else None
         return cls(path=path, **raw)
 
     def as_dict(self) -> dict:
+        """Convert tile metadata to a dictionary."""
         exclude_attributes = {
             "handler",  # Handler is inferred from file extension
             "path",  # Path is set explicitly below
@@ -423,6 +433,7 @@ class TileMetadata:
 
     @classmethod
     def from_path(cls, path: Path) -> "TileMetadata":
+        """Create tile metadata from a YAML file."""
         tile_metadata = cls(path=path)
         header = tile_metadata.handler.parse_header()
         header["path"] = path
