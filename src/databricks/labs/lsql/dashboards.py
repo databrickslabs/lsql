@@ -494,7 +494,10 @@ class Tile:
 
 @dataclass
 class MarkdownTile(Tile):
+    """A tile representing a markdown file."""
+
     _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, _MAXIMUM_DASHBOARD_WIDTH, 3))
+    """The position of the tile in the dashboard. Hidden stateful attribute updated by the tiling logic."""
 
     def validate(self) -> None:
         """Validate the tile
