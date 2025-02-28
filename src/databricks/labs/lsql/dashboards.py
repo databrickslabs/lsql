@@ -919,6 +919,7 @@ class FilterTile(Tile):
         yield layout
 
     def _create_widget(self, datasets: list[Dataset]) -> Widget:
+        """Create the filter widget."""
         dataset_columns = self._get_dataset_columns(datasets)
         # This method is called during get layouts.
         # Metadata validation is done before getting the layouts.
@@ -964,6 +965,7 @@ class FilterTile(Tile):
         dataset_columns: set[tuple[str, str]],
         spec_type,
     ) -> Widget:
+        """Create the filter widget."""
         frame = self._create_widget_frame()
         control_encodings, queries = self._generate_filter_encodings_and_queries(dataset_columns)
         control_encoding_map = ControlEncodingMap(control_encodings)
@@ -972,6 +974,7 @@ class FilterTile(Tile):
         return widget
 
     def _create_widget_frame(self) -> WidgetFrameSpec:
+        """Create the widget frame."""
         return WidgetFrameSpec(
             title=self.metadata.title,
             show_title=len(self.metadata.title) > 0,
@@ -982,6 +985,7 @@ class FilterTile(Tile):
     def _generate_filter_encodings_and_queries(
         self, dataset_columns: set[tuple[str, str]]
     ) -> tuple[list[ControlEncoding], list[NamedQuery]]:
+        """Generate the filter encodings and queries from the dataset columns."""
         encodings: list[ControlEncoding] = []
         queries = []
 
