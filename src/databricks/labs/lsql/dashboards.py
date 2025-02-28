@@ -819,7 +819,10 @@ class QueryTile(Tile):
 
 @dataclass
 class TableTile(QueryTile):
+    """A tile based on a sql query creating a table widget."""
+
     _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 3, 6))
+    """The position of the tile in the dashboard. Hidden stateful attribute updated by the tiling logic."""
 
     @property
     def position(self) -> Position:
