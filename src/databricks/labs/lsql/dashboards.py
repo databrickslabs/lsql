@@ -278,15 +278,34 @@ class TileMetadata:
     """The metadata defining a :class:Tile"""
 
     path: Path | None = None
+    """The path to the tile file."""
+
     order: int | None = None
+    """The order of the tile."""
+
     width: int = 0
+    """The width of the tile."""
+
     height: int = 0
+    """The height of the tile."""
+
     id: str = ""
+    """The unique id for the tile. Needs to adhere to :func:_is_valid_resource_name."""
+
     title: str = ""
+    """The tile title."""
+
     description: str = ""
+    """The tile description."""
+
     widget_type: WidgetType = WidgetType.AUTO
+    """The widget type. If AUTO, the widget type is inferred from the query."""
+
     filters: list[str] = dataclasses.field(default_factory=list)
+    """The filters applied to the tile."""
+
     overrides: dict = dataclasses.field(default_factory=dict)
+    """The raw API overrides for the widget."""
 
     def __post_init__(self):
         if not self.id:
