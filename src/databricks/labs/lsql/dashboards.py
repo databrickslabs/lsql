@@ -237,6 +237,7 @@ class FilterHandler(BaseHandler):
     """Handle filter files."""
 
     def _parse_header(self, header: str) -> dict:
+        """Parse the header as YAML."""
         if not header:
             return {}
         metadata = yaml.safe_load(header) or {}
@@ -255,6 +256,10 @@ class FilterHandler(BaseHandler):
         return metadata
 
     def split(self) -> tuple[str, str]:
+        """Split the header from the contents.
+
+        The (current) filter definition only contains a header.
+        """
         trimmed_content = self._content.strip()
         return trimmed_content, ""
 
