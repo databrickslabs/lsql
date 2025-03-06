@@ -235,13 +235,8 @@ def test_tile_metadata_validate_raises_value_error_for_empty_id() -> None:
 def test_tile_metadata_validate_not_raises_value_error_for_non_alphanumeric_id() -> None:
     """The tile metadata id should not contain special characters, but we clean it up in _post_init"""
     tile_metadata = TileMetadata(id=")contains#special@characters")
-
-    try:
-        tile_metadata.validate()
-    except ValueError:
-        assert False, "Tile id with special characters is not cleaned up"
-    else:
-        assert True, "Tile id with special characters is cleaned up"
+    tile_metadata.validate()
+    assert True, "Tile id with special characters is cleaned up"
 
 
 def test_tile_metadata_validate_raises_value_error_for_non_alphanumeric_id() -> None:
