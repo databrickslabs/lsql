@@ -198,12 +198,8 @@ def test_dashboard_metadata_validate_does_not_raise_value_error_for_non_alphanum
 
     dashboard_metadata = DashboardMetadata.from_path(tmp_path)
 
-    try:
-        dashboard_metadata.validate()
-    except ValueError:
-        assert False, "Tile id with special characters is not cleaned up"
-    else:
-        assert True, "Tile id with special characters is cleaned up"
+    dashboard_metadata.validate()
+    assert True, "Tile id with special characters is cleaned up"
 
 
 def test_dashboard_metadata_validate_finds_duplicate_query_id(tmp_path):
