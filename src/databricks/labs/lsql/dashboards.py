@@ -453,6 +453,7 @@ class Tile:
     _content: str = ""
     """The contents of the tile file. Hidden attribute that functions as a cache to read contents once."""
 
+    # Note: fields of _position are always filled.
     _position: Position = dataclasses.field(default_factory=lambda: Position(0, 0, 0, 0))
     """The position of the tile in the dashboard. Hidden stateful attribute updated by the tiling logic."""
 
@@ -495,13 +496,19 @@ class Tile:
         - `position.width < _MAXIMUM_DASHBOARD_WIDTH` : tiles in a single row should have the same size
         - `position.width == _MAXIMUM_DASHBOARD_WIDTH` : any height
         """
-        x = position.x + position.width
-        if x + self.position.width > _MAXIMUM_DASHBOARD_WIDTH:
+        if position.x is None or position.y is None or position.width is None or position.height is None:
+            logger.warning(f"Position unusable for placement: {position}")
+            return
+        x: int = position.x + position.width
+        my_position = self.position
+        assert my_position.width is not None
+        y: int
+        if x + my_position.width > _MAXIMUM_DASHBOARD_WIDTH:
             x = 0
             y = position.y + position.height
         else:
             y = position.y
-        self._position = dataclasses.replace(self.position, x=x, y=y)
+        self._position = dataclasses.replace(my_position, x=x, y=y)
 
     @classmethod
     def from_tile_metadata(cls, tile_metadata: TileMetadata) -> "Tile":
@@ -744,12 +751,19 @@ class QueryTile(Tile):
         spec = self._get_query_widget_spec(fields, frame=frame)
         widget = Widget(name=f"{self.metadata.id}_widget", queries=[named_query], spec=spec)
         widget = self._merge_widget_with_overrides(widget)
-        height = self.position.height
-        if len(self.metadata.filters) > 0 and self.position.width > 0:
-            height -= self._FILTER_HEIGHT * math.ceil(len(self.metadata.filters) / self.position.width)
+        my_position = self.position
+        assert (
+            my_position.width is not None
+            and my_position.height is not None
+            and my_position.x is not None
+            and my_position.y is not None
+        )
+        height = my_position.height
+        if len(self.metadata.filters) > 0 and my_position.width > 0:
+            height -= self._FILTER_HEIGHT * math.ceil(len(self.metadata.filters) / my_position.width)
         height = max(height, 0)
-        y = self.position.y + self.position.height - height
-        position = dataclasses.replace(self.position, y=y, height=height)
+        y = my_position.y + my_position.height - height
+        position = dataclasses.replace(my_position, y=y, height=height)
         layout = Layout(widget=widget, position=position)
         yield layout
 
@@ -783,24 +797,31 @@ class QueryTile(Tile):
            ii) occupy an additional row if the previous one is filled completely.
         """
         filters_size = len(self.metadata.filters) * self._FILTER_HEIGHT
-        if filters_size > self.position.width * (self.position.height - 1):  # At least one row for the query widget
+        my_position = self.position
+        assert (
+            my_position.width is not None
+            and my_position.height is not None
+            and my_position.x is not None
+            and my_position.y is not None
+        )
+        if filters_size > my_position.width * (my_position.height - 1):  # At least one row for the query widget
             raise ValueError(f"Too many filters defined for {self}")
 
         # The bottom row requires bookkeeping to adjust the filters width to fill it completely
-        bottom_row_index = len(self.metadata.filters) // self.position.width
-        bottom_row_filter_count = len(self.metadata.filters) % self.position.width or self.position.width
-        bottom_row_filter_width = self.position.width // bottom_row_filter_count
-        bottom_row_remainder_width = self.position.width - bottom_row_filter_width * bottom_row_filter_count
+        bottom_row_index = len(self.metadata.filters) // my_position.width
+        bottom_row_filter_count = len(self.metadata.filters) % my_position.width or my_position.width
+        bottom_row_filter_width = my_position.width // bottom_row_filter_count
+        bottom_row_remainder_width = my_position.width - bottom_row_filter_width * bottom_row_filter_count
 
         for filter_index in range(len(self.metadata.filters)):
-            if filter_index % self.position.width == 0:
+            if filter_index % my_position.width == 0:
                 x_offset = 0  # Reset on new row
-            x = self.position.x + x_offset
-            y = self.position.y + self._FILTER_HEIGHT * (filter_index // self.position.width)
+            x = my_position.x + x_offset
+            y = my_position.y + self._FILTER_HEIGHT * (filter_index // my_position.width)
             width = 1
-            if filter_index // self.position.width == bottom_row_index:  # Reached bottom row
+            if filter_index // my_position.width == bottom_row_index:  # Reached bottom row
                 width = bottom_row_filter_width
-                if filter_index % self.position.width < bottom_row_remainder_width:
+                if filter_index % my_position.width < bottom_row_remainder_width:
                     width += 1  # Fills up the remainder width if self.position.width % bottom_row_filter_count != 0
             position = Position(x, y, width, self._FILTER_HEIGHT)
             yield position
@@ -865,7 +886,9 @@ class TableTile(QueryTile):
             width = self.metadata.width
         else:
             fields = self._find_fields()
-            width = max(self._position.width, len(fields) // 3)
+            my_width = self._position.width
+            assert my_width is not None
+            width = max(my_width, len(fields) // 3)
         width = min(width, _MAXIMUM_DASHBOARD_WIDTH)
         height = self.metadata.height or self._position.height
         return Position(self._position.x, self._position.y, width, height)
@@ -935,7 +958,11 @@ class FilterTile(Tile):
         """Get the filter column and dataset name pairs."""
         dataset_columns = set()
         for dataset in datasets:
+            if dataset.query is None:
+                continue
             for field in self._find_filter_fields(dataset.query):
+                if field.name is None or dataset.name is None:
+                    continue
                 dataset_columns.add((field.name, dataset.name))
         return dataset_columns
 
@@ -1221,15 +1248,18 @@ class Dashboards:
         local_path.mkdir(parents=True, exist_ok=True)
         dashboard = self._with_better_names(dashboard)
         for dataset in dashboard.datasets:
+            if dataset.query is None:
+                continue
             query = QueryTile.format(dataset.query)
             (local_path / f"{dataset.name}.sql").write_text(query)
         for page in dashboard.pages:
             with (local_path / f"{page.name}.yml").open("w") as f:
                 yaml.safe_dump(page.as_dict(), f)
             for layout in page.layout:
-                if layout.widget.textbox_spec is not None:
-                    name = layout.widget.name.removesuffix("_widget")
-                    (local_path / f"{name}.md").write_text(layout.widget.textbox_spec)
+                if layout.widget.name is None or layout.widget.textbox_spec is None:
+                    continue
+                name = layout.widget.name.removesuffix("_widget")
+                (local_path / f"{name}.md").write_text(layout.widget.textbox_spec)
         return dashboard
 
     def create_dashboard(
@@ -1275,12 +1305,12 @@ class Dashboards:
 
     def _with_better_names(self, dashboard: Dashboard) -> Dashboard:
         """Replace names with human-readable names."""
-        better_names = {}
+        better_names: dict[str, str] = {}
         for dataset in dashboard.datasets:
-            if dataset.display_name is not None:
+            if dataset.name is not None and dataset.display_name is not None:
                 better_names[dataset.name] = dataset.display_name
         for page in dashboard.pages:
-            if page.display_name is not None:
+            if page.name is not None and page.display_name is not None:
                 better_names[page.name] = page.display_name
         return self._replace_names(dashboard, better_names)
 
@@ -1294,22 +1324,26 @@ class Dashboards:
                     setattr(node, field.name, [self._replace_names(item, better_names) for item in value])
                 elif dataclasses.is_dataclass(value):
                     setattr(node, field.name, self._replace_names(value, better_names))
-        if isinstance(node, Dataset):
+        if isinstance(node, Dataset) and node.name is not None:
             node.name = better_names.get(node.name, node.name)
-        elif isinstance(node, Page):
+        elif isinstance(node, Page) and node.name is not None:
             node.name = better_names.get(node.name, node.name)
-        elif isinstance(node, Query):
+        elif isinstance(node, Query) and node.dataset_name is not None:
             node.dataset_name = better_names.get(node.dataset_name, node.dataset_name)
-        elif isinstance(node, NamedQuery) and node.query:
+        elif isinstance(node, NamedQuery) and node.query and node.name is not None:
             # 'dashboards/01eeb077e38c17e6ba3511036985960c/datasets/01eeb081882017f6a116991d124d3068_...'
             if node.name.startswith("dashboards/"):
-                parts = [node.query.dataset_name]
-                for query_field in node.query.fields:
-                    parts.append(query_field.name)
-                new_name = "_".join(parts)
-                better_names[node.name] = new_name
+                if node.query.dataset_name is None:
+                    logger.warning(f"NamedQuery {node.name} has no dataset name, cannot replace name.")
+                else:
+                    parts: list[str] = [node.query.dataset_name]
+                    for query_field in node.query.fields:
+                        if query_field.name is not None:
+                            parts.append(query_field.name)
+                    new_name = "_".join(parts)
+                    better_names[node.name] = new_name
             node.name = better_names.get(node.name, node.name)
-        elif isinstance(node, ControlFieldEncoding):
+        elif isinstance(node, ControlFieldEncoding) and node.query_name is not None:
             node.query_name = better_names.get(node.query_name, node.query_name)
         elif isinstance(node, Widget):
             if node.spec is not None:

@@ -156,7 +156,7 @@ class AngleAxisSpec:
 
 @dataclass
 class AngleFieldEncoding:
-    field_name: str
+    field_name: str | None
     scale: QuantitativeScale
     axis: AngleAxisSpec | None = None
     display_name: str | None = None
@@ -277,7 +277,7 @@ class BarSpec(WidgetSpec):
 @dataclass
 class CategoricalColorScaleMappingEntry:
     value: DataDomainValue
-    color: str
+    color: str | None
 
     def as_dict(self) -> Json:
         body: Json = {}
@@ -418,7 +418,7 @@ class ColorEncodingForMultiSeries:
 
 @dataclass
 class ColorFieldEncoding:
-    field_name: str
+    field_name: str | None
     scale: Scale
     display_name: str | None = None
     legend: LegendSpec | None = None
@@ -474,8 +474,8 @@ class ControlEncodingMap:
 
 @dataclass
 class ControlFieldEncoding(ControlEncoding):
-    field_name: str
-    query_name: str
+    field_name: str | None
+    query_name: str | None
     display_name: str | None = None
 
     def as_dict(self) -> Json:
@@ -519,7 +519,7 @@ class CounterEncodingMap:
 
 @dataclass
 class CounterFieldEncoding:
-    field_name: str
+    field_name: str | None
     display_name: str | None = None
     row_number: int | None = None
 
@@ -597,8 +597,8 @@ class DataDomainValue(Enum):
 
 @dataclass
 class Dataset:
-    name: str
-    query: str
+    name: str | None
+    query: str | None
     display_name: str | None = None
 
     def as_dict(self) -> Json:
@@ -674,7 +674,7 @@ class DateRangePickerSpec(WidgetSpec):
 
 @dataclass
 class DetailsV1ColumnEncoding:
-    field_name: str
+    field_name: str | None
     display_name: str | None = None
     title: str | None = None
     type: ColumnType | None = None
@@ -785,8 +785,8 @@ class DropdownSpec(WidgetSpec):
 
 @dataclass
 class Field:
-    name: str
-    expression: str
+    name: str | None
+    expression: str | None
 
     def as_dict(self) -> Json:
         body: Json = {}
@@ -803,7 +803,7 @@ class Field:
 
 @dataclass
 class Format:
-    foreground_color: str
+    foreground_color: str | None
 
     def as_dict(self) -> Json:
         body: Json = {}
@@ -843,7 +843,7 @@ class FormatConfig:
 
 @dataclass
 class LabelEncoding:
-    show: bool
+    show: bool | None
 
     def as_dict(self) -> Json:
         body: Json = {}
@@ -1034,8 +1034,8 @@ class MultiSelectSpec(WidgetSpec):
 
 @dataclass
 class NamedQuery:
-    name: str
-    query: Query
+    name: str | None
+    query: Query | None
 
     def as_dict(self) -> Json:
         body: Json = {}
@@ -1087,7 +1087,7 @@ class Order:
 
 @dataclass
 class Page:
-    name: str
+    name: str | None
     layout: list[Layout]
     display_name: str | None = None
 
@@ -1117,8 +1117,8 @@ class PaginationSize(Enum):
 
 @dataclass
 class ParameterEncoding(ControlEncoding):
-    dataset_name: str
-    parameter_keyword: str
+    dataset_name: str | None
+    parameter_keyword: str | None
 
     def as_dict(self) -> Json:
         body: Json = {}
@@ -1192,7 +1192,7 @@ class PieSpec(WidgetSpec):
 
 @dataclass
 class PivotCellEncoding:
-    field_name: str
+    field_name: str | None
     display_name: str | None = None
 
     def as_dict(self) -> Json:
@@ -1237,7 +1237,7 @@ class PivotEncodingMap:
 
 @dataclass
 class PivotSpec(WidgetSpec):
-    encodings: PivotEncodingMap
+    encodings: PivotEncodingMap | None
     frame: WidgetFrameSpec | None = None
 
     def as_dict(self) -> Json:
@@ -1260,10 +1260,10 @@ class PivotSpec(WidgetSpec):
 
 @dataclass
 class Position:
-    x: int
-    y: int
-    width: int
-    height: int
+    x: int | None
+    y: int | None
+    width: int | None
+    height: int | None
 
     def as_dict(self) -> Json:
         body: Json = {}
@@ -1329,7 +1329,7 @@ class QuantitativeScale(Scale):
 
 @dataclass
 class Query:
-    dataset_name: str
+    dataset_name: str | None
     fields: list[Field]
     disaggregated: bool | None = None
     orders: list[Order] | None = None
@@ -1360,7 +1360,7 @@ class Query:
 class RenderFieldEncoding:
     """Common type that a single-field encoding should (conceptually) extend from"""
 
-    field_name: str
+    field_name: str | None
     display_name: str | None = None
 
     def as_dict(self) -> Json:
@@ -1412,8 +1412,8 @@ class ScatterSpec(WidgetSpec):
 
 @dataclass
 class SingleFieldAxisEncoding:
-    field_name: str
-    scale: Scale
+    field_name: str | None
+    scale: Scale | None
     axis: AxisSpec | None = None
     display_name: str | None = None
 
@@ -1528,10 +1528,10 @@ class TableV1ColumnEncoding:
     legacy v1 table."""
 
     boolean_values: list[str]
-    display_as: DisplayType
-    field_name: str
-    title: str
-    type: ColumnType
+    display_as: DisplayType | None
+    field_name: str | None
+    title: str | None
+    type: ColumnType | None
     align_content: Alignment | None = None
     allow_html: bool | None = None
     allow_search: bool | None = None
@@ -1619,7 +1619,7 @@ class TableV1ColumnEncoding:
             align_content=_enum(d, "alignContent", Alignment),
             allow_html=d.get("allowHTML", None),
             allow_search=d.get("allowSearch", None),
-            boolean_values=d.get("booleanValues", None),
+            boolean_values=d.get("booleanValues", []),
             date_time_format=d.get("dateTimeFormat", None),
             decimal_format=d.get("decimalFormat", None),
             default_column_width=d.get("defaultColumnWidth", None),
@@ -1664,15 +1664,15 @@ class TableV1EncodingMap:
 
 @dataclass
 class TableV1Spec(WidgetSpec):
-    allow_html_by_default: bool
+    allow_html_by_default: bool | None
     """V1 uses `version` to determine if the v1 editor should set `allowHTML` by default."""
-    condensed: bool
+    condensed: bool | None
     encodings: TableV1EncodingMap
     invisible_columns: list[TableV1SpecInvisibleColumnsItem]
     """Unused columns. These columns are invisible and not referred, and thus should not be include in
     the queries (be outside of `encodings`). Even when the base query changes not to include these
     columns, the table still can work without throwing errors."""
-    items_per_page: int
+    items_per_page: int | None
     frame: WidgetFrameSpec | None = None
     pagination_size: PaginationSize | None = None
     with_row_number: bool | None = None
@@ -1715,10 +1715,10 @@ class TableV1Spec(WidgetSpec):
 
 @dataclass
 class TableV1SpecInvisibleColumnsItem:
-    name: str
-    display_as: DisplayType
-    type: ColumnType
-    title: str
+    name: str | None
+    display_as: DisplayType | None
+    type: ColumnType | None
+    title: str | None
     boolean_values: list[str]
     align_content: Alignment | None = None
     allow_html: bool | None = None
@@ -1801,7 +1801,7 @@ class TableV1SpecInvisibleColumnsItem:
             align_content=_enum(d, "alignContent", Alignment),
             allow_html=d.get("allowHTML", None),
             allow_search=d.get("allowSearch", None),
-            boolean_values=d.get("booleanValues", None),
+            boolean_values=d.get("booleanValues", []),
             date_time_format=d.get("dateTimeFormat", None),
             decimal_format=d.get("decimalFormat", None),
             default_column_width=d.get("defaultColumnWidth", None),
@@ -1828,7 +1828,7 @@ class TableV1SpecInvisibleColumnsItem:
 
 @dataclass
 class TableV2Spec(WidgetSpec):
-    encodings: TableEncodingMap
+    encodings: TableEncodingMap | None
     frame: WidgetFrameSpec | None = None
 
     def as_dict(self) -> Json:
@@ -1864,7 +1864,7 @@ class TemporalScale(Scale):
 
 @dataclass
 class TextEntrySpec(WidgetSpec):
-    encodings: ControlEncodingMap
+    encodings: ControlEncodingMap | None
     exclude: bool | None = None
     frame: WidgetFrameSpec | None = None
     is_case_sensitive: bool | None = None
@@ -1906,7 +1906,7 @@ class TextEntrySpecMatchMode(Enum):
 
 @dataclass
 class Widget:
-    name: str
+    name: str | None
     queries: list[NamedQuery] | None = None
     spec: WidgetSpec | None = None
     textbox_spec: str | None = None
@@ -1982,7 +1982,7 @@ class WordCloudEncodingMap:
 
 @dataclass
 class WordCloudSpec(WidgetSpec):
-    encodings: WordCloudEncodingMap
+    encodings: WordCloudEncodingMap | None
     frame: WidgetFrameSpec | None = None
 
     def as_dict(self) -> Json:
