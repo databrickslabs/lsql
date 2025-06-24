@@ -922,12 +922,12 @@ LEFT OUTER JOIN inventory.clusters AS c
         ("SELECT count FROM hive_metastore.database.table", "SELECT count FROM hive_metastore.development.table", None),
         (
             "SELECT a FROM server.database.table, remote_server.other_database.table",
-            "SELECT a FROM server.development.table, remote_server.development.table",
+            "SELECT a FROM server.development.table CROSS JOIN remote_server.development.table",
             None,
         ),
         (
             "SELECT a FROM server.database.table, remote_server.other_database.table",
-            "SELECT a FROM server.database.table, remote_server.development.table",
+            "SELECT a FROM server.database.table CROSS JOIN remote_server.development.table",
             "other_database",
         ),
         (
@@ -970,12 +970,12 @@ def test_query_tile_creates_database_with_database_overwrite(
         ("SELECT catalog FROM catalog.database.table", "SELECT catalog FROM development.database.table", None),
         (
             "SELECT a FROM server.database.table, remote_server.other_database.table",
-            "SELECT a FROM development.database.table, development.other_database.table",
+            "SELECT a FROM development.database.table CROSS JOIN development.other_database.table",
             None,
         ),
         (
             "SELECT a FROM server.database.table, remote_server.other_database.table",
-            "SELECT a FROM server.database.table, development.other_database.table",
+            "SELECT a FROM server.database.table CROSS JOIN development.other_database.table",
             "remote_server",
         ),
         (
@@ -1018,7 +1018,7 @@ def test_query_tile_creates_database_with_catalog_overwrite(
         ("SELECT database FROM database.table", "SELECT database FROM development.table", None, None),
         (
             "SELECT a FROM server.database.table, remote_server.other_database.table",
-            "SELECT a FROM catalog.development.table, remote_server.development.table",
+            "SELECT a FROM catalog.development.table CROSS JOIN remote_server.development.table",
             "server",
             None,
         ),
