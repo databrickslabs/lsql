@@ -65,6 +65,10 @@ python="3.10"
 # store virtual env as the child of this folder. Helps VSCode (and PyCharm) to run better
 path = ".venv-py3.10"
 
+[tool.hatch.envs.default.env-vars]
+PYTEST_ADDOPTS = "-o cache_dir=.venv-py3.10/pytest-cache"
+RUFF_CACHE_DIR = ".venv-py3.10/ruff-cache"
+
 [tool.hatch.envs.default.scripts]
 test        = "pytest -n 2 --cov src --cov-report=xml --timeout 30 tests/unit --durations 20"
 coverage    = "pytest -n 2 --cov src tests/unit --timeout 30 --cov-report=html --durations 20"
@@ -78,6 +82,10 @@ verify      = ["isort . --check-only",
                "ruff check .",
                "mypy .",
                "pylint --output-format=colorized -j 0 src"]
+
+[tool.hatch.envs.test.env-vars]
+PYTEST_ADDOPTS = "-o cache_dir=.venv-py{matrix:python}/pytest-cache"
+RUFF_CACHE_DIR = ".venv-py{matrix:python}/ruff-cache"
 
 [tool.hatch.envs.test.overrides]
 matrix.python.path = [
@@ -103,7 +111,6 @@ profile = "black"
 
 [tool.pytest.ini_options]
 addopts = "--no-header"
-cache_dir = ".venv/pytest-cache"
 
 [tool.black]
 target-version = ["py310"]
@@ -111,7 +118,6 @@ line-length = 120
 skip-string-normalization = true
 
 [tool.ruff]
-cache-dir = ".venv/ruff-cache"
 target-version = "py310"
 line-length = 120
 
