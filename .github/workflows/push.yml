@@ -14,6 +14,10 @@ on:
     branches:
       - main
 
+env:
+  HATCH_VERBOSE: "2"
+  HATCH_VERSION: "1.16.5"
+
 jobs:
   ci:
     strategy:
@@ -34,7 +38,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          pip install hatch==1.9.4
+          pip install "hatch==${HATCH_VERSION}"
           make test
 
       - name: Publish test coverage
@@ -55,7 +59,7 @@ jobs:
 
       - name: Format all files
         run: |
-          pip install hatch==1.9.4
+          pip install "hatch==${HATCH_VERSION}"
           make dev fmt
 
       - name: Fail on differences
