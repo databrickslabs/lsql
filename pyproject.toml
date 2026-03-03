@@ -69,7 +69,7 @@ path = ".venv-py3.10"
 test        = "pytest -n 2 --cov src --cov-report=xml --timeout 30 tests/unit --durations 20"
 coverage    = "pytest -n 2 --cov src tests/unit --timeout 30 --cov-report=html --durations 20"
 integration = "pytest -n 10 --cov src tests/integration --durations 20"
-fmt         = ["isort .",
+fmt         = ["isort src tests",
                "ruff format",
                "ruff check . --fix",
                "mypy .",
