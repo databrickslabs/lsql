@@ -23,8 +23,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pyVersion: [ '3.10', '3.11', '3.12' ]
+        python: [ '3.10', '3.11', '3.12' ]
     runs-on: ubuntu-latest
+    env:
+      HATCH_ENV: "test.py${{ matrix.python }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -34,7 +36,7 @@ jobs:
         with:
           cache: 'pip'
           cache-dependency-path: '**/pyproject.toml'
-          python-version: ${{ matrix.pyVersion }}
+          python-version: '3.14'
 
       - name: Run unit tests
         run: |
@@ -55,7 +57,7 @@ jobs:
         with:
           cache: 'pip'
           cache-dependency-path: '**/pyproject.toml'
-          python-version: '3.12'
+          python-version: '3.14'
 
       - name: Format all files
         run: |

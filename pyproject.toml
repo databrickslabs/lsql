@@ -58,8 +58,10 @@ dependencies = [
     "types-requests",
 ]
 
+python="3.10"
+
 # store virtual env as the child of this folder. Helps VSCode (and PyCharm) to run better
-path = ".venv"
+path = ".venv-py3.10"
 
 [tool.hatch.envs.default.scripts]
 test        = "pytest -n 2 --cov src --cov-report=xml --timeout 30 tests/unit --durations 20"
@@ -74,6 +76,21 @@ verify      = ["isort . --check-only",
                "ruff check .",
                "mypy .",
                "pylint --output-format=colorized -j 0 src"]
+
+[tool.hatch.envs.test.overrides]
+matrix.python.path = [
+    # Sadly no way to interpolate this.
+    # (No override needed for 3.10, inherited from default environment.)
+    { value = ".venv-py3.11", if = ["3.11" ]},
+    { value = ".venv-py3.12", if = ["3.12" ]},
+]
+
+[[tool.hatch.envs.test.matrix]]
+python = [
+    "3.10",
+    "3.11",
+    "3.12",
+]
 
 [tool.isort]
 profile = "black"
