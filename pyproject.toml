@@ -62,12 +62,12 @@ dependencies = [
 
 python="3.10"
 
-# store virtual env as the child of this folder. Helps VSCode (and PyCharm) to run better
-path = ".venv-py3.10"
+# Fixed path expected by the `labs` tool to run acceptance tests.
+path = ".venv"
 
 [tool.hatch.envs.default.env-vars]
-PYTEST_ADDOPTS = "-o cache_dir=.venv-py3.10/pytest-cache"
-RUFF_CACHE_DIR = ".venv-py3.10/ruff-cache"
+PYTEST_ADDOPTS = "-o cache_dir=.venv/pytest-cache"
+RUFF_CACHE_DIR = ".venv/ruff-cache"
 
 [tool.hatch.envs.default.scripts]
 test        = "pytest -n 2 --cov src --cov-report=xml --timeout 30 tests/unit --durations 20"
@@ -90,7 +90,7 @@ RUFF_CACHE_DIR = ".venv-py{matrix:python}/ruff-cache"
 [tool.hatch.envs.test.overrides]
 matrix.python.path = [
     # Sadly no way to interpolate this.
-    # (No override needed for 3.10, inherited from default environment.)
+    { value = ".venv-py3.10", if = ["3.10" ]},
     { value = ".venv-py3.11", if = ["3.11" ]},
     { value = ".venv-py3.12", if = ["3.12" ]},
     { value = ".venv-py3.13", if = ["3.13" ]},
