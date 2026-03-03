@@ -31,7 +31,7 @@ jobs:
       matrix:
         downstream:
           - name: ucx
-          - name: remorph
+          - name: lakebridge
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
