@@ -3,7 +3,7 @@ name = "databricks-labs-lsql"
 dynamic = ["version"]
 description = "Lightweight stateless SQL execution for Databricks with minimal dependencies"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.15"
 license-files = { paths = ["LICENSE", "NOTICE"] }
 keywords = []
 authors = [
