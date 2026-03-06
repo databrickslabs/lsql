@@ -34,7 +34,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          pip install hatch==1.9.4
+          pip install hatch==1.16.5
           make test
 
       - name: Publish test coverage
@@ -55,7 +55,7 @@ jobs:
 
       - name: Format all files
         run: |
-          pip install hatch==1.9.4
+          pip install hatch==1.16.5
           make dev fmt
 
       - name: Fail on differences
