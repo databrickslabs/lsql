@@ -31,9 +31,9 @@ jobs:
       matrix:
         downstream:
           # Downstream currently just tests with system python rather than controlling the versions properly.
-          - { name: ucx,        python: '3.12' }
-          - { name: lakebridge, python: '3.13' }
-          - { name: remorph,    python: '3.12' }
+          - name: ucx
+          - name: lakebridge
+          - name: remorph
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,7 +46,7 @@ jobs:
         with:
           cache: 'pip'
           cache-dependency-path: '**/pyproject.toml'
-          python-version: "${{ matrix.downstream.python }}"
+          python-version: '3.10'
 
       - name: Install toolchain
         run: |
