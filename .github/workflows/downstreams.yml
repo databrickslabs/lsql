@@ -32,7 +32,6 @@ jobs:
         downstream:
           # Downstream currently just tests with system python rather than controlling the versions properly.
           - name: ucx
-          - name: lakebridge
           - name: remorph
     runs-on: ubuntu-latest
     steps:
