@@ -80,7 +80,7 @@ from databricks.labs.lsql.backends import RuntimeBackend
 from databricks.sdk.errors import Unknown
 backend = RuntimeBackend()
 try:
-    grants = backend.fetch("SHOW GRANTS ON METASTORE")
+    list(backend.fetch("SELECT assert_true(false)"))
     print("FAILED")
 except Unknown:
     print("PASSED")
