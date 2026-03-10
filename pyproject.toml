@@ -66,6 +66,7 @@ python="3.10"
 path = ".venv"
 
 [tool.hatch.envs.default.env-vars]
+MYPY_CACHE_DIR = ".venv/mypy-cache"
 PYTEST_ADDOPTS = "-o cache_dir=.venv/pytest-cache"
 RUFF_CACHE_DIR = ".venv/ruff-cache"
 
@@ -84,6 +85,7 @@ verify      = ["isort src tests --check-only",
                "pylint --output-format=colorized -j 0 src"]
 
 [tool.hatch.envs.test.env-vars]
+MYPY_CACHE_DIR = ".venv-py{matrix:python}/mypy-cache"
 PYTEST_ADDOPTS = "-o cache_dir=.venv-py{matrix:python}/pytest-cache"
 RUFF_CACHE_DIR = ".venv-py{matrix:python}/ruff-cache"
 
