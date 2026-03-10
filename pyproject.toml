@@ -78,7 +78,7 @@ fmt         = ["isort src tests",
                "ruff check . --fix",
                "mypy .",
                "pylint --output-format=colorized -j 0 src"]
-verify      = ["isort . --check-only",
+verify      = ["isort src tests --check-only",
                "ruff check .",
                "mypy .",
                "pylint --output-format=colorized -j 0 src"]
