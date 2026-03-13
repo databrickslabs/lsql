@@ -80,7 +80,7 @@ from databricks.labs.lsql.backends import RuntimeBackend
 from databricks.sdk.errors import Unknown
 backend = RuntimeBackend()
 try:
-    grants = backend.fetch("SHOW GRANTS ON METASTORE")
+    list(backend.fetch("SELECT assert_true(false)"))
     print("FAILED")
 except Unknown:
     print("PASSED")
@@ -117,13 +117,13 @@ except PermissionDenied:
 @pytest.mark.parametrize(
     "query",
     [
-        INCORRECT_SCHEMA,
-        INCORRECT_TABLE,
-        INCORRECT_DESCRIBE,
-        INCORRECT_TABLE_FETCH,
-        SYNTAX_ERROR_EXECUTE,
-        SYNTAX_ERROR_FETCH,
-        UNKNOWN_ERROR,
+        pytest.param(INCORRECT_SCHEMA, id="INCORRECT_SCHEMA"),
+        pytest.param(INCORRECT_TABLE, id="INCORRECT_TABLE"),
+        pytest.param(INCORRECT_DESCRIBE, id="INCORRECT_DESCRIBE"),
+        pytest.param(INCORRECT_TABLE_FETCH, id="INCORRECT_TABLE_FETCH"),
+        pytest.param(SYNTAX_ERROR_EXECUTE, id="SYNTAX_ERROR_EXECUTE"),
+        pytest.param(SYNTAX_ERROR_FETCH, id="SYNTAX_ERROR_FETCH"),
+        pytest.param(UNKNOWN_ERROR, id="UNKNOWN_ERROR"),
     ],
 )
 def test_runtime_backend_errors_handled(ws, query):
