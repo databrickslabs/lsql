@@ -2,11 +2,13 @@ import dataclasses
 import datetime as dt
 import json
 import logging
+import textwrap
 import webbrowser
 from pathlib import Path
 
 import pytest
 from databricks.labs.blueprint.entrypoint import is_in_debug
+from databricks.sdk import WorkspaceClient
 from databricks.sdk.core import DatabricksError
 from databricks.sdk.service.catalog import SchemaInfo
 from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
@@ -141,6 +143,28 @@ def test_dashboard_deploys_dashboard_the_same_as_created_dashboard(ws, make_dash
         dashboards._with_better_names(dashboard_metadata.as_lakeview()).as_dict()
         == dashboards._with_better_names(new_dashboard).as_dict()
     )
+
+
+def test_dashboards_save_to_folder_saves_sql_files(ws: WorkspaceClient, make_dashboard, tmp_path: Path) -> None:
+    dashboards = Dashboards(ws)
+    sdk_dashboard = make_dashboard()
+
+    (tmp_path / "counter.sql").write_text("SELECT 10 AS count", encoding="utf-8")
+    dashboard_metadata = DashboardMetadata.from_path(tmp_path)
+    sdk_dashboard = dashboards.create_dashboard(dashboard_metadata, dashboard_id=sdk_dashboard.dashboard_id)
+
+    assert sdk_dashboard.path is not None
+    lakeview_dashboard = dashboards.get_dashboard(sdk_dashboard.path)
+    save_path = tmp_path / "saved"
+    dashboards.save_to_folder(lakeview_dashboard, save_path)
+
+    exported_path = save_path / "counter.sql"
+    exported_query = exported_path.read_text(encoding="utf-8")
+    # Exporting formats the queries with sqlglot.
+    expected_query = textwrap.dedent("""\
+        SELECT
+          10 AS count""")
+    assert exported_query == expected_query
 
 
 def test_dashboard_deploys_dashboard_with_ten_counters(ws, make_dashboard, tmp_path):
