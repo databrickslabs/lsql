@@ -23,18 +23,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pyVersion: [ '3.10', '3.11', '3.12' ]
+        python: [ '3.10', '3.11', '3.12', '3.13', '3.14' ]
     runs-on: ubuntu-latest
+    env:
+      HATCH_ENV: "test.py${{ matrix.python }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6
 
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           cache: 'pip'
           cache-dependency-path: '**/pyproject.toml'
-          python-version: ${{ matrix.pyVersion }}
+          # The version under test, as well as Python 3.14 for Hatch.
+          python-version: |
+            ${{ matrix.python }}
+            ${{ matrix.python != '3.14' && '3.14' || '' }}
 
       - name: Run unit tests
         run: |
@@ -48,14 +53,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v6
 
-      - name: Install Python 3.12
-        uses: actions/setup-python@v5
+      - name: Install Python
+        uses: actions/setup-python@v6
         with:
           cache: 'pip'
           cache-dependency-path: '**/pyproject.toml'
-          python-version: '3.12'
+          python-version: '3.14'
 
       - name: Format all files
         run: |
