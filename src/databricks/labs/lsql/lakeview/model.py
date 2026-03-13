@@ -613,7 +613,20 @@ class Dataset:
 
     @classmethod
     def from_dict(cls, d: Json) -> Dataset:
-        return cls(display_name=d.get("displayName", None), name=d.get("name", None), query=d.get("query", None))
+        # Compatibility:
+        #  - Dashboard APIs previously placed the queries in the "query" attribute as-is, but now it's placed in the
+        #    "queryLines" attribute as an array of strings.
+        #  - We need to load from both previously saved files, as well as the Dashboard APIs.
+        #  - Canonical format is therefore "query".
+        query: str | None
+        match d:
+            case {"query": str() as query, **_kw}:
+                pass
+            case {"queryLines": list() as queryLines, **_kw}:
+                query = "".join(queryLines)
+            case _:
+                query = None
+        return cls(display_name=d.get("displayName", None), name=d.get("name", None), query=query)
 
 
 @dataclass
