@@ -34,3 +34,6 @@ commands:
         description: Publish the dashboard after creating by setting to `yes` or `y`.
       - name: open-browser
         description: Open the dashboard in the browser after creating by setting to `yes` or `y`.
+
+  - name: deploy-schema
+    description: Create schema from dataclasses in the given folder

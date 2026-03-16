@@ -15,6 +15,8 @@ class Foo:
 
 @dataclass
 class Nested:
+    __table__ = 'x'
+
     foo: Foo
     mapping: dict[str, int]
     array: list[int]
