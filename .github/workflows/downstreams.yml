@@ -30,7 +30,13 @@ jobs:
       fail-fast: false
       matrix:
         downstream:
-          - name: ucx
+          # Disabled for 0.17 release, it fails but the reasons are bogus:
+          #  - UCX depends on <0.17 so it won't pull this release in.
+          #  - The downstream test also force-installs a version of the Databricks SDK that many UCX tests fail on.
+          #    (Cause chain: loading a Config now triggers a network lookup for the workspace metadata, and the
+          #     unit tests all use a bogus host. Negative DNS lookups are a retriable error, so Config init just loops
+          #     and the tests timeout.)
+          #- name: ucx
           - name: remorph
     runs-on: ubuntu-latest
     steps:
