@@ -30,7 +30,12 @@ jobs:
       fail-fast: false
       matrix:
         downstream:
-          - name: ucx
+          # Disabled for UCX as of the 0.17 release:
+          #  - UCX depends on <0.17 so the checks are moot. (And we know they will fail.)
+          #  - The downstream test also force-installs a version of the Databricks SDK that causes many UCX tests to
+          #    fail.
+          # Both will need to be addressed before this can (and should) be enabled again.
+          #- name: ucx
           - name: remorph
     runs-on: ubuntu-latest
     steps:
