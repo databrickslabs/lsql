@@ -4,6 +4,8 @@ from pathlib import Path
 
 from databricks.labs.blueprint.cli import App
 from databricks.labs.blueprint.entrypoint import get_logger
+from databricks.labs.blueprint.tui import Prompts
+from databricks.labs.blueprint.paths import WorkspacePath
 from databricks.sdk import WorkspaceClient
 
 from databricks.labs.lsql.dashboards import DashboardMetadata, Dashboards, QueryTile
@@ -41,6 +43,19 @@ def create_dashboard(
         dashboard_url = lakeview_dashboards.get_url(sdk_dashboard.dashboard_id)
         webbrowser.open(dashboard_url)
     print(sdk_dashboard.dashboard_id)
+
+
+@lsql.command
+def save_dashboard(w: WorkspaceClient, prompts: Prompts, remote_path: str = '~', local_path: Path = Path.cwd()):
+    """Save a dashboard to a folder"""
+    workspace_path = WorkspacePath(w, remote_path).expanduser()
+    if workspace_path.is_dir():
+        dashboards = {_.name: _ for _ in workspace_path.glob('*.lvdash.json')}
+        workspace_path = prompts.choice_from_dict('Select existing dashboard', dashboards)
+    lakeview_dashboards = Dashboards(w)
+    remote_dashboard = lakeview_dashboards.get_dashboard(workspace_path)
+    lakeview_dashboards.save_to_folder(remote_dashboard, Path(local_path))
+
 
 
 @lsql.command(is_unauthenticated=True)
