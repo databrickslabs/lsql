@@ -27,6 +27,9 @@ dependencies = [
   "sqlglot>=22.3.1,<26.30.0"
 ]
 
+[project.optional-dependencies]
+df = ["sqlframe~=3.3.1"]
+
 [project.urls]
 Documentation = "https://github.com/databrickslabs/lsql#readme"
 Issues = "https://github.com/databrickslabs/lsql/issues"
@@ -45,6 +48,7 @@ path = "src/databricks/labs/lsql/__about__.py"
 
 [tool.hatch.envs.default]
 dependencies = [
+    "databricks-labs-lsql[df]",
     "coverage[toml]>=6.5",
     "pytest",
     "pylint",
