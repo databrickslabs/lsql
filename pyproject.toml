@@ -22,8 +22,9 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "databricks-labs-blueprint[yaml]>=0.4.2",
+  "databricks-labs-blueprint[yaml]~=0.12.0",
   "databricks-sdk>=0.38.0,<1.0.0",
+  "pip~=26.0",  # Temporary, blueprint doesn't declare this but it's needed.
   "sqlglot>=22.3.1,<26.30.0"
 ]
 
@@ -43,70 +44,34 @@ include = ["src"]
 [tool.hatch.version]
 path = "src/databricks/labs/lsql/__about__.py"
 
-[tool.hatch.envs.default]
-dependencies = [
-    "coverage[toml]>=6.5",
-    "pytest",
-    "pylint",
-    "databricks-labs-pytester>=0.7.2",
-    "pytest-xdist",
-    "pytest-cov>=4.0.0,<5.0.0",
-    "pytest-mock>=3.0.0,<4.0.0",
-    "pytest-timeout",
-    "ruff>=0.0.243",
-    "isort>=2.5.0",
-    "mypy",
-    "types-PyYAML",
-    "types-requests",
+[dependency-groups]
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+]
+lint = [
+    "ruff~=0.15.9",
+    "isort~=8.0.1",
+    "mypy~=1.20.0",
+    "pylint~=4.0.5",
+    "types-PyYAML~=6.0.12",
+    "types-requests~=2.33.0",
+]
+test = [
+    "coverage[toml]~=7.13.5",
+    "pytest~=9.0.2",
+    "databricks-labs-pytester~=0.7.4",
+    "pytest-xdist~=3.8.0",
+    "pytest-cov~=4.1.0",
+    "pytest-mock~=3.15.1",
+    "pytest-timeout~=2.4.0",
+]
+yq = [
+    "yq~=3.4.3",
 ]
 
-python="3.10"
-
-# Fixed path expected by the `labs` tool to run acceptance tests.
-path = ".venv"
-
-[tool.hatch.envs.default.env-vars]
-MYPY_CACHE_DIR = ".venv/mypy-cache"
-PYTEST_ADDOPTS = "-o cache_dir=.venv/pytest-cache"
-RUFF_CACHE_DIR = ".venv/ruff-cache"
-
-[tool.hatch.envs.default.scripts]
-test        = "pytest -n 2 --cov src --cov-report=xml --timeout 30 tests/unit --durations 20"
-coverage    = "pytest -n 2 --cov src tests/unit --timeout 30 --cov-report=html --durations 20"
-integration = "pytest -n 10 --cov src tests/integration --durations 20"
-fmt         = ["isort src tests",
-               "ruff format",
-               "ruff check . --fix",
-               "mypy .",
-               "pylint --output-format=colorized -j 0 src"]
-verify      = ["isort src tests --check-only",
-               "ruff check .",
-               "mypy .",
-               "pylint --output-format=colorized -j 0 src"]
-
-[tool.hatch.envs.test.env-vars]
-MYPY_CACHE_DIR = ".venv-py{matrix:python}/mypy-cache"
-PYTEST_ADDOPTS = "-o cache_dir=.venv-py{matrix:python}/pytest-cache"
-RUFF_CACHE_DIR = ".venv-py{matrix:python}/ruff-cache"
-
-[tool.hatch.envs.test.overrides]
-matrix.python.path = [
-    # Sadly no way to interpolate this.
-    { value = ".venv-py3.10", if = ["3.10" ]},
-    { value = ".venv-py3.11", if = ["3.11" ]},
-    { value = ".venv-py3.12", if = ["3.12" ]},
-    { value = ".venv-py3.13", if = ["3.13" ]},
-    { value = ".venv-py3.14", if = ["3.14" ]}
-]
-
-[[tool.hatch.envs.test.matrix]]
-python = [
-    "3.10",
-    "3.11",
-    "3.12",
-    "3.13",
-    "3.14",
-]
+[tool.uv]
+required-version = "~= 0.11.0"
 
 [tool.isort]
 profile = "black"
