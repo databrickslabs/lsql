@@ -67,7 +67,16 @@ def viz_type(self) -> str:
 
 This section provides a step-by-step guide to set up and start working on the project. These steps will help you set up your project environment and dependencies for efficient development.
 
-To begin, run `make dev` create the default environment and install development dependencies, assuming you've already cloned the github repo.
+### Prerequisites
+
+Install [uv](https://docs.astral.sh/uv/):
+```shell
+brew install uv
+```
+
+### Getting started
+
+Run `make dev` to create the default environment and install development dependencies, assuming you've already cloned the github repo.
 
 ```shell
 make dev
@@ -93,7 +102,7 @@ make test
 
 Here are the example steps to submit your first contribution:
 
-1. Make a Fork from ucx repo (if you really want to contribute)
+1. Make a Fork from lsql repo (if you really want to contribute)
 2. `git clone`
 3. `git checkout main` (or `gcm` if you're using [ohmyzsh](https://ohmyz.sh/)).
 4. `git pull` (or `gl` if you're using [ohmyzsh](https://ohmyz.sh/)).
