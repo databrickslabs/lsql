@@ -66,7 +66,7 @@ test = [
     "pytest-timeout~=2.4.0",
 ]
 yq = [
-    "yq[toml]~=3.4.3",
+    "yq~=3.4.3",
 ]
 
 [tool.uv]
