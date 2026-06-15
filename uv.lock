@@ -480,7 +480,7 @@ requires-dist = [
     { name = "databricks-labs-blueprint", extras = ["yaml"], specifier = "~=0.12.0" },
     { name = "databricks-sdk", specifier = ">=0.38.0,<1.0.0" },
     { name = "pip", specifier = "~=26.0" },
-    { name = "sqlglot", specifier = ">=22.3.1,<26.30.0" },
+    { name = "sqlglot", specifier = ">=22.3.1,<30.10.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -1071,11 +1071,11 @@ wheels = [
 
 [[package]]
 name = "sqlglot"
-version = "26.29.0"
+version = "30.9.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/07/53/ee0985ee4a86fadb80a26b3388d1a109b8fe4a8671202b6aff0196fa2c25/sqlglot-26.29.0.tar.gz", hash = "sha256:023f1f9c35f0b5c9e5614e87624567bf20a69940995a4cbfe89c5481b9239474", size = 5335487, upload-time = "2025-06-17T21:02:47.243Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/1d/b1380b3ee8fb63c50d7507e956a1228ddefff1a2601d79806c998ef6547b/sqlglot-30.9.0.tar.gz", hash = "sha256:20bed04b6482bf13560206cae517f451f46c321e04956ad71271ed1f12ce8802", size = 5885862, upload-time = "2026-06-04T15:33:52.268Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/9e/14f111ddbc0b7f15e3ce886a69548c26fa1eb3571a63c1bf5f060cbe9f43/sqlglot-26.29.0-py3-none-any.whl", hash = "sha256:373376bab433d55b291ccbbf9fd59e08a59cde059bdb64e32d1f15accc07ac65", size = 470167, upload-time = "2025-06-17T21:02:45.067Z" },
+    { url = "https://files.pythonhosted.org/packages/13/4c/41b222c130950a077e1a0ba311df84a29b818db7c136ecc1aafbfad42e26/sqlglot-30.9.0-py3-none-any.whl", hash = "sha256:59b5f74f4d391e32e6980e8cd23cca8d47beac3c0140b711ead9ed05a824a8b5", size = 695762, upload-time = "2026-06-04T15:33:49.526Z" },
 ]
 
 [[package]]
