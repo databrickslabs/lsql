@@ -6,8 +6,8 @@ readme = "README.md"
 requires-python = ">=3.10,<3.15"
 license-files = { paths = ["LICENSE", "NOTICE"] }
 keywords = []
-authors = [
-  { name = "Serge Smertin", email = "serge.smertin@databricks.com" },
+maintainers = [
+    { name = "Databricks Labs", email = "labs-oss@databricks.com" },
 ]
 classifiers = [
   "License :: Other/Proprietary License",
