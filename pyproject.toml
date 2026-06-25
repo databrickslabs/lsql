@@ -61,7 +61,7 @@ dev = [
     { include-group = "test" },
 ]
 lint = [
-    "ruff~=0.15.9",
+    "ruff~=0.15.17",
     "isort~=8.0.1",
     "mypy~=1.20.0",
     "pylint~=4.0.5",
