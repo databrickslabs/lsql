@@ -309,8 +309,8 @@ class TileMetadata:
     """The height of the tile."""
 
     id: str = ""
-    """The unique id for the tile. 
-    
+    """The unique id for the tile.
+
     If not given, the stem of the path is used. Needs to adhere to :func:_is_valid_resource_name.
     """
 
@@ -551,9 +551,9 @@ class MarkdownTile(Tile):
 class QueryTile(Tile):
     """A tile based on a sql query."""
 
-    query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
+    query_transformer: Callable[[sqlglot.exp.Expression], sqlglot.exp.Expression] | None = None
     """A sqlglot transformer to apply to the query before rendering the tile.
-    
+
     Useful for templating SQL queries, like a dynamic catalor or database name.
     """
 
@@ -613,13 +613,16 @@ class QueryTile(Tile):
             formatted_query = re.sub(r"\${(\w+)}", r"$\1", formatted_query)
         return formatted_query + ("\n" if has_eol else "")
 
-    def _get_abstract_syntax_tree(self) -> sqlglot.Expression | None:
+    def _get_abstract_syntax_tree(self) -> sqlglot.exp.Expression | None:
         """Convert the contents to an abstract syntax tree."""
         try:
-            return sqlglot.parse_one(self.content, dialect=_SQL_DIALECT)
+            parsed_query = sqlglot.parse_one(self.content, dialect=_SQL_DIALECT)
         except sqlglot.ParseError as e:
             logger.warning(f"Parsing {self.content}: {e}")
             return None
+        if isinstance(parsed_query, sqlglot.exp.Expression):
+            return parsed_query
+        return None
 
     def _find_fields(self) -> list[Field]:
         """Find the fields in a query.
@@ -665,7 +668,7 @@ class QueryTile(Tile):
             https://sqlglot.com/sqlglot/transforms.html
         """
 
-        def replace_catalog_and_database_in_query(node: sqlglot.Expression) -> sqlglot.Expression:
+        def replace_catalog_and_database_in_query(node: sqlglot.exp.Expression) -> sqlglot.exp.Expression:
             if isinstance(node, sqlglot.exp.Table):
                 if (
                     node.args.get("catalog") is not None

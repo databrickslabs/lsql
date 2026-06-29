@@ -15,6 +15,7 @@ from databricks.sdk.service.dashboards import Dashboard as SDKDashboard
 from databricks.labs.lsql.backends import MockBackend
 from databricks.labs.lsql.core import Row
 from databricks.labs.lsql.dashboards import (
+    _SQL_DIALECT,
     BaseHandler,
     DashboardMetadata,
     Dashboards,
@@ -831,7 +832,9 @@ FROM catalog.database.table
             """
 SELECT
   a
-FROM server.database.table, remote_server.other_database.table
+FROM server.database.table
+JOIN remote_server.other_database.table
+  ON TRUE
 """.strip(),
         ),
         (
@@ -958,7 +961,9 @@ def test_query_tile_creates_database_with_database_overwrite(
 
     datasets = dashboard.datasets
     assert len(datasets) == 1
-    assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+    assert datasets[0].query == sqlglot.parse_one(query_transformed, dialect=_SQL_DIALECT).sql(
+        dialect=_SQL_DIALECT, pretty=True
+    )
 
 
 @pytest.mark.parametrize(
@@ -1006,7 +1011,9 @@ def test_query_tile_creates_database_with_catalog_overwrite(
 
     datasets = dashboard.datasets
     assert len(datasets) == 1
-    assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+    assert datasets[0].query == sqlglot.parse_one(query_transformed, dialect=_SQL_DIALECT).sql(
+        dialect=_SQL_DIALECT, pretty=True
+    )
 
 
 @pytest.mark.parametrize(
@@ -1055,7 +1062,9 @@ def test_query_tile_creates_database_with_database_and_catalog_overwrite(
 
     datasets = dashboard.datasets
     assert len(datasets) == 1
-    assert datasets[0].query == sqlglot.parse_one(query_transformed).sql(pretty=True)
+    assert datasets[0].query == sqlglot.parse_one(query_transformed, dialect=_SQL_DIALECT).sql(
+        dialect=_SQL_DIALECT, pretty=True
+    )
 
 
 @pytest.mark.parametrize("width", [5, 8, 13])
