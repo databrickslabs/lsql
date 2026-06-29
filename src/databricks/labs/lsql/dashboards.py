@@ -309,8 +309,8 @@ class TileMetadata:
     """The height of the tile."""
 
     id: str = ""
-    """The unique id for the tile. 
-    
+    """The unique id for the tile.
+
     If not given, the stem of the path is used. Needs to adhere to :func:_is_valid_resource_name.
     """
 
@@ -553,7 +553,7 @@ class QueryTile(Tile):
 
     query_transformer: Callable[[sqlglot.Expression], sqlglot.Expression] | None = None
     """A sqlglot transformer to apply to the query before rendering the tile.
-    
+
     Useful for templating SQL queries, like a dynamic catalor or database name.
     """
 
