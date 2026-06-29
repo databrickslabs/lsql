@@ -502,7 +502,7 @@ requires-dist = [
     { name = "databricks-labs-blueprint", extras = ["yaml"], specifier = "~=0.12.0" },
     { name = "databricks-sdk", specifier = ">=0.38.0,<1.0.0" },
     { name = "pip", specifier = "~=26.0" },
-    { name = "sqlglot", specifier = ">=22.3.1,<30.12.0" },
+    { name = "sqlglot", specifier = ">=28.0.0,<30.12.0" },
 ]
 
 [package.metadata.requires-dev]
