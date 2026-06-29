@@ -527,7 +527,7 @@ dev = [
     { name = "isort", specifier = "~=8.0.1" },
     { name = "mypy", specifier = "~=2.1.0" },
     { name = "pylint", specifier = "~=4.0.5" },
-    { name = "pytest", specifier = ">=9.0.2,<9.2.0" },
+    { name = "pytest", specifier = "~=9.1.1" },
     { name = "pytest-cov", specifier = "~=7.1.0" },
     { name = "pytest-mock", specifier = "~=3.15.1" },
     { name = "pytest-timeout", specifier = "~=2.4.0" },
@@ -547,7 +547,7 @@ lint = [
 test = [
     { name = "coverage", extras = ["toml"], specifier = "~=7.14.1" },
     { name = "databricks-labs-pytester", specifier = "~=0.7.4" },
-    { name = "pytest", specifier = ">=9.0.2,<9.2.0" },
+    { name = "pytest", specifier = "~=9.1.1" },
     { name = "pytest-cov", specifier = "~=7.1.0" },
     { name = "pytest-mock", specifier = "~=3.15.1" },
     { name = "pytest-timeout", specifier = "~=2.4.0" },
