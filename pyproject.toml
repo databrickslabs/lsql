@@ -6,20 +6,20 @@ readme = "README.md"
 requires-python = ">=3.10,<3.15"
 license-files = { paths = ["LICENSE", "NOTICE"] }
 keywords = []
-authors = [
-  { name = "Serge Smertin", email = "serge.smertin@databricks.com" },
+maintainers = [
+    { name = "Databricks Labs", email = "labs-oss@databricks.com" },
 ]
 classifiers = [
-  "License :: Other/Proprietary License",
-  "Development Status :: 3 - Alpha",
-  "Programming Language :: Python",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.14",
-  "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
+    "License :: Other/Proprietary License",
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
   "databricks-labs-blueprint[yaml]~=0.12.0",
