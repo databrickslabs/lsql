@@ -34,3 +34,11 @@ commands:
         description: Publish the dashboard after creating by setting to `yes` or `y`.
       - name: open-browser
         description: Open the dashboard in the browser after creating by setting to `yes` or `y`.
+
+  - name: save-dashboard
+    description: Save the dashboard to the given path.
+    flags:
+      - name: remote-path
+        description: The path to fetch dashboard from.
+      - name: local-path
+        description: The path to save files to.
