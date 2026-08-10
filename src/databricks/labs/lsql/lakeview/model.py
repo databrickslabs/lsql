@@ -1567,6 +1567,7 @@ class TableV1ColumnEncoding:
     preserve_whitespace: bool | None = None
     use_monospace_font: bool | None = None
     visible: bool | None = None
+    cellFormat: dict | None = None
 
     def as_dict(self) -> Json:
         body: Json = {}
@@ -1624,6 +1625,8 @@ class TableV1ColumnEncoding:
             body["useMonospaceFont"] = self.use_monospace_font
         if self.visible is not None:
             body["visible"] = self.visible
+        if self.cellFormat:
+            body["cellFormat"] = self.cellFormat
         return body
 
     @classmethod
@@ -1656,6 +1659,7 @@ class TableV1ColumnEncoding:
             type=_enum(d, "type", ColumnType),
             use_monospace_font=d.get("useMonospaceFont", None),
             visible=d.get("visible", None),
+            cellFormat=d.get("cellFormat", None),
         )
 
 
